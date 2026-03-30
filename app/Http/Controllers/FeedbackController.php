@@ -58,15 +58,19 @@ class FeedbackController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'title' => 'required|min:5',
-            'category' => 'required',
-            'description' => 'required|min:10',
-            'impact' => 'required|min:10',
-            'frequency' => 'required',
-            'current_process' => 'required',
-            'affected_users' => 'required',
-            'affected_group' => 'required'
-        ]);
+    'title'           => 'required|min:5',
+    'category'        => 'required',
+    'description'     => 'required|min:10',
+    'impact'          => 'required|min:10',
+    'frequency'       => 'required',
+    'current_process' => 'required',
+    'affected_users'  => 'required',
+    'affected_group'  => 'required|array|min:1',   // ← now an array
+ 
+    // Only required when "Other" is selected
+    'category_other'       => 'required_if:category,Other|nullable|string|max:100',
+    'current_process_other'=> 'required_if:current_process,Other|nullable|string|max:100',
+]);
 
         if (!auth()->check()) {
     return redirect()->back()->with('showLogin', true);
@@ -103,17 +107,35 @@ $similarProblems = Feedback::where('status', 'approved')
                 ->with('similarProblems', $similarProblems);
         }
 
-        Feedback::create([
-    'user_id' => $request->has('is_anonymous') ? null : Auth::id(),
-    'title' => $request->title,
-    'description' => $request->description,
-    'impact' => $request->impact,
-    'category' => $request->category,
-    'frequency' => $request->frequency,
-    'current_process' => $request->current_process,
-    'affected_users' => $request->affected_users,
-    'affected_group' => $request->affected_group,
-    'is_anonymous' => $request->has('is_anonymous'),
+        // Resolve final category value
+$finalCategory = $request->category === 'Other'
+    ? $request->category_other
+    : $request->category;
+ 
+// Resolve final current_process value
+$finalProcess = $request->current_process === 'Other'
+    ? $request->current_process_other
+    : $request->current_process;
+ 
+// Filter out empty "Other:" entries from the group array
+$affectedGroups = collect($request->affected_group)
+    ->filter(fn($g) => $g !== '' && $g !== 'Other: ')
+    ->values()
+    ->toArray();
+ 
+Feedback::create([
+    'user_id'               => $request->has('is_anonymous') ? null : Auth::id(),
+    'title'                 => $request->title,
+    'description'           => $request->description,
+    'impact'                => $request->impact,
+    'category'              => $finalCategory,           // ← resolved
+    'category_other'        => $request->category_other, // ← stored for admin
+    'frequency'             => $request->frequency,
+    'current_process'       => $finalProcess,            // ← resolved
+    'current_process_other' => $request->current_process_other,
+    'affected_users'        => $request->affected_users,
+    'affected_group'        => json_encode($affectedGroups), // ← JSON array
+    'is_anonymous'          => $request->has('is_anonymous'),
 ]);
 
         // SUCCESS MESSAGE FOR TOAST
@@ -199,13 +221,21 @@ $similarProblems = Feedback::where('status', 'approved')
                 'Everyday'  => 4,
                 default     => 1,
             })->avg();
-            $impactScore = $groupFeedbacks->map(fn($f) => match ($f->affected_users) {
-                'Less than 50'  => 1,
-                '50-200'        => 2,
-                '200-500'       => 3,
-                'More than 500' => 4,
-                default         => 1,
-            })->avg();
+            $impactScore = $groupFeedbacks->map(function ($f) {
+    $base = match ($f->affected_users) {
+        'Less than 50'  => 1,
+        '50-200'        => 2,
+        '200-500'       => 3,
+        'More than 500' => 4,
+        default         => 1,
+    };
+ 
+    // Bonus: +0.5 for each extra affected group beyond the first (max +1)
+    $groupCount = is_array($f->affected_group) ? count($f->affected_group) : 1;
+    $bonus = min(1, ($groupCount - 1) * 0.5);
+ 
+    return $base + $bonus;
+})->avg();
  
             $severity   = app(SeverityService::class)->compute($reports, $votes, $frequencyScore, $impactScore);
             $confidence = app(ConfidenceService::class)->compute($reports, $votes, $frequencyScore, $impactScore);

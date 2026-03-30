@@ -6,24 +6,32 @@ use Illuminate\Database\Eloquent\Model;
 
 class Feedback extends Model
 {
-    protected $fillable = [
-'user_id',        
-'title',
-'description',
-'impact',
-'category',
-'frequency',
-'current_process',
-'affected_users',
-'status',
-'affected_group',
-'is_anonymous'
-];
+    protected $table = 'feedback';
 
- public function votes()
+    protected $fillable = [
+        'user_id',
+        'title',
+        'description',
+        'impact',
+        'category',
+        'category_other',
+        'frequency',
+        'current_process',
+        'current_process_other',
+        'affected_users',
+        'affected_group',
+        'affected_group_other',
+        'is_anonymous',
+        'status',
+    ];
+
+    protected $casts = [
+        'affected_group' => 'array',   // auto JSON encode/decode
+        'is_anonymous'   => 'boolean',
+    ];
+
+    public function votes()
     {
         return $this->hasMany(FeedbackVote::class);
     }
 }
-
-
