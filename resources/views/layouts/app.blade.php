@@ -465,8 +465,6 @@ class="bg-gray-100 dark:bg-slate-900 text-gray-700 dark:text-gray-200 font-[Mont
           </a>
         </div>
 
-        <div>{!! NoCaptcha::display() !!}</div>
-
         <button class="w-full py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-semibold text-sm transition shadow-[0_4px_14px_rgba(251,176,52,0.35)]">
           Sign In
         </button>
@@ -491,7 +489,7 @@ class="bg-gray-100 dark:bg-slate-900 text-gray-700 dark:text-gray-200 font-[Mont
     </div>
   </div>
 
-  {!! NoCaptcha::renderJs() !!}
+  
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

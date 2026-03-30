@@ -6,7 +6,6 @@ use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -27,45 +26,13 @@ class LoginRequest extends FormRequest
     {
         return [
             'email' => ['required','string','email'],
-            'password' => ['required','string'],
-            'g-recaptcha-response' => ['required']
+            'password' => ['required','string']
         ];
     }
 
-    /**
-     * Custom validation messages
-     */
-    public function messages()
-    {
-        return [
-            'g-recaptcha-response.required' => 'Please verify that you are not a robot.'
-        ];
-    }
 
-    /**
-     * Verify CAPTCHA manually
-     */
-    public function withValidator($validator)
-    {
-        $validator->after(function ($validator) {
 
-            $response = Http::withOptions([
-                'verify' => false
-            ])->asForm()->post('https://www.google.com/recaptcha/api/siteverify', [
-                'secret' => env('NOCAPTCHA_SECRET'),
-                'response' => request('g-recaptcha-response'),
-            ]);
 
-            $result = $response->json();
-
-            if (!isset($result['success']) || !$result['success']) {
-                $validator->errors()->add(
-                    'captcha',
-                    'Captcha verification failed. Please try again.'
-                );
-            }
-        });
-    }
 
     /**
      * Attempt to authenticate the request's credentials.

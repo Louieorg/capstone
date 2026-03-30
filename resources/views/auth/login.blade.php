@@ -50,12 +50,6 @@ class="w-full border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-
 
 </div>
 
-<!-- CAPTCHA -->
-
-<div>
-{!! NoCaptcha::display() !!}
-</div>
-
 <!-- Login Button -->
 
 <button
@@ -110,7 +104,5 @@ Register
 </p>
 
 </div>
-
-{!! NoCaptcha::renderJs() !!}
 
 @endsection
