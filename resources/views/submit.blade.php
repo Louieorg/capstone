@@ -5,110 +5,6 @@
 
 @section('content')
 
-<style>
-  :root {
-    --amber: #fbb034;
-    --amber-dim: rgba(251,176,52,0.10);
-    --amber-border: rgba(251,176,52,0.25);
-  }
-
-  /* ── Fade-up ── */
-  @keyframes fadeInUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
-  .fade-up { animation: fadeInUp .5s ease both; }
-
-  /* ── Shared input style ── */
-  .field {
-    width: 100%;
-    border: 1px solid #d1d5db;
-    border-radius: 12px;
-    padding: 10px 14px;
-    font-size: .8125rem;
-    outline: none;
-    background: transparent;
-    transition: border-color .2s, box-shadow .2s;
-    color: inherit;
-  }
-  .field:hover  { border-color: rgba(251,176,52,.5); }
-  .field:focus  { border-color: var(--amber); box-shadow: 0 0 0 3px var(--amber-dim); }
-  .dark .field  { border-color: #374151; }
-
-  /* ── Floating label input wrapper ── */
-  .float-wrap { position: relative; }
-  .float-wrap input { padding-top: 20px; padding-bottom: 8px; }
-  .float-label {
-    position: absolute; left: 14px; top: 11px;
-    font-size: .8125rem; color: #9ca3af;
-    pointer-events: none;
-    transition: top .15s, font-size .15s, color .15s;
-  }
-  .float-wrap input:not(:placeholder-shown) ~ .float-label,
-  .float-wrap input:focus ~ .float-label {
-    top: 5px; font-size: .68rem; color: var(--amber);
-  }
-
-  /* ── Step indicator dots ── */
-  .step-dot {
-    width: 28px; height: 28px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: .7rem; font-weight: 700;
-    border: 2px solid #e5e7eb;
-    color: #9ca3af; background: white;
-    transition: all .3s;
-    z-index: 1;
-  }
-  .dark .step-dot { background: #1e293b; border-color: #374151; }
-  .step-dot.done  { background: var(--amber); border-color: var(--amber); color: #0e0f14; }
-  .step-dot.active { border-color: var(--amber); color: var(--amber); box-shadow: 0 0 0 3px var(--amber-dim); }
-
-  /* ── Progress bar track ── */
-  .progress-track { position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: #e5e7eb; transform: translateY(-50%); z-index: 0; }
-  .dark .progress-track { background: #374151; }
-  .progress-fill { height: 100%; background: var(--amber); transition: width .4s ease; }
-
-  /* ── Nav buttons ── */
-  .btn-back {
-    padding: 9px 20px; border-radius: 10px; font-size: .8125rem; font-weight: 500;
-    background: transparent; border: 1px solid #d1d5db; color: #6b7280; cursor: pointer;
-    transition: all .18s;
-  }
-  .btn-back:hover { border-color: var(--amber-border); color: #374151; }
-  .dark .btn-back { border-color: #374151; color: #9ca3af; }
-  .btn-next {
-    padding: 9px 24px; border-radius: 10px; font-size: .8125rem; font-weight: 600;
-    background: var(--amber); color: #0e0f14; cursor: pointer; border: none;
-    box-shadow: 0 4px 14px rgba(251,176,52,.3);
-    transition: all .18s;
-  }
-  .btn-next:hover { background: #fcc050; box-shadow: 0 6px 20px rgba(251,176,52,.4); transform: translateY(-1px); }
-  .btn-submit {
-    padding: 9px 24px; border-radius: 10px; font-size: .8125rem; font-weight: 600;
-    background: #16a34a; color: white; cursor: pointer; border: none;
-    box-shadow: 0 4px 14px rgba(22,163,74,.25);
-    transition: all .18s;
-  }
-  .btn-submit:hover { background: #15803d; transform: translateY(-1px); }
-
-  /* ── Similar results card ── */
-  .similar-card {
-    border-radius: 12px; border: 1px solid var(--amber-border);
-    background: rgba(251,176,52,.05); padding: 14px;
-    animation: fadeInUp .3s ease both;
-  }
-  .similar-item {
-    border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; margin-top: 8px;
-    transition: border-color .2s, box-shadow .2s;
-  }
-  .dark .similar-item { border-color: #374151; }
-  .similar-item:hover { border-color: var(--amber-border); box-shadow: 0 4px 12px rgba(0,0,0,.08); }
-
-  /* ── Section header divider ── */
-  .section-head { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
-  .section-head-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--amber); animation: pulse-dot 2s ease-in-out infinite; flex-shrink: 0; }
-  @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.75)} }
-  .section-head-title { font-size: .9375rem; font-weight: 600; color: inherit; font-family: 'Sora', sans-serif; }
-  .section-head-line { flex: 1; height: 1px; background: linear-gradient(to right, rgba(251,176,52,.3), transparent); }
-</style>
-
 <div class="max-w-2xl mx-auto px-4 sm:px-6 fade-up space-y-5">
 
   {{-- ── Similar Problems Warning ── --}}
@@ -367,8 +263,8 @@ if (titleInput) {
           if (!data.length) { resultsBox.innerHTML = ''; return; }
 
           let html = `<div class="similar-card">
-            <p class="text-xs font-semibold flex items-center gap-1.5 mb-2" style="color:var(--amber);">
-              <span style="width:6px;height:6px;border-radius:50%;background:var(--amber);display:inline-block;"></span>
+            <p class="text-xs font-semibold flex items-center gap-1.5 mb-2 text-amber-var">
+              <span class="amber-dot"></span>
               Similar problems found
             </p>`;
 
@@ -377,7 +273,7 @@ if (titleInput) {
               <p class="text-sm font-medium text-gray-800 dark:text-white">${p.title}</p>
               <div class="flex justify-between text-xs text-gray-400 mt-1">
                 <span>${p.category}</span>
-                <span style="color:var(--amber);">▲ ${p.votes_count} votes</span>
+                <span class="text-amber-var">▲ ${p.votes_count} votes</span>
               </div>
             </div>`;
           });
