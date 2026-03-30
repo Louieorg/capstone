@@ -12,7 +12,13 @@ use App\Http\Controllers\AdviserController;
 |--------------------------------------------------------------------------
 */
 
-Route::get('/', [FeedbackController::class, 'home'])->name('home');
+// Landing page (FIRST PAGE)
+Route::get('/', function () {
+    return view('welcome');
+})->name('landing');
+
+// Home/dashboard page
+Route::get('/home', [FeedbackController::class, 'home'])->name('home');
 
 Route::get('/submit', [FeedbackController::class, 'create'])
     ->name('feedback.create');
