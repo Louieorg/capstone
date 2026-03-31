@@ -114,7 +114,7 @@ $finalCategory = $request->category === 'Other'
  
 // Resolve final current_process value
 $finalProcess = $request->current_process === 'Other'
-    ? $request->current_process_other
+    ? ($request->current_process_other ?? 'Other')
     : $request->current_process;
  
 // Filter out empty "Other:" entries from the group array
@@ -237,7 +237,17 @@ Feedback::create([
     return $base + $bonus;
 })->avg();
  
-            $severity   = app(SeverityService::class)->compute($reports, $votes, $frequencyScore, $impactScore);
+            // Get the dominant current_process across feedbacks in this group
+            $dominantProcess = $groupFeedbacks
+                ->pluck('current_process')
+                ->filter()
+                ->groupBy(fn($p) => $p)
+                ->map->count()
+                ->sortDesc()
+                ->keys()
+                ->first();
+ 
+            $severity   = app(SeverityService::class)->compute($reports, $votes, $frequencyScore, $impactScore, $dominantProcess);
             $confidence = app(ConfidenceService::class)->compute($reports, $votes, $frequencyScore, $impactScore);
             $evaluation = $this->evaluateIdea($reports, $votes, $frequencyScore, $impactScore);
             $ideaData   = app(IdeaGeneratorService::class)->generate(
@@ -270,6 +280,7 @@ Feedback::create([
                 $votes >= 20        ? 'strong user concern' : null,
                 $frequencyScore >= 3 ? 'occurs often' : null,
                 $impactScore >= 3   ? 'affects many users' : null,
+                ($severity['process_bonus'] ?? 0) > 0 ? 'no adequate existing solution' : null,
             ]);
             $confReasons = array_filter([
                 $reports >= 5       ? 'based on multiple reports' : null,

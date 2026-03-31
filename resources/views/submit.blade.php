@@ -349,24 +349,72 @@
 
           {{-- Current Handling + Other --}}
           <div>
-            <label class="field-label">Current Handling</label>
-            <select name="current_process" class="field" :required="step === 3"
-                    @change="otherProcess = $event.target.value === 'Other'">
-              <option value="">Select process…</option>
-              <option value="Manual reporting"   {{ old('current_process') === 'Manual reporting'   ? 'selected' : '' }}>Manual reporting</option>
-              <option value="Verbal complaints"  {{ old('current_process') === 'Verbal complaints'  ? 'selected' : '' }}>Verbal complaints</option>
-              <option value="Email reporting"    {{ old('current_process') === 'Email reporting'    ? 'selected' : '' }}>Email reporting</option>
-              <option value="No system in place" {{ old('current_process') === 'No system in place' ? 'selected' : '' }}>No system in place</option>
-              <option value="Other"              {{ old('current_process') === 'Other'              ? 'selected' : '' }}>Other (please specify)</option>
-            </select>
-
-            <div x-show="otherProcess" x-transition.opacity class="mt-2">
-              <input type="text" name="current_process_other"
-                     value="{{ old('current_process_other') }}"
-                     placeholder="Describe how it's currently handled…"
-                     class="field"/>
-            </div>
-          </div>
+  <label class="field-label">
+    Is there an existing solution for this problem?
+  </label>
+  <p class="text-xs text-gray-400 dark:text-gray-500 mb-3 -mt-1">
+    Tell us how this is currently being dealt with — or if it isn't at all.
+  </p>
+ 
+  {{-- Option cards — radio style so only one can be selected ── --}}
+  <div class="space-y-2">
+ 
+    @php
+    $processOptions = [
+        'No solution exists at all'           => ['icon' => 'x-circle',       'sub' => 'There is no way to report or resolve this problem.'],
+        'Manual or paper-based process'       => ['icon' => 'file-text',      'sub' => 'It involves physical forms, logbooks, or in-person steps.'],
+        'Broken or unreliable online system'  => ['icon' => 'wifi-off',       'sub' => 'An online system exists but it doesn\'t work properly.'],
+        'Report verbally to staff'            => ['icon' => 'message-circle', 'sub' => 'People tell staff or faculty directly, with no formal tracking.'],
+        'Just wait and hope it gets fixed'    => ['icon' => 'clock',          'sub' => 'There\'s nothing to do but wait — no clear process.'],
+        'Send an email or message'            => ['icon' => 'mail',           'sub' => 'Issues are reported via email, chat, or messaging apps.'],
+    ];
+    @endphp
+ 
+    @foreach($processOptions as $value => $meta)
+    <label class="check-card group" style="align-items:flex-start; gap:12px;">
+      <input type="radio" name="current_process" value="{{ $value }}"
+             {{ old('current_process') === $value ? 'checked' : '' }}
+             class="mt-0.5 shrink-0" style="accent-color:var(--amber); width:15px; height:15px;"/>
+      <div class="flex items-start gap-3 flex-1 min-w-0">
+        <i data-lucide="{{ $meta['icon'] }}"
+           class="w-4 h-4 shrink-0 mt-0.5 text-gray-400 group-hover:text-amber-400 transition"
+           style="color:var(--amber); opacity:.7;"></i>
+        <div>
+          <p class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $value }}</p>
+          <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{{ $meta['sub'] }}</p>
+        </div>
+      </div>
+    </label>
+    @endforeach
+ 
+    {{-- Other ── --}}
+    <label class="check-card group" style="align-items:flex-start; gap:12px;"
+           :class="otherProcess ? 'is-checked' : ''"
+           @change="otherProcess = $el.querySelector('input[type=radio]').checked">
+      <input type="radio" name="current_process" value="Other"
+             {{ old('current_process') === 'Other' ? 'checked' : '' }}
+             x-model="currentProcessVal"
+             class="mt-0.5 shrink-0" style="accent-color:var(--amber); width:15px; height:15px;"
+             @change="otherProcess = true"/>
+      <div class="flex items-start gap-3 flex-1 min-w-0">
+        <i data-lucide="edit-3" class="w-4 h-4 shrink-0 mt-0.5" style="color:var(--amber); opacity:.7;"></i>
+        <div class="flex-1">
+          <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Other</p>
+          <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Describe how it's currently being handled.</p>
+        </div>
+      </div>
+    </label>
+ 
+  </div>
+ 
+  {{-- Other text input ── --}}
+  <div x-show="otherProcess" x-transition.opacity class="mt-3">
+    <input type="text" name="current_process_other"
+           value="{{ old('current_process_other') }}"
+           placeholder="e.g. The department head handles it case by case…"
+           class="field"/>
+  </div>
+</div>
         </div>
       </div>
 
