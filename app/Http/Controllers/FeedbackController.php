@@ -392,11 +392,22 @@ Feedback::create([
             ->groupBy('affected_users')
             ->get();
 
+        // ── Affected groups — extract from JSON and count ──
         $affectedGroupData = Feedback::where('status', 'approved')
             ->select('affected_group')
-            ->selectRaw('COUNT(*) as total')
-            ->groupBy('affected_group')
-            ->get();    
+            ->get()
+            ->flatMap(function ($feedback) {
+                // affected_group is cast to array, so this safely extracts all groups
+                return $feedback->affected_group ?? [];
+            })
+            ->countBy()
+            ->map(function ($count, $group) {
+                return (object)[
+                    'affected_group' => $group,
+                    'total' => $count
+                ];
+            })
+            ->values();    
 
         return view('admin.dashboard', compact(
             'totalFeedback',
