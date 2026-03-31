@@ -248,8 +248,9 @@ Feedback::create([
                 ->first();
  
             $severity   = app(SeverityService::class)->compute($reports, $votes, $frequencyScore, $impactScore, $dominantProcess);
-            $confidence = app(ConfidenceService::class)->compute($reports, $votes, $frequencyScore, $impactScore);
-            $evaluation = $this->evaluateIdea($reports, $votes, $frequencyScore, $impactScore);
+            // ── Confidence now uses actual feedback data ──
+            $confidence = app(ConfidenceService::class)->compute($reports, $votes, $frequencyScore, $impactScore, $groupFeedbacks);
+            $evaluation = $this->evaluateIdea($reports, $votes, $frequencyScore, $impactScore, $dominantProcess);
             $ideaData   = app(IdeaGeneratorService::class)->generate(
                 $groupName, $category, $groupFeedbacks,
                 $reports, $votes, $frequencyScore, $impactScore
@@ -261,17 +262,39 @@ Feedback::create([
                 $evaluation
             );
  
-            $reportScore = min(10, $reports * 2);
-            $voteScore   = min(10, $votes * 0.2);
-            $ideaScore   = round(
-                ($reportScore * 0.3) + ($voteScore * 0.3) +
-                ($frequencyScore * 0.2) + ($impactScore * 0.2)
+            // ── Unified idea score ────────────────────────────────
+            // Severity    → How bad is this problem?        (40%)
+            // Confidence  → How trustworthy is the data?    (30%)
+            // Impact      → How wide is the effect?         (20%)
+            // Process gap → Is there no solution yet?       (10%)
+            $processGap = match(true) {
+                str_contains(strtolower($dominantProcess ?? ''), 'no solution') => 5.0,
+                str_contains(strtolower($dominantProcess ?? ''), 'manual')      => 3.5,
+                str_contains(strtolower($dominantProcess ?? ''), 'wait')        => 3.0,
+                str_contains(strtolower($dominantProcess ?? ''), 'verbally')    => 2.5,
+                str_contains(strtolower($dominantProcess ?? ''), 'broken')      => 3.0,
+                str_contains(strtolower($dominantProcess ?? ''), 'email')       => 2.0,
+                default                                                          => 1.5,
+            };
+ 
+            $ideaScore = round(
+                ($severity['score']      * 0.40) +
+                ($confidence['score']    * 0.30) +
+                ($evaluation['impact']   * 0.20) +
+                ($processGap             * 0.10),
+                2
             );
  
             $priority = match(true) {
-                $ideaScore >= 7 => 'High',
-                $ideaScore >= 4 => 'Medium',
-                default         => 'Low',
+                $ideaScore >= 3.5 => 'High',
+                $ideaScore >= 2.5 => 'Medium',
+                default           => 'Low',
+            };
+ 
+            $seriousness = match($priority) {
+                'High'   => 'Critical Issue',
+                'Medium' => 'Moderate Issue',
+                default  => 'Minor Issue',
             };
  
             // Build severity/confidence explanation strings
@@ -282,20 +305,13 @@ Feedback::create([
                 $impactScore >= 3   ? 'affects many users' : null,
                 ($severity['process_bonus'] ?? 0) > 0 ? 'no adequate existing solution' : null,
             ]);
-            $confReasons = array_filter([
-                $reports >= 5       ? 'based on multiple reports' : null,
-                $votes >= 20        ? 'validated by users' : null,
-                $frequencyScore >= 3 ? 'consistent occurrence' : null,
-                $impactScore >= 3   ? 'clear impact on users' : null,
-            ]);
- 
             $ideas[] = [
                 'group'                  => $groupName,
                 'title'                  => $ideaData['title'],
                 'description'            => $ideaData['description'],
                 'score'                  => $ideaScore,
                 'priority'               => $priority,
-                'seriousness'            => $ideaScore >= 7 ? 'Critical Issue' : ($ideaScore >= 4 ? 'Moderate Issue' : 'Minor Issue'),
+                'seriousness'            => $seriousness,
                 'general_objective'      => $ideaData['general_objective'],
                 'specific_objectives'    => $ideaData['specific_objectives'],
                 'explanation'            => $ideaData['explanation'],
@@ -307,9 +323,7 @@ Feedback::create([
                                                : 'This problem has low reported impact.',
                 'confidence_score'       => $confidence['score'],
                 'confidence_level'       => $confidence['level'],
-                'confidence_explanation' => count($confReasons)
-                                               ? 'This recommendation is reliable because it is ' . implode(', ', $confReasons) . '.'
-                                               : 'This recommendation has limited supporting data.',
+                'confidence_explanation' => $confidence['explanation'],
                 'impact_simulation'      => $ideaData['impact_simulation'],
                 'comparison'             => [
                     'score'       => $ideaScore,
@@ -560,47 +574,67 @@ public function storeReview(Request $request)
     return back()->with('success', 'Review submitted with evaluation.');
 }
 
-private function evaluateIdea($reports, $votes, $frequencyScore, $impactScore)
+private function evaluateIdea($reports, $votes, $frequencyScore, $impactScore, $currentProcess = null)
 {
-    // Convert to 1–5 scale
-
+    // IMPACT: how many people are affected (scale 1–5)
     $impact = min(5, round($impactScore + ($votes / 20)));
 
-    $feasibility = 5 - min(4, round($frequencyScore)); 
-    // frequent problems = harder to solve
+    // FEASIBILITY: how realistic is it to build a solution?
+    // High frequency = well-understood problem = MORE feasible to solve
+    $feasibility = match(true) {
+        $frequencyScore >= 3.5 => 4,
+        $frequencyScore >= 2.5 => 3,
+        $frequencyScore >= 1.5 => 3,
+        default                => 2,
+    };
 
-    $complexity = min(5, round($reports / 2));
-
-    $innovation = 3;
-    if ($reports < 3) $innovation = 5;
-    elseif ($reports < 5) $innovation = 4;
-
-    // FINAL SCORE
-    $overall =
-        ($impact * 0.35) +
-        ($feasibility * 0.25) +
-        ($complexity * 0.20) +
-        ($innovation * 0.20);
-
-    // RECOMMENDATION
-    if ($overall >= 4.0) {
-        $recommendation = 'Highly Recommended';
-    } elseif ($overall >= 3.0) {
-        $recommendation = 'Recommended';
-    } else {
-        $recommendation = 'Needs Improvement';
+    // Boost feasibility if there's no existing system — greenfield is easier
+    if (str_contains(strtolower($currentProcess ?? ''), 'no solution')) {
+        $feasibility = min(5, $feasibility + 1);
     }
 
+    // COMPLEXITY: how technically involved is the solution?
+    // More reports = more edge cases = higher complexity
+    $complexity = match(true) {
+        $reports >= 8 => 4,
+        $reports >= 5 => 3,
+        $reports >= 3 => 2,
+        default       => 2,
+    };
+
+    // INNOVATION: how underserved is this problem?
+    // No existing solution + high impact = HIGH innovation opportunity
+    $noSolution = str_contains(strtolower($currentProcess ?? ''), 'no solution')
+               || str_contains(strtolower($currentProcess ?? ''), 'manual');
+
+    $innovation = match(true) {
+        $noSolution && $impactScore >= 3 => 5,
+        $noSolution                      => 4,
+        $impactScore >= 3                => 3,
+        default                          => 2,
+    };
+
+    // OVERALL SCORE
+    $overall = round(
+        ($impact      * 0.35) +
+        ($feasibility * 0.25) +
+        ($complexity  * 0.20) +
+        ($innovation  * 0.20),
+        2
+    );
+
+    $recommendation = match(true) {
+        $overall >= 4.0 => 'Highly Recommended',
+        $overall >= 3.0 => 'Recommended',
+        default         => 'Needs Improvement',
+    };
+
     return [
-        'feasibility' => $feasibility,
-        'impact' => $impact,
-        'complexity' => $complexity,
-        'innovation' => $innovation,
-        'overall_score' => round($overall, 2),
-        'recommendation' => $recommendation
+        'feasibility'    => $feasibility,
+        'impact'         => $impact,
+        'complexity'     => $complexity,
+        'innovation'     => $innovation,
+        'overall_score'  => $overall,
+        'recommendation' => $recommendation,
     ];
-}
-
-
-
 }
