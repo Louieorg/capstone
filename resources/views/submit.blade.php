@@ -428,23 +428,63 @@
           <span class="section-head-line"></span>
         </div>
 
-        <div class="rounded-xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/40 p-5 space-y-3 mb-5">
-          <p class="text-xs uppercase tracking-wider font-semibold text-gray-400 mb-1">Summary</p>
-          <div class="flex gap-3 text-sm">
-            <span class="font-semibold text-gray-700 dark:text-gray-300 w-24 shrink-0">Title</span>
-            <span id="review-title" class="text-gray-500 dark:text-gray-400">—</span>
+        <div class="rounded-xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/40 p-5 space-y-4 mb-5">
+          <p class="text-xs uppercase tracking-wider font-semibold text-gray-400 mb-3">📋 Your Submission Summary</p>
+          
+          {{-- Problem Title --}}
+          <div class="border-t border-gray-200 dark:border-slate-700 pt-3">
+            <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Problem Title</p>
+            <p id="review-title" class="text-sm font-medium text-gray-800 dark:text-gray-200">—</p>
           </div>
-          <div class="flex gap-3 text-sm">
-            <span class="font-semibold text-gray-700 dark:text-gray-300 w-24 shrink-0">Group(s)</span>
-            <span id="review-group" class="text-gray-500 dark:text-gray-400">—</span>
+          
+          {{-- Affected Groups --}}
+          <div>
+            <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Who Is Affected</p>
+            <p id="review-group" class="text-sm font-medium text-gray-800 dark:text-gray-200">—</p>
           </div>
-          <div class="flex gap-3 text-sm">
-            <span class="font-semibold text-gray-700 dark:text-gray-300 w-24 shrink-0">Area</span>
-            <span id="review-category" class="text-gray-500 dark:text-gray-400">—</span>
+          
+          {{-- Category/Area --}}
+          <div>
+            <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Affected Area</p>
+            <p id="review-category" class="text-sm font-medium text-gray-800 dark:text-gray-200">—</p>
           </div>
-          <div class="flex gap-3 text-sm">
-            <span class="font-semibold text-gray-700 dark:text-gray-300 w-24 shrink-0">Frequency</span>
-            <span id="review-freq" class="text-gray-500 dark:text-gray-400">—</span>
+          
+          {{-- Description --}}
+          <div>
+            <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Problem Description</p>
+            <p id="review-description" class="text-sm text-gray-700 dark:text-gray-300 line-clamp-3">—</p>
+          </div>
+          
+          {{-- Impact --}}
+          <div>
+            <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">How It Affects People</p>
+            <p id="review-impact" class="text-sm text-gray-700 dark:text-gray-300 line-clamp-3">—</p>
+          </div>
+          
+          {{-- Frequency & People Affected (side by side) --}}
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">How Often</p>
+              <p id="review-freq" class="text-sm font-medium text-gray-800 dark:text-gray-200">—</p>
+            </div>
+            <div>
+              <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">People Affected</p>
+              <p id="review-affected-users" class="text-sm font-medium text-gray-800 dark:text-gray-200">—</p>
+            </div>
+          </div>
+          
+          {{-- Current Process --}}
+          <div>
+            <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Current Solution/Process</p>
+            <p id="review-process" class="text-sm text-gray-700 dark:text-gray-300 line-clamp-2">—</p>
+          </div>
+          
+          {{-- Anonymous checkbox --}}
+          <div class="border-t border-gray-200 dark:border-slate-700 pt-3 flex items-center gap-2">
+            <svg id="review-anon-icon" class="w-4 h-4 text-gray-400" style="display:none;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M13.828 10.172a4 4 0 00-5.656 0l-4.242 4.242a4 4 0 105.656 5.656l4.242-4.242a4 4 0 00-5.656-5.656l4.242 4.242"/>
+            </svg>
+            <span id="review-anon-label" class="text-xs text-gray-500 dark:text-gray-400">—</span>
           </div>
         </div>
 
@@ -559,19 +599,70 @@ function updateReview() {
   if (catVal === 'Other' && catOther?.value.trim()) catVal = catOther.value.trim();
   document.getElementById('review-category').textContent = catVal || '—';
 
+  // Description
+  const desc = document.querySelector('[name=description]');
+  document.getElementById('review-description').textContent = desc?.value?.trim() || '—';
+
+  // Impact
+  const impact = document.querySelector('[name=impact]');
+  document.getElementById('review-impact').textContent = impact?.value?.trim() || '—';
+
   // Frequency
   const freq = document.querySelector('[name=frequency]');
   document.getElementById('review-freq').textContent = freq?.value || '—';
+
+  // People Affected
+  const affected = document.querySelector('[name=affected_users]');
+  document.getElementById('review-affected-users').textContent = affected?.value || '—';
+
+  // Current Process
+  const process = document.querySelector('[name=current_process]');
+  const processOther = document.querySelector('[name=current_process_other]');
+  let processVal = process?.value || '';
+  if (processVal === 'Other' && processOther?.value.trim()) {
+    processVal = processOther.value.trim();
+  }
+  document.getElementById('review-process').textContent = processVal || '—';
+
+  // Anonymous status
+  const isAnon = document.querySelector('[name=is_anonymous]');
+  const anonIcon = document.getElementById('review-anon-icon');
+  const anonLabel = document.getElementById('review-anon-label');
+  if (isAnon?.checked) {
+    anonIcon.style.display = 'block';
+    anonLabel.textContent = '🔒 Will be submitted anonymously';
+  } else {
+    anonIcon.style.display = 'none';
+    anonLabel.textContent = 'Will be submitted with your name';
+  }
 }
 
-// ── Sync check-card highlight on load (handles old() repopulation) ──
+// ── Sync check-card highlight + update review on change ──
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.check-card input[type=checkbox]').forEach(input => {
     if (input.checked) input.closest('.check-card').classList.add('is-checked');
     input.addEventListener('change', () => {
       input.closest('.check-card').classList.toggle('is-checked', input.checked);
+      updateReview();
     });
   });
+  
+  // Update review when any form field changes
+  document.querySelectorAll('input[type=text], textarea, select').forEach(field => {
+    field.addEventListener('change', updateReview);
+    field.addEventListener('input', updateReview);
+  });
+  
+  // Update review for radio buttons
+  document.querySelectorAll('input[type=radio]').forEach(radio => {
+    radio.addEventListener('change', updateReview);
+  });
+  
+  // Update review for anonymous checkbox
+  const anonCheckbox = document.querySelector('[name=is_anonymous]');
+  if (anonCheckbox) {
+    anonCheckbox.addEventListener('change', updateReview);
+  }
 });
 </script>
 

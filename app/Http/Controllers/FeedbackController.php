@@ -638,3 +638,4 @@ private function evaluateIdea($reports, $votes, $frequencyScore, $impactScore, $
         'recommendation' => $recommendation,
     ];
 }
+}
