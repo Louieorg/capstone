@@ -6,187 +6,339 @@ class IdeaGeneratorService
 {
     public function generate($groupName, $category, $groupFeedbacks, $reports, $votes, $frequencyScore, $impactScore)
     {
-        $text = strtolower(
-            $groupName . ' ' .
-            $groupFeedbacks->pluck('title')->implode(' ') . ' ' .
-            $groupFeedbacks->pluck('description')->implode(' ')
-        );
+        // Build a rich text corpus from all feedback in this group
+        $allTitles       = $groupFeedbacks->pluck('title')->implode(' ');
+        $allDescriptions = $groupFeedbacks->pluck('description')->implode(' ');
+        $allImpacts      = $groupFeedbacks->pluck('impact')->filter()->implode(' ');
 
-        // TITLE
-        $title = $this->generateTitle($groupName, $frequencyScore, $text);
+        $text = strtolower($groupName . ' ' . $allTitles . ' ' . $allDescriptions . ' ' . $allImpacts);
 
-        // DESCRIPTION
-        $description = "This system focuses on {$groupName} related issues. "
-            . "It is based on {$reports} reports and {$votes} votes.";
+        // Dominant affected group
+        $topGroup = $this->resolveTopGroup($groupFeedbacks);
 
-        // OBJECTIVES
-        $objectives = $this->generateObjectives($text, $category, $groupFeedbacks, $groupName);
+        // Dominant current process (what's failing right now)
+        $currentProcess = $this->resolveCurrentProcess($groupFeedbacks);
 
-        // TOP GROUP
-        $topGroup = $groupFeedbacks
-            ->groupBy('affected_group')
-            ->map->count()
-            ->sortDesc()
-            ->keys()
-            ->first();
+        // Detect problem signals from text
+        $signals = $this->detectSignals($text);
 
-        // EXPLANATION
-        $explanation = $this->generateExplanation(
-            $groupName,
-            $topGroup,
-            $reports,
-            $votes,
-            $frequencyScore,
-            $impactScore
-        );
-
-        $impactSimulation = $this->simulateImpact($reports, $frequencyScore, $impactScore);
+        // Build all parts
+        $title       = $this->generateTitle($groupName, $category, $signals, $frequencyScore, $impactScore, $groupFeedbacks);
+        $description = $this->generateDescription($groupName, $category, $signals, $reports, $votes, $topGroup, $currentProcess, $frequencyScore, $impactScore);
+        $objectives  = $this->generateObjectives($signals, $category, $groupName, $topGroup, $groupFeedbacks);
+        $explanation = $this->generateExplanation($groupName, $topGroup, $reports, $votes, $frequencyScore, $impactScore);
+        $impact      = $this->simulateImpact($reports, $frequencyScore, $impactScore, $signals);
 
         return [
-            'title' => $title,
-            'description' => $description,
-            'general_objective' => $objectives['general'],
+            'title'               => $title,
+            'description'         => $description,
+            'general_objective'   => $objectives['general'],
             'specific_objectives' => $objectives['specific'],
-            'explanation' => $explanation,
-            'top_group' => $topGroup,
-            'impact_simulation' => $impactSimulation,
+            'explanation'         => $explanation,
+            'top_group'           => $topGroup,
+            'impact_simulation'   => $impact,
         ];
     }
 
-    private function simulateImpact($reports, $frequencyScore, $impactScore)
-{
-    $base = ($frequencyScore * 10) + ($impactScore * 10);
-
-    $reportFactor = min(20, $reports * 2);
-
-    $improvement = min(90, round($base + $reportFactor));
-
-    return [
-        'percentage' => $improvement,
-        'message' => "This system may reduce the problem impact by approximately {$improvement}%."
-    ];
-}
-
-    private function generateTitle($groupName, $frequencyScore, $text)
+    // ══════════════════════════════════════════════
+    // SIGNAL DETECTION
+    // Reads the corpus and flags what kind of problem this is
+    // ══════════════════════════════════════════════
+    private function detectSignals(string $text): array
     {
-        $type = 'Management System';
-
-        if (str_contains($text, 'slow') || str_contains($text, 'delay')) {
-            $type = 'Optimization System';
-        } elseif (str_contains($text, 'error')) {
-            $type = 'Detection and Resolution System';
-        } elseif (str_contains($text, 'manual')) {
-            $type = 'Automation System';
-        }
-
-        $feature = $frequencyScore >= 3
-            ? 'with Real-Time Monitoring'
-            : 'with Centralized Platform';
-
-        $techOptions = ['Web-Based', 'Mobile-Based', 'Cloud-Based'];
-
-        $techIndex = crc32($groupName) % count($techOptions);
-        $tech = $techOptions[$techIndex];
-
-        return $tech . ' ' .
-            ucfirst($groupName) . ' ' . $type . ' ' .
-            $feature . ' for Campus Users';
+        return [
+            'is_slow'       => $this->has($text, ['slow', 'delay', 'wait', 'queue', 'long line', 'hour', 'hours']),
+            'is_manual'     => $this->has($text, ['manual', 'paper', 'physical', 'form', 'handwritten', 'walk-in']),
+            'is_no_system'  => $this->has($text, ['no system', 'no platform', 'no portal', 'no online', 'no way to track']),
+            'is_access'     => $this->has($text, ['access', 'login', 'password', 'account', 'locked', 'unavailable']),
+            'is_tracking'   => $this->has($text, ['track', 'status', 'update', 'progress', 'monitor', 'check']),
+            'is_scheduling' => $this->has($text, ['schedule', 'conflict', 'clash', 'overlap', 'slot', 'booking']),
+            'is_record'     => $this->has($text, ['record', 'file', 'document', 'grade', 'transcript', 'lost']),
+            'is_booking'    => $this->has($text, ['book', 'reserve', 'reservation', 'appointment', 'slot']),
+            'is_complaint'  => $this->has($text, ['complaint', 'report', 'issue', 'concern', 'feedback']),
+            'is_crowded'    => $this->has($text, ['crowd', 'congested', 'full', 'packed', 'overloaded']),
+            'is_wifi'       => $this->has($text, ['wifi', 'internet', 'connectivity', 'network', 'signal', 'connection']),
+            'is_notification' => $this->has($text, ['notify', 'notification', 'alert', 'inform', 'update']),
+        ];
     }
 
-    private function generateObjectives($text, $category, $groupFeedbacks, $groupName)
+    private function has(string $text, array $keywords): bool
     {
-        $actions = [];
-
-        if (str_contains($text, 'wait') || str_contains($text, 'delay')) {
-            $actions[] = 'reduce waiting time';
+        foreach ($keywords as $kw) {
+            if (str_contains($text, $kw)) return true;
         }
+        return false;
+    }
 
-        if (str_contains($text, 'queue') || str_contains($text, 'line')) {
-            $actions[] = 'manage queue efficiently';
-        }
+    // ══════════════════════════════════════════════
+    // TITLE GENERATION
+    // Produces varied, natural-sounding project titles
+    // ══════════════════════════════════════════════
+    private function generateTitle($groupName, $category, array $signals, $frequencyScore, $impactScore, $groupFeedbacks): string
+    {
+        $name = ucwords($groupName);
 
-        if (str_contains($text, 'record')) {
-            $actions[] = 'automate record management';
-        }
-
-        if (str_contains($text, 'request')) {
-            $actions[] = 'track user requests';
-        }
-
-        if (str_contains($text, 'complaint')) {
-            $actions[] = 'monitor complaints';
-        }
-
-        $categoryText = strtolower($category);
-
-        if (str_contains($categoryText, 'system') || str_contains($categoryText, 'it')) {
-            $mainAction = 'develop a system to improve';
-        } elseif (str_contains($categoryText, 'administrative')) {
-            $mainAction = 'streamline';
+        // Pick the primary solution type based on dominant signals
+        if ($signals['is_wifi']) {
+            $core = "Campus Network Monitoring and Management System";
+        } elseif ($signals['is_scheduling']) {
+            $core = "{$name} Scheduling and Conflict Resolution System";
+        } elseif ($signals['is_booking']) {
+            $core = "Smart {$name} Reservation and Booking Platform";
+        } elseif ($signals['is_manual'] && $signals['is_slow']) {
+            $core = "Automated {$name} Processing System";
+        } elseif ($signals['is_manual']) {
+            $core = "Digital {$name} Management System";
+        } elseif ($signals['is_no_system']) {
+            $core = "Centralized {$name} Information Portal";
+        } elseif ($signals['is_tracking']) {
+            $core = "{$name} Tracking and Status Monitoring System";
+        } elseif ($signals['is_record']) {
+            $core = "{$name} Records Management and Retrieval System";
+        } elseif ($signals['is_slow']) {
+            $core = "{$name} Queue Management and Optimization System";
+        } elseif ($signals['is_access']) {
+            $core = "{$name} Access and Account Management System";
+        } elseif ($signals['is_complaint']) {
+            $core = "{$name} Complaint Reporting and Resolution System";
         } else {
-            $mainAction = 'improve';
+            $core = "{$name} Service Improvement System";
         }
 
-        $general = "To {$mainAction} {$groupName} related processes in the campus.";
+        // Platform — derived from dominant affected group + frequency
+        $topGroup = $this->resolveTopGroup($groupFeedbacks);
+        $isMobile = str_contains(strtolower($topGroup ?? ''), 'student');
 
+        if ($signals['is_wifi'] || $signals['is_access']) {
+            $platform = 'Web-Based';
+        } elseif ($isMobile && $frequencyScore >= 3) {
+            $platform = 'Mobile-First';
+        } elseif ($impactScore >= 3) {
+            $platform = 'Web-Based';
+        } else {
+            $platform = 'Integrated';
+        }
+
+        return "{$platform} {$core}";
+    }
+
+    // ══════════════════════════════════════════════
+    // DESCRIPTION GENERATION
+    // Rich, specific, reads like a project abstract
+    // ══════════════════════════════════════════════
+    private function generateDescription($groupName, $category, array $signals, $reports, $votes, $topGroup, $currentProcess, $frequencyScore, $impactScore): string
+    {
+        $name    = ucwords($groupName);
+        $group   = $topGroup ?? 'campus users';
+        $process = $currentProcess ? "Currently, the process relies on {$currentProcess}, " : '';
+
+        // Problem framing sentence
+        $problem = $this->describeProblem($name, $signals, $group);
+
+        // Current gap sentence
+        $gap = $process
+            ? "{$process}which contributes to inefficiencies and delays that affect {$group} on a recurring basis."
+            : "The absence of a dedicated system forces {$group} to rely on fragmented or manual workarounds.";
+
+        // Evidence sentence
+        $freq    = $frequencyScore >= 3 ? 'frequently occurring' : 'reported';
+        $support = $votes >= 10
+            ? "Backed by {$reports} community reports and {$votes} upvotes"
+            : "Based on {$reports} submitted reports";
+
+        $evidence = "{$support}, this is identified as a {$freq} concern with measurable impact on campus operations.";
+
+        // Solution framing
+        $solution = $this->describeSolution($name, $signals, $impactScore);
+
+        return "{$problem} {$gap} {$evidence} {$solution}";
+    }
+
+    private function describeProblem($name, array $signals, $group): string
+    {
+        if ($signals['is_slow'] && $signals['is_manual']) {
+            return "Campus {$group} consistently experience delays caused by manual {$name} processes that are slow, prone to error, and difficult to scale.";
+        } elseif ($signals['is_slow']) {
+            return "Long waiting times in {$name}-related services have become a persistent source of frustration for {$group} across campus.";
+        } elseif ($signals['is_manual']) {
+            return "The reliance on paper-based and manual procedures for {$name} creates bottlenecks that slow down service delivery for {$group}.";
+        } elseif ($signals['is_no_system']) {
+            return "The lack of a centralized system for {$name} leaves {$group} without a reliable way to access, track, or manage their requests.";
+        } elseif ($signals['is_wifi']) {
+            return "Unreliable internet connectivity across campus disrupts the academic and administrative activities of {$group} daily.";
+        } elseif ($signals['is_scheduling']) {
+            return "Scheduling conflicts and the absence of a coordinated system for {$name} cause recurring disruptions for {$group}.";
+        } elseif ($signals['is_tracking']) {
+            return "{$group} have no reliable way to monitor the status or progress of their {$name}-related requests and transactions.";
+        } else {
+            return "Recurring issues in {$name} services have been reported by {$group}, pointing to systemic gaps in how these processes are currently managed.";
+        }
+    }
+
+    private function describeSolution($name, array $signals, $impactScore): string
+    {
+        $impact = $impactScore >= 3 ? 'a significant portion of the campus community' : 'the directly affected users';
+
+        if ($signals['is_manual'] || $signals['is_no_system']) {
+            return "A digital solution targeting {$name} processes would automate key workflows, reduce manual effort, and provide {$impact} with a more reliable and accessible service experience.";
+        } elseif ($signals['is_tracking'] || $signals['is_notification']) {
+            return "A system with real-time tracking and notification capabilities would give {$impact} visibility into their requests, reducing uncertainty and improving satisfaction.";
+        } elseif ($signals['is_slow']) {
+            return "Implementing an optimized, queue-aware system for {$name} would measurably reduce wait times and improve throughput for {$impact}.";
+        } else {
+            return "Addressing these issues through a structured software solution would improve the overall {$name} experience for {$impact} and reduce recurring operational friction.";
+        }
+    }
+
+    // ══════════════════════════════════════════════
+    // OBJECTIVES GENERATION
+    // Specific, measurable, tied to actual problem signals
+    // ══════════════════════════════════════════════
+    private function generateObjectives(array $signals, $category, $groupName, $topGroup, $groupFeedbacks): array
+    {
+        $name  = ucwords($groupName);
+        $group = $topGroup ?? 'campus users';
+
+        // General objective — action-verb framing
+        $verb = 'develop and implement';
+        if ($signals['is_slow'])   $verb = 'design and deploy';
+        if ($signals['is_manual']) $verb = 'develop and automate';
+
+        $general = "To {$verb} a {$name} system that addresses recurring campus issues and improves service delivery for {$group}.";
+
+        // Specific objectives — drawn from real signals, no generic fallbacks
         $specific = [];
 
-        foreach ($actions as $action) {
-            $specific[] = "To {$action}";
+        if ($signals['is_slow'] || $signals['is_crowded']) {
+            $specific[] = "To reduce average waiting and processing time for {$name} transactions by at least 40%.";
+        }
+        if ($signals['is_manual']) {
+            $specific[] = "To digitize and automate manual {$name} workflows, eliminating paper-based processes.";
+        }
+        if ($signals['is_tracking'] || $signals['is_notification']) {
+            $specific[] = "To provide {$group} with real-time tracking and status updates for their {$name} requests.";
+        }
+        if ($signals['is_record']) {
+            $specific[] = "To establish a centralized, searchable digital repository for {$name}-related records and documents.";
+        }
+        if ($signals['is_scheduling']) {
+            $specific[] = "To implement an automated scheduling engine that detects and prevents conflicts for {$group}.";
+        }
+        if ($signals['is_booking']) {
+            $specific[] = "To enable {$group} to view availability and book {$name} resources online without manual coordination.";
+        }
+        if ($signals['is_wifi'] || $signals['is_access']) {
+            $specific[] = "To provide administrators with a dashboard for monitoring connectivity and access issues in real time.";
+        }
+        if ($signals['is_complaint']) {
+            $specific[] = "To create a structured complaint submission and resolution workflow with status tracking for {$group}.";
         }
 
-        if (count($specific) < 2) {
-            $specific[] = "To improve service efficiency";
-            $specific[] = "To enhance process management";
-        }
+        // Always include: user experience + evaluation objectives
+        $specific[] = "To improve overall satisfaction of {$group} with {$name} services through accessible and responsive system design.";
+        $specific[] = "To evaluate system effectiveness through user acceptance testing and post-deployment feedback.";
 
-        $topGroup = $groupFeedbacks
-            ->groupBy('affected_group')
-            ->map->count()
-            ->sortDesc()
-            ->keys()
-            ->first();
+        // Cap at 5 specific objectives — most capstone panels expect 3–5
+        $specific = array_slice($specific, 0, 5);
 
-        if ($topGroup) {
-            $specific[] = "To improve experience for {$topGroup}";
-        }
-
-        return [
-            'general' => $general,
-            'specific' => $specific
-        ];
+        return ['general' => $general, 'specific' => $specific];
     }
 
-    private function generateExplanation($groupName, $topGroup, $reports, $votes, $frequencyScore, $impactScore)
+    // ══════════════════════════════════════════════
+    // EXPLANATION
+    // ══════════════════════════════════════════════
+    private function generateExplanation($groupName, $topGroup, $reports, $votes, $frequencyScore, $impactScore): array
     {
+        $freqLabel   = match(true) { $frequencyScore >= 3.5 => 'Everyday', $frequencyScore >= 2.5 => 'Often', $frequencyScore >= 1.5 => 'Sometimes', default => 'Rarely' };
+        $impactLabel = match(true) { $impactScore >= 3.5 => 'More than 500 users', $impactScore >= 2.5 => '200–500 users', $impactScore >= 1.5 => '50–200 users', default => 'Less than 50 users' };
+
         return [
-            'summary' => "This idea is recommended based on recurring {$groupName} issues affecting {$topGroup}.",
+            'summary' => "This idea surfaces from {$reports} reports of recurring {$groupName} issues. "
+                       . "The problem occurs {$freqLabel} and affects an estimated {$impactLabel}, "
+                       . "making it a strong candidate for a capstone project with measurable real-world impact.",
 
             'factors' => [
-                'reports' => $reports,
-                'votes' => $votes,
-                'frequency_score' => round($frequencyScore, 2),
-                'impact_score' => round($impactScore, 2),
-                'top_affected_group' => $topGroup
+                'reports'            => $reports,
+                'votes'              => $votes,
+                'frequency_score'    => round($frequencyScore, 2),
+                'impact_score'       => round($impactScore, 2),
+                'top_affected_group' => $topGroup,
             ],
 
             'reasoning' => [
-                'impact' => $impactScore >= 3
-                    ? 'High impact because many users are affected'
-                    : 'Lower impact based on data',
+                'impact'    => $impactScore >= 3
+                    ? "Affects a large portion of campus — {$impactLabel} — giving a proposed solution wide reach and measurable benefit."
+                    : "Currently affects a smaller group, but the issue may expand if left unaddressed.",
 
                 'frequency' => $frequencyScore >= 3
-                    ? 'Occurs frequently in campus operations'
-                    : 'Occurs occasionally',
+                    ? "Reported as occurring {$freqLabel}, indicating this is not an isolated incident but a systemic gap."
+                    : "Occurs occasionally, but the pattern across multiple submissions confirms it as a genuine recurring concern.",
 
-                'reports' => $reports >= 5
-                    ? 'Multiple reports indicate recurring issue'
-                    : 'Limited reports available',
+                'reports'   => $reports >= 5
+                    ? "{$reports} independent reports validate that this is a shared experience, not an individual complaint."
+                    : "Early-stage data with {$reports} reports — additional submissions would strengthen confidence further.",
 
-                'votes' => $votes >= 20
-                    ? 'Strong user support through votes'
-                    : 'Limited user validation'
-            ]
+                'votes'     => $votes >= 10
+                    ? "{$votes} community upvotes confirm broad awareness and shared frustration with this issue."
+                    : "Currently {$votes} votes — as more students discover the problem, support is expected to grow.",
+            ],
         ];
+    }
+
+    // ══════════════════════════════════════════════
+    // IMPACT SIMULATION
+    // ══════════════════════════════════════════════
+    private function simulateImpact($reports, $frequencyScore, $impactScore, array $signals): array
+    {
+        $base         = ($frequencyScore * 10) + ($impactScore * 10);
+        $reportFactor = min(20, $reports * 2);
+
+        // Boost if digital transformation signals are strong
+        $digitalBoost = ($signals['is_manual'] || $signals['is_no_system']) ? 10 : 0;
+
+        $improvement = min(90, round($base + $reportFactor + $digitalBoost));
+
+        // Generate a message that sounds meaningful, not templated
+        $qualifier = match(true) {
+            $improvement >= 70 => 'significantly reduce',
+            $improvement >= 50 => 'substantially reduce',
+            $improvement >= 30 => 'measurably reduce',
+            default            => 'help reduce',
+        };
+
+        $scope = $impactScore >= 3 ? 'campus-wide impact' : 'impact on affected users';
+
+        return [
+            'percentage' => $improvement,
+            'message'    => "A targeted solution could {$qualifier} the {$scope} of this problem by an estimated {$improvement}%, based on report volume, frequency, and severity data.",
+        ];
+    }
+
+    // ══════════════════════════════════════════════
+    // HELPERS
+    // ══════════════════════════════════════════════
+    private function resolveTopGroup($groupFeedbacks): ?string
+    {
+        $groups = $groupFeedbacks->map(function ($f) {
+            $g = $f->affected_group;
+            // Handle both JSON array (new) and plain string (old)
+            if (is_array($g)) return $g;
+            if (is_string($g) && str_starts_with($g, '[')) return json_decode($g, true) ?? [$g];
+            return [$g];
+        })->flatten()->filter()->countBy()->sortDesc();
+
+        return $groups->keys()->first();
+    }
+
+    private function resolveCurrentProcess($groupFeedbacks): ?string
+    {
+        return $groupFeedbacks
+            ->pluck('current_process')
+            ->filter(fn($p) => $p && $p !== 'No system in place')
+            ->groupBy(fn($p) => $p)
+            ->map->count()
+            ->sortDesc()
+            ->keys()
+            ->first();
     }
 }
