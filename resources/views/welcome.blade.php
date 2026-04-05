@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>LIKHA — Turn Campus Problems Into Capstone Ideas</title>
+<title>LIKHA</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
 <script src="https://unpkg.com/lucide@latest"></script>
 <style>
@@ -116,7 +116,7 @@ nav.scrolled {
 .hero {
   min-height: 100vh;
   display: flex; flex-direction: column; justify-content: center;
-  padding: 140px 48px 80px;
+  padding: 60px 48px 80px;
   position: relative; overflow: hidden;
 }
 
@@ -163,6 +163,112 @@ nav.scrolled {
 @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
 
 /* Hero headline */
+.hero-split {
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 64px;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 80px 48px 100px;
+}
+
+/* Auth card */
+.auth-card {
+  background: #13141a;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 20px;
+  overflow: hidden;
+  position: relative;
+}
+.auth-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(251,176,52,.5), transparent);
+}
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+}
+.auth-tab {
+  padding: 14px; text-align: center;
+  font-size: 13px; font-weight: 500; color: #5e6175;
+  cursor: pointer; background: transparent; border: none;
+  font-family: 'DM Sans', sans-serif; transition: all .18s;
+}
+.auth-tab.active {
+  color: #fbb034;
+  background: rgba(251,176,52,.05);
+  border-bottom: 2px solid #fbb034;
+}
+.auth-body { padding: 28px; }
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* Redirect to correct tab if there are errors */
+.form-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;
+}
+.form-group { margin-bottom: 14px; }
+.strength-bar { display: flex; gap: 3px; margin-top: 6px; }
+.s-seg { flex: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,.06); transition: background .25s; }
+.s-seg.w { background: #ef4444; }
+.s-seg.m { background: #f97316; }
+.s-seg.g { background: #eab308; }
+.s-seg.s { background: #22c55e; }
+.s-lbl { font-size: 10.5px; color: #5e6175; margin-top: 3px; }
+.terms-note { font-size: 11px; color: #3e4055; text-align: center; margin-top: 12px; line-height: 1.6; }
+.terms-note a { color: #5e6175; text-decoration: none; }
+.terms-note a:hover { color: #fbb034; }
+
+/* Form elements */
+.form-label {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12.5px; font-weight: 500; color: #f0f0f5; margin-bottom: 7px;
+}
+.form-label a { font-size: 11px; color: #5e6175; text-decoration: none; }
+.form-label a:hover { color: #fbb034; }
+.input-wrap { position: relative; }
+.form-input {
+  width: 100%; padding: 10px 12px; border-radius: 9px;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.09);
+  color: #f0f0f5; font-family: 'DM Sans', sans-serif; font-size: 13px;
+  transition: border-color .2s, background .2s;
+}
+.form-input::placeholder { color: #5e6175; }
+.form-input:focus { outline: none; border-color: #fbb034; background: rgba(255,255,255,.08); }
+.btn-primary {
+  width: 100%; padding: 11px 16px; border-radius: 9px; margin-top: 6px;
+  background: #fbb034; border: none; color: #0a0b0f; font-size: 13px; font-weight: 600;
+  cursor: pointer; font-family: 'DM Sans', sans-serif;
+  transition: all .18s;
+}
+.btn-primary:hover { background: #fcc050; transform: translateY(-1px); }
+.divider-row {
+  display: flex; align-items: center; gap: 12px; margin: 18px 0;
+}
+.divider-row::before, .divider-row::after {
+  content: ''; flex: 1; height: 1px; background: rgba(255,255,255,.06);
+}
+.divider-row span { font-size: 11px; color: #5e6175; font-weight: 500; }
+.btn-google {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 11px 16px; border-radius: 9px;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.09);
+  color: #f0f0f5; font-size: 13px; font-weight: 500; cursor: pointer;
+  font-family: 'DM Sans', sans-serif; text-decoration: none;
+  transition: all .18s;
+}
+.btn-google:hover { border-color: rgba(255,255,255,.15); background: rgba(255,255,255,.09); }
+
+/* Hero left panel */
+.hero-left { flex: 1; }
+
+@media (max-width: 900px) {
+  .hero-split { grid-template-columns: 1fr; }
+  .auth-card { max-width: 420px; margin: 0 auto; }
+}
 .hero-h1 {
   font-family: 'Sora', sans-serif;
   font-size: clamp(44px, 7vw, 88px);
@@ -466,7 +572,8 @@ footer p { font-size: 12px; color: var(--muted2); }
     </svg>
   </div>
 
-  <div class="hero-inner">
+  <div class="hero-split">
+   <div class="hero-left">
     <div class="eyebrow">
       <span class="eyebrow-dot"></span>
       Campus Innovation System
@@ -516,6 +623,96 @@ footer p { font-size: 12px; color: var(--muted2); }
         <span class="stat-label">Powered Scoring</span>
       </div>
     </div>
+    </div>
+
+    {{-- RIGHT: inline auth card --}}
+  <div class="auth-card">
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-tab="login">Sign in</button>
+      <button class="auth-tab" data-tab="register">Create account</button>
+    </div>
+
+    <div class="auth-body">
+
+      {{-- LOGIN PANEL --}}
+      <div class="panel active" id="panel-login">
+        <form method="POST" action="{{ route('login') }}">
+          @csrf
+          <div class="form-group">
+            <label class="form-label">Email address</label>
+            <div class="input-wrap">
+              <input type="email" name="email" class="form-input" placeholder="you@school.edu" required>
+              {{-- mail icon --}}
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">
+              Password
+              <a href="#">Forgot password?</a>
+            </label>
+            <div class="input-wrap">
+              <input type="password" name="password" class="form-input" placeholder="••••••••" required>
+            </div>
+          </div>
+          <button type="submit" class="btn-primary">Sign in to LIKHA</button>
+        </form>
+
+        <div class="divider-row"><span>OR</span></div>
+        <a href="{{ route('google.login') }}" class="btn-google">
+          <img src="https://developers.google.com/identity/images/g-logo.png" width="16">
+          Continue with Google
+        </a>
+      </div>
+
+      {{-- REGISTER PANEL --}}
+      <div class="panel" id="panel-register">
+        <form method="POST" action="{{ route('register') }}">
+          @csrf
+          <div class="form-row">
+            <div>
+              <label class="form-label">First name</label>
+              <input type="text" name="first_name" class="form-input" placeholder="Juan" required>
+            </div>
+            <div>
+              <label class="form-label">Last name</label>
+              <input type="text" name="last_name" class="form-input" placeholder="dela Cruz" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email address</label>
+            <input type="email" name="email" class="form-input" placeholder="you@school.edu" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input type="password" name="password" id="regPw" class="form-input"
+              placeholder="Min. 8 characters" oninput="chkStr(this.value)" required>
+            <div class="strength-bar">
+              <div class="s-seg" id="ss1"></div>
+              <div class="s-seg" id="ss2"></div>
+              <div class="s-seg" id="ss3"></div>
+              <div class="s-seg" id="ss4"></div>
+            </div>
+            <div class="s-lbl" id="sLbl">Enter a password</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirm password</label>
+            <input type="password" name="password_confirmation" class="form-input"
+              placeholder="Re-enter password" required>
+          </div>
+          <button type="submit" class="btn-primary">Create account</button>
+        </form>
+
+        <div class="divider-row"><span>OR</span></div>
+        <a href="{{ route('google.login') }}" class="btn-google">
+          <img src="https://developers.google.com/identity/images/g-logo.png" width="16">
+          Continue with Google
+        </a>
+        <p class="terms-note">By registering you agree to our <a href="#">Terms</a> & <a href="#">Privacy Policy</a>.</p>
+      </div>
+
+    </div>
+  </div>
+
   </div>
 </section>
 
@@ -760,6 +957,39 @@ document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
 // ── Lucide icons ──
 lucide.createIcons();
+
+// Tab switching
+document.querySelectorAll('.auth-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+// If Laravel redirected back with errors, open the right panel
+@if ($errors->has('email') && !$errors->has('name'))
+  document.querySelector('[data-tab="login"]').click();
+@elseif ($errors->has('name'))
+  document.querySelector('[data-tab="register"]').click();
+@endif
+
+// Password strength meter
+function chkStr(v) {
+  const segs = ['ss1','ss2','ss3','ss4'];
+  const cls  = ['w','m','g','s'];
+  const lbs  = ['Too short','Weak','Getting there','Strong'];
+  segs.forEach(id => document.getElementById(id).className = 's-seg');
+  if (!v.length) { document.getElementById('sLbl').textContent = 'Enter a password'; return; }
+  let score = 0;
+  if (v.length >= 8)       score++;
+  if (/[A-Z]/.test(v))     score++;
+  if (/[0-9]/.test(v))     score++;
+  if (/[^A-Za-z0-9]/.test(v)) score++;
+  for (let i = 0; i < score; i++) document.getElementById(segs[i]).classList.add(cls[i]);
+  document.getElementById('sLbl').textContent = lbs[score - 1] || 'Too short';
+}
 </script>
 </body>
 </html>

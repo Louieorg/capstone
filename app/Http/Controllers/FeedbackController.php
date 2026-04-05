@@ -14,7 +14,9 @@ use App\Services\ClusteringService;
 use App\Services\SeverityService;
 use App\Services\ConfidenceService;
 use App\Services\IdeaGeneratorService;
+use App\Notifications\IdeaGenerated;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class FeedbackController extends Controller
 {
@@ -47,11 +49,20 @@ class FeedbackController extends Controller
         ->distinct()
         ->count();
 
+    // get categories with counts
+    $categories = Feedback::where('status', 'approved')
+        ->select('category')
+        ->selectRaw('COUNT(*) as total')
+        ->groupBy('category')
+        ->orderByDesc('total')
+        ->get();
+
     return view('landing', compact(
         'trending',
         'totalProblems',
         'ideaCandidates',
-        'totalCategories'
+        'totalCategories',
+        'categories'
     ));
 }
 
@@ -134,7 +145,7 @@ Feedback::create([
     'current_process'       => $finalProcess,            // ← resolved
     'current_process_other' => $request->current_process_other,
     'affected_users'        => $request->affected_users,
-    'affected_group'        => json_encode($affectedGroups), // ← JSON array
+    'affected_group'        => $affectedGroups,
     'is_anonymous'          => $request->has('is_anonymous'),
 ]);
 
@@ -165,7 +176,8 @@ Feedback::create([
         ->with(['votes' => function ($query) {
             $query->where('user_id', auth()->id());
         }])
-        ->latest()
+        ->when($request->sort === 'latest', fn($q) => $q->latest())
+        ->when($request->sort !== 'latest', fn($q) => $q->orderByDesc('votes_count'))
         ->paginate(5);
 
     // ✅ ADD THIS BACK
@@ -257,10 +269,30 @@ Feedback::create([
             );
  
             // Persist evaluation (outside cache closure is fine — idempotent)
+            $isNew = !IdeaEvaluation::where('idea_title', $ideaData['title'])
+                ->where('category', $category)
+                ->exists();
+
             IdeaEvaluation::updateOrCreate(
                 ['idea_title' => $ideaData['title'], 'category' => $category],
                 $evaluation
             );
+
+            // ── Notify users whose feedback contributed to this idea ──
+            if ($isNew) {
+                $contributingUsers = Feedback::where('category', $category)
+                    ->where('status', 'approved')
+                    ->whereNotNull('user_id')
+                    ->distinct()
+                    ->pluck('user_id');
+
+                foreach ($contributingUsers as $userId) {
+                    $user = User::find($userId);
+                    if ($user) {
+                        $user->notify(new IdeaGenerated($ideaData['title'], $category));
+                    }
+                }
+            }
  
             // ── Unified idea score ────────────────────────────────
             // Severity    → How bad is this problem?        (40%)
@@ -324,6 +356,12 @@ Feedback::create([
                 'confidence_score'       => $confidence['score'],
                 'confidence_level'       => $confidence['level'],
                 'confidence_explanation' => $confidence['explanation'],
+                'confidence_breakdown' => [
+    'source_diversity' => $confidence['diversity_score'] ?? 0,
+    'frequency_consistency' => $confidence['consistency_score'] ?? 0,
+    'sample_size' => $confidence['sample_score'] ?? 0,
+    'community_validation' => $confidence['validation_score'] ?? 0,
+],
                 'impact_simulation'      => $ideaData['impact_simulation'],
                 'comparison'             => [
                     'score'       => $ideaScore,
@@ -414,6 +452,7 @@ Feedback::create([
                 // affected_group is cast to array, so this safely extracts all groups
                 return $feedback->affected_group ?? [];
             })
+            ->filter(fn($group) => !empty(trim($group)))  // Filter out empty/whitespace-only values
             ->countBy()
             ->map(function ($count, $group) {
                 return (object)[
@@ -445,12 +484,7 @@ Feedback::create([
     $feedback->status = 'approved';
     $feedback->save();
 
-    if ($feedback->user_id) {
-        $user = User::find($feedback->user_id);
-        $user->notify(new FeedbackApproved($feedback));
-    }
-
-    return back();
+    return back()->with('success', 'Feedback approved.');
 }
 
     public function reject($id)

@@ -1,240 +1,442 @@
 @extends('layouts.app')
- 
-@section('content')
- 
-{{-- Google Fonts --}}
+
+@section('title', 'Home')
+@section('subtitle', 'Welcome back — here\'s what\'s happening on campus.')
+
 @push('head')
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
 @endpush
- 
+
+@section('content')
+
 <style>
-  /* ── Design Tokens ── */
-  :root {
-    --amber: #fbb034;
-    --amber-dim: rgba(251,176,52,0.10);
-    --amber-border: rgba(251,176,52,0.25);
-    --amber-glow: rgba(251,176,52,0.30);
-  }
- 
-  /* ── Fade-up entry ── */
-  @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(18px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  .anim-1 { animation: fadeInUp .5s ease both; }
-  .anim-2 { animation: fadeInUp .5s .1s ease both; }
-  .anim-3 { animation: fadeInUp .5s .2s ease both; }
-  .anim-4 { animation: fadeInUp .5s .3s ease both; }
- 
-  /* ── Live eyebrow dot ── */
-  @keyframes pulse-dot {
-    0%,100% { opacity: 1; transform: scale(1); }
-    50%      { opacity: .45; transform: scale(.75); }
-  }
-  .eyebrow-dot { animation: pulse-dot 2s ease-in-out infinite; }
- 
-  /* ── Stat card orb ── */
-  .stat-card { position: relative; overflow: hidden; }
-  .stat-card::after {
-    content: '';
-    position: absolute; top: -24px; right: -24px;
-    width: 80px; height: 80px; border-radius: 50%;
-    background: var(--amber-dim);
-    pointer-events: none;
-  }
- 
-  /* ── Action card arrow ── */
-  .action-card .arrow { transition: transform .2s, color .2s; color: #9ca3af; }
-  .action-card:hover .arrow { transform: translate(3px,-3px); color: var(--amber); }
- 
-  /* ── Amber border on hover ── */
-  .amber-hover { transition: border-color .2s, transform .2s, box-shadow .2s; }
-  .amber-hover:hover {
-    border-color: var(--amber-border) !important;
-    transform: translateY(-3px);
-    box-shadow: 0 12px 32px rgba(0,0,0,.18);
-  }
+/* ── Tokens ── */
+:root {
+  --amber:      #fbb034;
+  --adim:       rgba(251,176,52,0.10);
+  --amid:       rgba(251,176,52,0.22);
+  --aborder-h:  rgba(251,176,52,0.30);
+  --green:      #5fcd8a;
+  --green-bg:   rgba(95,205,138,0.1);
+  --green-b:    rgba(95,205,138,0.22);
+}
+
+/* Light mode overrides for amber (more readable on white) */
+:root:not(.dark) {
+  --amber:      #b57318;
+  --adim:       rgba(186,117,23,0.08);
+  --amid:       rgba(186,117,23,0.18);
+  --aborder-h:  rgba(186,117,23,0.35);
+  --green:      #15803d;
+  --green-bg:   rgba(22,163,74,0.08);
+  --green-b:    rgba(22,163,74,0.2);
+}
+
+/* ── Animations ── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.anim-1 { animation: fadeInUp .5s ease both; }
+.anim-2 { animation: fadeInUp .5s .08s ease both; }
+.anim-3 { animation: fadeInUp .5s .16s ease both; }
+.anim-4 { animation: fadeInUp .5s .24s ease both; }
+
+@keyframes pdot {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50%     { opacity: .45; transform: scale(.75); }
+}
+.eyebrow-dot { animation: pdot 2s ease-in-out infinite; }
+
+/* ── Eyebrow pill ── */
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 13px; border-radius: 999px;
+  background: var(--adim); border: 1px solid var(--amid);
+  font-size: 10.5px; font-weight: 600; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--amber);
+  margin-bottom: 18px;
+}
+
+/* ── Greeting bar ── */
+.greeting-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 0; margin-bottom: 28px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+:root:not(.dark) .greeting-bar { border-color: rgba(0,0,0,0.07); }
+.greeting-name {
+  font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 700;
+  color: inherit;
+}
+.greeting-sub { font-size: 12px; color: #7e8194; margin-top: 2px; }
+:root:not(.dark) .greeting-sub { color: #8a8898; }
+
+/* ── Hero headline ── */
+.hero-h {
+  font-family: 'Sora', sans-serif;
+  font-size: clamp(26px, 3.5vw, 40px);
+  font-weight: 800; line-height: 1.1; letter-spacing: -.02em;
+  margin-bottom: 14px;
+}
+.hero-h .amb {
+  background: linear-gradient(90deg, #fbb034, #f97316);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+:root:not(.dark) .hero-h .amb {
+  background: linear-gradient(90deg, #b57318, #c2410c);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero-sub {
+  font-size: 14px; line-height: 1.7; max-width: 500px;
+  color: #7e8194; margin-bottom: 32px;
+}
+:root:not(.dark) .hero-sub { color: #6b6880; }
+
+/* ── Stat grid ── */
+.stat-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 14px; margin-bottom: 36px;
+}
+.stat-card {
+  background: #13141a; border: 1px solid rgba(255,255,255,.07);
+  border-radius: 16px; padding: 22px 20px;
+  position: relative; overflow: hidden;
+  transition: border-color .2s, transform .2s;
+}
+:root:not(.dark) .stat-card {
+  background: #ffffff; border-color: rgba(0,0,0,.08);
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+}
+.stat-card.featured {
+  border-color: var(--amid);
+}
+.stat-card::after {
+  content: ''; position: absolute; top: -20px; right: -20px;
+  width: 70px; height: 70px; border-radius: 50%;
+  background: var(--adim); pointer-events: none;
+}
+.stat-card:hover {
+  border-color: var(--aborder-h);
+  transform: translateY(-3px);
+}
+.stat-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: var(--adim); border: 1px solid var(--amid);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 16px; color: var(--amber);
+}
+.stat-label {
+  font-size: 10.5px; font-weight: 600; letter-spacing: .08em;
+  text-transform: uppercase; color: #7e8194; margin-bottom: 8px;
+}
+:root:not(.dark) .stat-label { color: #8a8898; }
+.stat-val {
+  font-family: 'Sora', sans-serif; font-size: 42px; font-weight: 800;
+  line-height: 1; margin-bottom: 6px; color: var(--amber);
+}
+.stat-card:not(.featured) .stat-val { color: inherit; }
+.stat-hint { font-size: 11.5px; color: #5e6175; }
+:root:not(.dark) .stat-hint { color: #9a97b0; }
+
+/* ── Section header ── */
+.sec-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px; margin-top: 44px;
+}
+.sec-title {
+  font-family: 'Sora', sans-serif; font-size: 15px;
+  font-weight: 700; color: inherit;
+}
+.sec-link {
+  font-size: 12px; font-weight: 600;
+  color: var(--amber); text-decoration: none;
+}
+
+/* ── Action cards ── */
+.action-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 12px; margin-bottom: 36px;
+}
+.action-card {
+  background: #13141a; border: 1px solid rgba(255,255,255,.07);
+  border-radius: 14px; padding: 20px 18px;
+  display: flex; flex-direction: column; gap: 12px;
+  text-decoration: none; color: inherit;
+  transition: border-color .2s, transform .2s;
+}
+:root:not(.dark) .action-card {
+  background: #ffffff; border-color: rgba(0,0,0,.08);
+  box-shadow: 0 1px 3px rgba(0,0,0,.05);
+}
+.action-card:hover {
+  border-color: var(--aborder-h);
+  transform: translateY(-3px);
+}
+.action-icon {
+  width: 40px; height: 40px; border-radius: 11px;
+  background: var(--adim); border: 1px solid var(--amid);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--amber);
+}
+.action-title {
+  font-family: 'Sora', sans-serif; font-size: 13.5px;
+  font-weight: 700; margin-bottom: 5px; color: inherit;
+  transition: color .15s;
+}
+.action-card:hover .action-title { color: var(--amber); }
+.action-desc { font-size: 12.5px; color: #7e8194; line-height: 1.6; }
+:root:not(.dark) .action-desc { color: #6b6880; }
+.action-arrow {
+  margin-top: auto; align-self: flex-end; font-size: 16px;
+  color: #5e6175; transition: transform .2s, color .2s;
+}
+.action-card:hover .action-arrow { transform: translate(3px,-3px); color: var(--amber); }
+
+/* ── Trending rows ── */
+.trend-list { display: flex; flex-direction: column; gap: 10px; }
+.trend-row {
+  background: #13141a; border: 1px solid rgba(255,255,255,.07);
+  border-radius: 14px; padding: 16px 18px;
+  display: flex; align-items: flex-start; gap: 14px;
+  transition: border-color .2s, transform .2s;
+}
+:root:not(.dark) .trend-row {
+  background: #ffffff; border-color: rgba(0,0,0,.08);
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+}
+.trend-row:hover {
+  border-color: var(--aborder-h);
+  transform: translateY(-2px);
+}
+.trend-rank {
+  font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 700;
+  color: var(--amber); width: 22px; flex-shrink: 0; padding-top: 1px;
+}
+.trend-body { flex: 1; min-width: 0; }
+.trend-text {
+  font-size: 13.5px; line-height: 1.5; margin-bottom: 10px; color: inherit;
+}
+.trend-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.tag-cat {
+  padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 500;
+  background: rgba(255,255,255,.05); color: #7e8194;
+  border: 1px solid rgba(255,255,255,.07);
+}
+:root:not(.dark) .tag-cat {
+  background: rgba(0,0,0,.05); color: #6b6880; border-color: rgba(0,0,0,.08);
+}
+.tag-idea {
+  padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600;
+  background: var(--green-bg); color: var(--green); border: 1px solid var(--green-b);
+}
+.trend-link {
+  font-size: 11.5px; font-weight: 600;
+  color: var(--amber); text-decoration: none; margin-left: auto;
+}
+.vote-chip {
+  flex-shrink: 0; display: flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border-radius: 9px;
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.07);
+  font-size: 12px; font-weight: 600; color: #7e8194;
+}
+:root:not(.dark) .vote-chip {
+  background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.08); color: #6b6880;
+}
+.vote-up { color: var(--amber); }
+
+/* ── Empty state ── */
+.empty-state {
+  background: #13141a; border: 1px solid rgba(255,255,255,.07);
+  border-radius: 14px; padding: 48px; text-align: center;
+  font-size: 13.5px; color: #5e6175;
+}
+:root:not(.dark) .empty-state {
+  background: #ffffff; border-color: rgba(0,0,0,.08); color: #9a97b0;
+}
+
+/* ── Submit button ── */
+.btn-submit {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 18px; border-radius: 10px;
+  background: var(--adim); border: 1px solid var(--amid);
+  color: var(--amber); font-size: 13px; font-weight: 600;
+  font-family: 'DM Sans', sans-serif; text-decoration: none;
+  transition: background .15s; cursor: pointer;
+}
+.btn-submit:hover { background: var(--amid); }
+
+/* ── Mobile ── */
+@media (max-width: 640px) {
+  .stat-grid    { grid-template-columns: 1fr; }
+  .action-grid  { grid-template-columns: 1fr; }
+}
+@media (min-width: 641px) and (max-width: 900px) {
+  .stat-grid    { grid-template-columns: repeat(2, 1fr); }
+  .action-grid  { grid-template-columns: repeat(2, 1fr); }
+}
 </style>
- 
-<div class="max-w-6xl mx-auto px-4 py-10 space-y-14">
- 
-  {{-- ── HERO ── --}}
-  <div class="anim-1">
-    {{-- Eyebrow --}}
-    <div class="inline-flex items-center gap-2 mb-5 px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest border"
-         style="background:var(--amber-dim); border-color:var(--amber-border); color:var(--amber);">
-      <span class="eyebrow-dot w-2 h-2 rounded-full inline-block" style="background:var(--amber);"></span>
+
+<div class="max-w-5xl mx-auto space-y-0">
+
+  {{-- Greeting bar --}}
+  <div class="greeting-bar anim-1">
+    <div>
+      @auth
+        <div class="greeting-name">
+          @php
+            $hour = now()->hour;
+            $greet = $hour < 12 ? 'Good morning' : ($hour < 17 ? 'Good afternoon' : 'Good evening');
+          @endphp
+          {{ $greet }}, {{ auth()->user()->first_name ?? auth()->user()->name }}
+        </div>
+        <div class="greeting-sub">{{ now()->format('l, F j') }} · {{ $pendingCount ?? 0 }} problems pending review</div>
+      @else
+        <div class="greeting-name">Welcome to LIKHA</div>
+        <div class="greeting-sub">Turn campus problems into capstone ideas.</div>
+      @endauth
+    </div>
+    <a href="{{ route('feedback.create') }}" class="btn-submit">
+      <i data-lucide="plus" style="width:14px;height:14px;"></i>
+      Submit Problem
+    </a>
+  </div>
+
+  {{-- Hero --}}
+  <div class="anim-1" style="margin-bottom:32px">
+    <div class="eyebrow">
+      <span class="eyebrow-dot w-2 h-2 rounded-full" style="background:var(--amber);display:inline-block"></span>
       Campus Innovation Hub
     </div>
- 
-    <h1 class="font-bold text-gray-800 dark:text-white leading-tight mb-4"
-        style="font-family:'Sora',sans-serif; font-size:clamp(28px,4vw,44px);">
-      Turn Campus Problems Into<br>
-      <span class="bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">
-        Capstone Ideas
-      </span>
+    <h1 class="hero-h">
+      Turn campus problems into<br>
+      <span class="amb">capstone ideas.</span>
     </h1>
- 
-    <p class="text-gray-500 dark:text-gray-400 max-w-xl leading-relaxed">
-      LIKHA helps students discover meaningful capstone ideas by analyzing real
-      problems reported by the campus community.
+    <p class="hero-sub">
+      LIKHA helps students discover meaningful capstone ideas by analyzing
+      real problems reported by the campus community.
     </p>
   </div>
- 
-  {{-- ── STAT CARDS ── --}}
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-5 anim-2">
- 
-    {{-- Featured --}}
-    <div class="stat-card amber-hover rounded-2xl p-6 border"
-         style="background:linear-gradient(135deg,rgba(251,176,52,.06) 0%,transparent 70%);
-                border-color:var(--amber-border);"
-         class="dark:bg-slate-800">
-      <div class="w-9 h-9 rounded-xl flex items-center justify-center mb-4 text-lg border"
-           style="background:var(--amber-dim); border-color:var(--amber-border);">📋</div>
-      <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">Total Problems Reported</p>
-      <p class="text-5xl font-bold leading-none mb-2" style="font-family:'Sora',sans-serif; color:var(--amber);">
-        {{ $totalProblems ?? '—' }}
-      </p>
-      <p class="text-xs text-gray-400 dark:text-gray-500">Submitted by campus community</p>
+
+  {{-- Stat cards --}}
+  <div class="stat-grid anim-2">
+
+    <div class="stat-card featured">
+      <div class="stat-icon">
+        <i data-lucide="file-text" style="width:17px;height:17px;"></i>
+      </div>
+      <div class="stat-label">Problems Reported</div>
+      <div class="stat-val">{{ $totalProblems ?? '—' }}</div>
+      <div class="stat-hint">Submitted by campus community</div>
     </div>
- 
-    <div class="stat-card amber-hover bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-2xl p-6">
-      <div class="w-9 h-9 rounded-xl flex items-center justify-center mb-4 text-lg border"
-           style="background:var(--amber-dim); border-color:var(--amber-border);">💡</div>
-      <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">Capstone Idea Candidates</p>
-      <p class="text-5xl font-bold leading-none mb-2 text-gray-800 dark:text-white" style="font-family:'Sora',sans-serif;">
-        {{ $ideaCandidates ?? '—' }}
-      </p>
-      <p class="text-xs text-gray-400 dark:text-gray-500">Under review</p>
+
+    <div class="stat-card">
+      <div class="stat-icon">
+        <i data-lucide="lightbulb" style="width:17px;height:17px;"></i>
+      </div>
+      <div class="stat-label">Capstone Candidates</div>
+      <div class="stat-val">{{ $ideaCandidates ?? '—' }}</div>
+      <div class="stat-hint">AI-scored & under review</div>
     </div>
- 
-    <div class="stat-card amber-hover bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-2xl p-6">
-      <div class="w-9 h-9 rounded-xl flex items-center justify-center mb-4 text-lg border"
-           style="background:var(--amber-dim); border-color:var(--amber-border);">🗂</div>
-      <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">Campus Categories</p>
-      <p class="text-5xl font-bold leading-none mb-2 text-gray-800 dark:text-white" style="font-family:'Sora',sans-serif;">
-        {{ $totalCategories ?? '—' }}
-      </p>
-      <p class="text-xs text-gray-400 dark:text-gray-500">Across all departments</p>
+
+    <div class="stat-card">
+      <div class="stat-icon">
+        <i data-lucide="layout-grid" style="width:17px;height:17px;"></i>
+      </div>
+      <div class="stat-label">Campus Categories</div>
+      <div class="stat-val">{{ $totalCategories ?? '—' }}</div>
+      <div class="stat-hint">Across all departments</div>
     </div>
- 
+
   </div>
- 
-  {{-- ── QUICK ACTIONS ── --}}
-  <div class="anim-3">
-    <h2 class="font-semibold text-gray-800 dark:text-white mb-5" style="font-family:'Sora',sans-serif; font-size:1.1rem; letter-spacing:.01em;">
-      Quick Actions
-    </h2>
- 
-    <div class="grid md:grid-cols-3 gap-4">
- 
-      <a href="{{ route('feedback.create') }}"
-         class="action-card amber-hover bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-2xl p-6 flex flex-col gap-3 group">
-        <div class="w-11 h-11 rounded-xl flex items-center justify-center text-xl border"
-             style="background:var(--amber-dim); border-color:var(--amber-border);">📝</div>
-        <div>
-          <h3 class="font-semibold text-gray-800 dark:text-white mb-1 group-hover:text-amber-400 transition" style="font-family:'Sora',sans-serif; font-size:.95rem;">
-            Submit a Problem
-          </h3>
-          <p class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-            Report a campus issue that affects students and services.
-          </p>
+
+  {{-- Quick actions --}}
+  <div class="anim-3" style="margin-bottom:36px">
+    <div class="sec-head">
+      <div class="sec-title">Quick actions</div>
+    </div>
+
+    <div class="action-grid">
+
+      <a href="{{ route('feedback.create') }}" class="action-card">
+        <div class="action-icon">
+          <i data-lucide="pencil-line" style="width:17px;height:17px;"></i>
         </div>
-        <span class="arrow mt-auto self-end text-lg">↗</span>
-      </a>
- 
-      <a href="{{ route('feedback.index') }}"
-         class="action-card amber-hover bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-2xl p-6 flex flex-col gap-3 group">
-        <div class="w-11 h-11 rounded-xl flex items-center justify-center text-xl border"
-             style="background:var(--amber-dim); border-color:var(--amber-border);">🔍</div>
         <div>
-          <h3 class="font-semibold text-gray-800 dark:text-white mb-1 group-hover:text-amber-400 transition" style="font-family:'Sora',sans-serif; font-size:.95rem;">
-            Browse Problems
-          </h3>
-          <p class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-            Explore problems reported across campus and upvote what matters.
-          </p>
+          <div class="action-title">Submit a Problem</div>
+          <div class="action-desc">Report a campus issue that affects students and services.</div>
         </div>
-        <span class="arrow mt-auto self-end text-lg">↗</span>
+        <span class="action-arrow">↗</span>
       </a>
- 
-      <a href="{{ route('feedback.summary') }}"
-         class="action-card amber-hover bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-2xl p-6 flex flex-col gap-3 group">
-        <div class="w-11 h-11 rounded-xl flex items-center justify-center text-xl border"
-             style="background:var(--amber-dim); border-color:var(--amber-border);">📊</div>
+
+      <a href="{{ route('feedback.index') }}" class="action-card">
+        <div class="action-icon">
+          <i data-lucide="search" style="width:17px;height:17px;"></i>
+        </div>
         <div>
-          <h3 class="font-semibold text-gray-800 dark:text-white mb-1 group-hover:text-amber-400 transition" style="font-family:'Sora',sans-serif; font-size:.95rem;">
-            Category Insights
-          </h3>
-          <p class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-            See trends and suggested capstone ideas by category.
-          </p>
+          <div class="action-title">Browse Problems</div>
+          <div class="action-desc">Explore issues across campus and upvote what matters.</div>
         </div>
-        <span class="arrow mt-auto self-end text-lg">↗</span>
+        <span class="action-arrow">↗</span>
       </a>
- 
+
+      <a href="{{ route('feedback.summary') }}" class="action-card">
+        <div class="action-icon">
+          <i data-lucide="bar-chart-3" style="width:17px;height:17px;"></i>
+        </div>
+        <div>
+          <div class="action-title">Category Insights</div>
+          <div class="action-desc">See trends and AI-suggested ideas by category.</div>
+        </div>
+        <span class="action-arrow">↗</span>
+      </a>
+
     </div>
   </div>
- 
-  {{-- ── TRENDING PROBLEMS ── --}}
+
+  {{-- Trending --}}
   <div class="anim-4">
-    <div class="flex items-center justify-between mb-5">
-      <h2 class="font-semibold text-gray-800 dark:text-white" style="font-family:'Sora',sans-serif; font-size:1.1rem;">
-        Trending Campus Problems
-      </h2>
-      <a href="{{ route('feedback.index') }}" class="text-xs font-semibold transition" style="color:var(--amber);">
-        View all →
-      </a>
+    <div class="sec-head">
+      <div class="sec-title">Trending campus problems</div>
+      <a href="{{ route('feedback.index') }}" class="sec-link">View all →</a>
     </div>
- 
+
     @if(isset($trending) && $trending->isEmpty())
-      <div class="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-2xl p-10 text-center text-gray-400 dark:text-gray-500">
+      <div class="empty-state">
         No trending problems yet. Be the first to submit one!
       </div>
- 
+
     @elseif(isset($trending))
-      <div class="flex flex-col gap-3">
+      <div class="trend-list">
         @foreach($trending as $i => $problem)
-          <div class="amber-hover bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-2xl p-5 flex items-start gap-4">
- 
-            {{-- Rank --}}
-            <span class="text-sm font-bold pt-0.5 w-6 shrink-0" style="font-family:'Sora',sans-serif; color:var(--amber);">
-              #{{ $i + 1 }}
-            </span>
- 
-            {{-- Body --}}
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 leading-snug">
-                {{ $problem->description }}
-              </p>
-              <div class="flex flex-wrap gap-2 items-center">
-                <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-slate-600">
-                  {{ $problem->category }}
-                </span>
+          <div class="trend-row">
+            <div class="trend-rank">#{{ $i + 1 }}</div>
+            <div class="trend-body">
+              <div class="trend-text">{{ $problem->description }}</div>
+              <div class="trend-tags">
+                <span class="tag-cat">{{ $problem->category }}</span>
                 @if($problem->is_idea_candidate ?? false)
-                  <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full border"
-                        style="background:rgba(95,205,138,.1); color:#5fcd8a; border-color:rgba(95,205,138,.25);">
-                    💡 Idea Candidate
+                  <span class="tag-idea">
+                    <i data-lucide="check-circle" style="width:11px;height:11px;display:inline;margin-right:3px;vertical-align:middle;"></i>
+                    Idea Candidate
                   </span>
                 @endif
-                <a href="{{ route('feedback.category', $problem->category) }}"
-                   class="text-xs font-medium transition ml-auto" style="color:var(--amber);">
+                <a href="{{ route('feedback.category', $problem->category) }}" class="trend-link">
                   View related →
                 </a>
               </div>
             </div>
- 
-            {{-- Votes --}}
-            <div class="shrink-0 flex items-center gap-1.5 text-xs font-medium text-gray-400 dark:text-gray-500 px-3 py-1.5 rounded-lg bg-gray-50 dark:bg-slate-700 border border-gray-100 dark:border-slate-600 transition-colors">
-              ▲ {{ $problem->votes_count }}
+            <div class="vote-chip">
+              <span class="vote-up">▲</span>
+              {{ $problem->votes_count }}
             </div>
- 
           </div>
         @endforeach
       </div>
     @endif
   </div>
- 
+
 </div>
- 
 @endsection

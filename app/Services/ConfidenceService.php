@@ -109,6 +109,7 @@ class ConfidenceService
             'consistency_score'=> round($consistencyScore, 2),
             'sample_score'     => $sampleScore,
             'validation_score' => round($validationScore, 2),
+            
         ];
     }
 

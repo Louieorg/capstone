@@ -6,126 +6,146 @@
 @section('content')
 
 <style>
-  :root {
-    --amber: #fbb034;
-    --amber-dim: rgba(251,176,52,0.10);
-    --amber-border: rgba(251,176,52,0.25);
-  }
+/* ── Tokens ── */
+:root {
+  --amber:         #fbb034;
+  --adim:          rgba(251,176,52,0.10);
+  --amid:          rgba(251,176,52,0.22);
+  --aborder-h:     rgba(251,176,52,0.30);
+  --border:        rgba(0,0,0,0.08);
+  --text:          #1a1d24;
+  --muted:         #6b7280;
+  --muted2:        #b0b8c1;
+  --surface:       #ffffff;
+  --surface-alt:   #f5f5f8;
+}
 
-  @keyframes fadeInUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
-  .fade-up { animation: fadeInUp .5s ease both; }
+/* Light mode overrides for amber (more readable on white) */
+:root:not(.dark) {
+  --amber:         #b57318;
+  --adim:          rgba(186,117,23,0.08);
+  --amid:          rgba(186,117,23,0.18);
+  --aborder-h:     rgba(186,117,23,0.35);
+}
 
-  /* ── Shared input/select/textarea ── */
-  .field {
-    width: 100%; border: 1px solid #d1d5db; border-radius: 12px;
-    padding: 10px 14px; font-size: .8125rem; outline: none;
-    background: transparent; transition: border-color .2s, box-shadow .2s; color: inherit;
-  }
-  .field:hover  { border-color: rgba(251,176,52,.5); }
-  .field:focus  { border-color: var(--amber); box-shadow: 0 0 0 3px var(--amber-dim); }
-  .dark .field  { border-color: #374151; }
+/* Dark mode */
+html.dark {
+  --border:        rgba(255,255,255,0.06);
+  --text:          #f0f0f5;
+  --muted:         #7e8194;
+  --muted2:        #3e4055;
+  --surface:       #13141a;
+  --surface-alt:   #1a1b23;
+}
 
-  /* ── Floating label ── */
-  .float-wrap { position: relative; }
-  .float-wrap input { padding-top: 20px; padding-bottom: 8px; }
-  .float-label {
-    position: absolute; left: 14px; top: 11px;
-    font-size: .8125rem; color: #9ca3af; pointer-events: none;
-    transition: top .15s, font-size .15s, color .15s;
-  }
-  .float-wrap input:not(:placeholder-shown) ~ .float-label,
-  .float-wrap input:focus ~ .float-label {
-    top: 5px; font-size: .68rem; color: var(--amber);
-  }
+@keyframes fadeInUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+.fade-up { animation: fadeInUp .5s ease both; }
 
-  /* ── Checkbox card ── */
-  .check-card {
-    display: flex; align-items: center; gap: 10px;
-    padding: 11px 14px; border-radius: 12px;
-    border: 1px solid #e5e7eb; cursor: pointer;
-    transition: all .15s; user-select: none;
-  }
-  .dark .check-card { border-color: #374151; }
-  .check-card:hover { border-color: rgba(251,176,52,.5); background: var(--amber-dim); }
-  .check-card input[type=checkbox] {
-    width: 16px; height: 16px; border-radius: 5px; flex-shrink: 0;
-    accent-color: var(--amber); cursor: pointer;
-  }
-  .check-card.is-checked {
-    border-color: var(--amber-border);
-    background: var(--amber-dim);
-  }
+/* ── Shared input/select/textarea ── */
+.field {
+  width: 100%; border: 1px solid var(--border); border-radius: 12px;
+  padding: 10px 14px; font-size: .8125rem; outline: none;
+  background: transparent; transition: border-color .2s, box-shadow .2s; color: inherit;
+}
+.field:hover  { border-color: var(--amid); }
+.field:focus  { border-color: var(--amber); box-shadow: 0 0 0 3px var(--adim); }
 
-  /* ── Step dots ── */
-  .step-dot {
-    width: 28px; height: 28px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: .7rem; font-weight: 700;
-    border: 2px solid #e5e7eb; color: #9ca3af; background: white;
-    transition: all .3s; z-index: 1;
-  }
-  .dark .step-dot { background: #1e293b; border-color: #374151; }
-  .step-dot.done  { background: var(--amber); border-color: var(--amber); color: #0e0f14; }
-  .step-dot.active { border-color: var(--amber); color: var(--amber); box-shadow: 0 0 0 3px var(--amber-dim); }
+/* ── Floating label ── */
+.float-wrap { position: relative; }
+.float-wrap input { padding-top: 20px; padding-bottom: 8px; }
+.float-label {
+  position: absolute; left: 14px; top: 11px;
+  font-size: .8125rem; color: var(--muted2); pointer-events: none;
+  transition: top .15s, font-size .15s, color .15s;
+}
+.float-wrap input:not(:placeholder-shown) ~ .float-label,
+.float-wrap input:focus ~ .float-label {
+  top: 5px; font-size: .68rem; color: var(--amber);
+}
 
-  .progress-track { position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: #e5e7eb; transform: translateY(-50%); z-index: 0; }
-  .dark .progress-track { background: #374151; }
-  .progress-fill { height: 100%; background: var(--amber); transition: width .4s ease; }
+/* ── Checkbox card ── */
+.check-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px; border-radius: 12px;
+  border: 1px solid var(--border); cursor: pointer;
+  transition: all .15s; user-select: none;
+}
+.check-card:hover { border-color: var(--amid); background: var(--adim); }
+.check-card input[type=checkbox] {
+  width: 16px; height: 16px; border-radius: 5px; flex-shrink: 0;
+  accent-color: var(--amber); cursor: pointer;
+}
+.check-card.is-checked {
+  border-color: var(--amid);
+  background: var(--adim);
+}
 
-  /* ── Buttons ── */
-  .btn-back {
-    padding: 9px 20px; border-radius: 10px; font-size: .8125rem; font-weight: 500;
-    background: transparent; border: 1px solid #d1d5db; color: #6b7280; cursor: pointer; transition: all .18s;
-  }
-  .btn-back:hover { border-color: var(--amber-border); color: #374151; }
-  .dark .btn-back { border-color: #374151; color: #9ca3af; }
-  .btn-next {
-    padding: 9px 24px; border-radius: 10px; font-size: .8125rem; font-weight: 600;
-    background: var(--amber); color: #0e0f14; cursor: pointer; border: none;
-    box-shadow: 0 4px 14px rgba(251,176,52,.3); transition: all .18s;
-  }
-  .btn-next:hover { background: #fcc050; box-shadow: 0 6px 20px rgba(251,176,52,.4); transform: translateY(-1px); }
-  .btn-submit {
-    padding: 9px 24px; border-radius: 10px; font-size: .8125rem; font-weight: 600;
-    background: #16a34a; color: white; cursor: pointer; border: none;
-    box-shadow: 0 4px 14px rgba(22,163,74,.25); transition: all .18s;
-  }
-  .btn-submit:hover { background: #15803d; transform: translateY(-1px); }
+/* ── Step dots ── */
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .7rem; font-weight: 700;
+  border: 2px solid var(--border); color: var(--muted2); background: var(--surface);
+  transition: all .3s; z-index: 1;
+}
+.step-dot.done  { background: var(--amber); border-color: var(--amber); color: #0a0b0f; }
+.step-dot.active { border-color: var(--amber); color: var(--amber); box-shadow: 0 0 0 3px var(--adim); }
 
-  /* ── Similar results ── */
-  .similar-card { border-radius: 12px; border: 1px solid var(--amber-border); background: rgba(251,176,52,.05); padding: 14px; animation: fadeInUp .3s ease both; }
-  .similar-item { border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; margin-top: 8px; transition: border-color .2s, box-shadow .2s; }
-  .dark .similar-item { border-color: #374151; }
-  .similar-item:hover { border-color: var(--amber-border); box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+.progress-track { position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: var(--border); transform: translateY(-50%); z-index: 0; }
+.progress-fill { height: 100%; background: var(--amber); transition: width .4s ease; }
 
-  /* ── Section header ── */
-  .section-head { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
-  .section-head-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--amber); animation: pulse-dot 2s ease-in-out infinite; flex-shrink: 0; }
-  @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.75)} }
-  .section-head-title { font-size: .9375rem; font-weight: 600; font-family: 'Sora', sans-serif; }
-  .section-head-line { flex: 1; height: 1px; background: linear-gradient(to right, rgba(251,176,52,.3), transparent); }
+/* ── Buttons ── */
+.btn-back {
+  padding: 9px 20px; border-radius: 10px; font-size: .8125rem; font-weight: 500;
+  background: transparent; border: 1px solid var(--border); color: var(--muted); cursor: pointer; transition: all .18s;
+}
+.btn-back:hover { border-color: var(--amid); color: var(--text); }
+.btn-next {
+  padding: 9px 24px; border-radius: 10px; font-size: .8125rem; font-weight: 600;
+  background: var(--amber); color: #0a0b0f; cursor: pointer; border: none;
+  box-shadow: 0 4px 14px rgba(251,176,52,.3); transition: all .18s;
+}
+.btn-next:hover { background: #fcc050; box-shadow: 0 6px 20px rgba(251,176,52,.4); transform: translateY(-1px); }
+.btn-submit {
+  padding: 9px 24px; border-radius: 10px; font-size: .8125rem; font-weight: 600;
+  background: #16a34a; color: white; cursor: pointer; border: none;
+  box-shadow: 0 4px 14px rgba(22,163,74,.25); transition: all .18s;
+}
+.btn-submit:hover { background: #15803d; transform: translateY(-1px); }
 
-  /* ── Field label ── */
-  .field-label { display: block; font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: #9ca3af; margin-bottom: 8px; }
+/* ── Similar results ── */
+.similar-card { border-radius: 12px; border: 1px solid var(--amid); background: var(--adim); padding: 14px; animation: fadeInUp .3s ease both; }
+.similar-item { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-top: 8px; transition: border-color .2s, box-shadow .2s; }
+.similar-item:hover { border-color: var(--amid); box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+
+/* ── Section header ── */
+.section-head { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+.section-head-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--amber); animation: pulse-dot 2s ease-in-out infinite; flex-shrink: 0; }
+@keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.75)} }
+.section-head-title { font-size: .9375rem; font-weight: 600; font-family: 'Sora', sans-serif; color: var(--text); }
+.section-head-line { flex: 1; height: 1px; background: linear-gradient(to right, var(--amid), transparent); }
+
+/* ── Field label ── */
+.field-label { display: block; font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--muted2); margin-bottom: 8px; }
 </style>
 
 <div class="max-w-2xl mx-auto px-4 sm:px-6 fade-up space-y-5">
 
   {{-- ── Similar Problems Warning ── --}}
   @if(session('similarProblems'))
-  <div class="rounded-2xl border border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20 p-5">
-    <p class="font-semibold text-yellow-800 dark:text-yellow-300 text-sm mb-2 flex items-center gap-2">
-      <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+  <div style="border-radius: 1.5rem; border: 1px solid #fef3c7; background: #fffbeb; padding: 1.25rem;">
+    <p style="font-weight: 600; color: #b45309; font-size: .875rem; margin-bottom: .5rem; display: flex; align-items: center; gap: .5rem;">
+      <svg class="shrink-0" style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
       </svg>
       Similar problems already reported
     </p>
-    <ul class="space-y-1 text-sm text-yellow-700 dark:text-yellow-300 mb-2">
+    <ul style="margin: 0; padding: 0; display: flex; flex-direction: column; gap: .25rem; font-size: .875rem; color: #b45309; margin-bottom: .5rem;">
       @foreach(session('similarProblems') as $problem)
-        <li class="flex gap-2"><span class="opacity-60">▸</span>{{ $problem->title }}</li>
+        <li style="display: flex; gap: .5rem;"><span style="opacity: .6;">▸</span>{{ $problem->title }}</li>
       @endforeach
     </ul>
-    <p class="text-xs text-yellow-600 dark:text-yellow-400">You can support an existing problem instead of submitting a new one.</p>
+    <p style="font-size: .75rem; color: #a16207;">You can support an existing problem instead of submitting a new one.</p>
   </div>
   @endif
 
@@ -157,7 +177,7 @@
           return true;
       }
   }"
-  class="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
+  style="background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.06)">
 
     <div class="h-1 w-full bg-gradient-to-r from-amber-400 to-orange-500"></div>
 
@@ -184,11 +204,11 @@
               </template>
             </div>
             <span class="text-[10px] font-medium hidden sm:block"
-                  :class="step === {{ $n }} ? 'text-amber-500' : 'text-gray-400'">{{ $label }}</span>
+                  :class="step === {{ $n }} ? 'text-amber-500' : ''" style="color: step === {{ $n }} ? 'var(--amber)' : 'var(--muted2)'">{{ $label }}</span>
           </div>
           @endforeach
         </div>
-        <p class="text-xs text-gray-400 dark:text-gray-500 text-right mt-1">
+        <p style="font-size: .75rem; color: var(--muted2); text-align: right; margin-top: .25rem;">
           Step <span x-text="step"></span> of 4
         </p>
       </div>
@@ -199,7 +219,7 @@
       <div x-show="step === 1" x-transition.opacity>
         <div class="section-head">
           <span class="section-head-dot"></span>
-          <span class="section-head-title text-gray-800 dark:text-white">Basic Information</span>
+          <span class="section-head-title">Basic Information</span>
           <span class="section-head-line"></span>
         </div>
 
@@ -219,7 +239,7 @@
           <div>
             <label class="field-label">
               Who is affected?
-              <span class="text-red-400 normal-case font-normal ml-0.5">*</span>
+              <span style="color: #ef4444; font-weight: normal; margin-left: .125rem;">*</span>
             </label>
 
             <div class="grid grid-cols-2 gap-2">
@@ -227,14 +247,14 @@
               <label class="check-card">
                 <input type="checkbox" name="affected_group[]" value="{{ $group }}"
                   {{ is_array(old('affected_group')) && in_array($group, old('affected_group')) ? 'checked' : '' }}/>
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $group }}</span>
+                <span style="font-size: .875rem; font-weight: 500; color: var(--text);">{{ $group }}</span>
               </label>
               @endforeach
 
               {{-- Other — full width --}}
               <label class="check-card col-span-2" :class="otherGroup ? 'is-checked' : ''">
                 <input type="checkbox" x-model="otherGroup"/>
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Other</span>
+                <span style="font-size: .875rem; font-weight: 500; color: var(--text);">Other</span>
               </label>
             </div>
 
@@ -246,17 +266,17 @@
                      class="field"/>
               <input type="hidden" name="affected_group[]"
                      :value="otherGroupVal.trim() ? 'Other: ' + otherGroupVal.trim() : ''"/>
-              <p class="text-[11px] text-gray-400">Specify who else is affected.</p>
+              <p style="font-size: .6875rem; color: var(--muted2);">Specify who else is affected.</p>
             </div>
 
-            <p class="text-[11px] text-gray-400 mt-2">Select all that apply.</p>
+            <p style="font-size: .6875rem; color: var(--muted2); margin-top: .5rem;">Select all that apply.</p>
           </div>
 
           {{-- Affected Area — single select + Other --}}
           <div>
             <label class="field-label">
               Affected Area
-              <span class="text-red-400 normal-case font-normal ml-0.5">*</span>
+              <span style="color: #ef4444; font-weight: normal; margin-left: .125rem;">*</span>
             </label>
 
             <select name="category" class="field" :required="step === 1"
@@ -275,7 +295,7 @@
                      value="{{ old('category_other') }}"
                      placeholder="Describe the affected area…"
                      class="field"/>
-              <p class="text-[11px] text-gray-400">
+              <p style="font-size: .6875rem; color: var(--muted2);">
                 This will be reviewed by admin and may become a new category.
               </p>
             </div>
@@ -290,7 +310,7 @@
       <div x-show="step === 2" x-transition.opacity>
         <div class="section-head">
           <span class="section-head-dot"></span>
-          <span class="section-head-title text-gray-800 dark:text-white">Problem Details</span>
+          <span class="section-head-title">Problem Details</span>
           <span class="section-head-line"></span>
         </div>
 
@@ -316,7 +336,7 @@
       <div x-show="step === 3" x-transition.opacity>
         <div class="section-head">
           <span class="section-head-dot"></span>
-          <span class="section-head-title text-gray-800 dark:text-white">Context</span>
+          <span class="section-head-title">Context</span>
           <span class="section-head-line"></span>
         </div>
 
@@ -352,7 +372,7 @@
   <label class="field-label">
     Is there an existing solution for this problem?
   </label>
-  <p class="text-xs text-gray-400 dark:text-gray-500 mb-3 -mt-1">
+  <p style="font-size: .75rem; color: var(--muted2); margin-bottom: .75rem; margin-top: -.25rem;">
     Tell us how this is currently being dealt with — or if it isn't at all.
   </p>
  
@@ -377,11 +397,11 @@
              class="mt-0.5 shrink-0" style="accent-color:var(--amber); width:15px; height:15px;"/>
       <div class="flex items-start gap-3 flex-1 min-w-0">
         <i data-lucide="{{ $meta['icon'] }}"
-           class="w-4 h-4 shrink-0 mt-0.5 text-gray-400 group-hover:text-amber-400 transition"
+           class="w-4 h-4 shrink-0 mt-0.5"
            style="color:var(--amber); opacity:.7;"></i>
         <div>
-          <p class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $value }}</p>
-          <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{{ $meta['sub'] }}</p>
+          <p style="font-size: .875rem; font-weight: 500; color: var(--text);">{{ $value }}</p>
+          <p style="font-size: .75rem; color: var(--muted2); margin-top: .125rem;">{{ $meta['sub'] }}</p>
         </div>
       </div>
     </label>
@@ -399,8 +419,8 @@
       <div class="flex items-start gap-3 flex-1 min-w-0">
         <i data-lucide="edit-3" class="w-4 h-4 shrink-0 mt-0.5" style="color:var(--amber); opacity:.7;"></i>
         <div class="flex-1">
-          <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Other</p>
-          <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Describe how it's currently being handled.</p>
+          <p style="font-size: .875rem; font-weight: 500; color: var(--text);">Other</p>
+          <p style="font-size: .75rem; color: var(--muted2); margin-top: .125rem;">Describe how it's currently being handled.</p>
         </div>
       </div>
     </label>
@@ -424,87 +444,87 @@
       <div x-show="step === 4" x-transition.opacity>
         <div class="section-head">
           <span class="section-head-dot"></span>
-          <span class="section-head-title text-gray-800 dark:text-white">Review & Submit</span>
+          <span class="section-head-title">Review & Submit</span>
           <span class="section-head-line"></span>
         </div>
 
-        <div class="rounded-xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/40 p-5 space-y-4 mb-5">
-          <p class="text-xs uppercase tracking-wider font-semibold text-gray-400 mb-3">📋 Your Submission Summary</p>
+        <div style="border-radius: .75rem; border: 1px solid var(--border); background: var(--surface-alt); padding: 1.25rem; margin-bottom: 1.25rem; display: flex; flex-direction: column; gap: 1rem;">
+          <p style="font-size: .75rem; text-transform: uppercase; letter-spacing: .12em; font-weight: 600; color: var(--muted2); margin-bottom: .75rem;">📋 Your Submission Summary</p>
           
           {{-- Problem Title --}}
-          <div class="border-t border-gray-200 dark:border-slate-700 pt-3">
-            <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Problem Title</p>
-            <p id="review-title" class="text-sm font-medium text-gray-800 dark:text-gray-200">—</p>
+          <div style="border-top: 1px solid var(--border); padding-top: .75rem;">
+            <p style="font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .12em; color: var(--muted2); margin-bottom: .25rem;">Problem Title</p>
+            <p id="review-title" style="font-size: .875rem; font-weight: 500; color: var(--text);">—</p>
           </div>
           
           {{-- Affected Groups --}}
           <div>
-            <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Who Is Affected</p>
-            <p id="review-group" class="text-sm font-medium text-gray-800 dark:text-gray-200">—</p>
+            <p style="font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .12em; color: var(--muted2); margin-bottom: .25rem;">Who Is Affected</p>
+            <p id="review-group" style="font-size: .875rem; font-weight: 500; color: var(--text);">—</p>
           </div>
           
           {{-- Category/Area --}}
           <div>
-            <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Affected Area</p>
-            <p id="review-category" class="text-sm font-medium text-gray-800 dark:text-gray-200">—</p>
+            <p style="font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .12em; color: var(--muted2); margin-bottom: .25rem;">Affected Area</p>
+            <p id="review-category" style="font-size: .875rem; font-weight: 500; color: var(--text);">—</p>
           </div>
           
           {{-- Description --}}
           <div>
-            <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Problem Description</p>
-            <p id="review-description" class="text-sm text-gray-700 dark:text-gray-300 line-clamp-3">—</p>
+            <p style="font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .12em; color: var(--muted2); margin-bottom: .25rem;">Problem Description</p>
+            <p id="review-description" style="font-size: .875rem; color: var(--text); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">—</p>
           </div>
           
           {{-- Impact --}}
           <div>
-            <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">How It Affects People</p>
-            <p id="review-impact" class="text-sm text-gray-700 dark:text-gray-300 line-clamp-3">—</p>
+            <p style="font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .12em; color: var(--muted2); margin-bottom: .25rem;">How It Affects People</p>
+            <p id="review-impact" style="font-size: .875rem; color: var(--text); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">—</p>
           </div>
           
           {{-- Frequency & People Affected (side by side) --}}
-          <div class="grid grid-cols-2 gap-4">
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
             <div>
-              <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">How Often</p>
-              <p id="review-freq" class="text-sm font-medium text-gray-800 dark:text-gray-200">—</p>
+              <p style="font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .12em; color: var(--muted2); margin-bottom: .25rem;">How Often</p>
+              <p id="review-freq" style="font-size: .875rem; font-weight: 500; color: var(--text);">—</p>
             </div>
             <div>
-              <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">People Affected</p>
-              <p id="review-affected-users" class="text-sm font-medium text-gray-800 dark:text-gray-200">—</p>
+              <p style="font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .12em; color: var(--muted2); margin-bottom: .25rem;">People Affected</p>
+              <p id="review-affected-users" style="font-size: .875rem; font-weight: 500; color: var(--text);">—</p>
             </div>
           </div>
           
           {{-- Current Process --}}
           <div>
-            <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Current Solution/Process</p>
-            <p id="review-process" class="text-sm text-gray-700 dark:text-gray-300 line-clamp-2">—</p>
+            <p style="font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .12em; color: var(--muted2); margin-bottom: .25rem;">Current Solution/Process</p>
+            <p id="review-process" style="font-size: .875rem; color: var(--text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">—</p>
           </div>
           
           {{-- Anonymous checkbox --}}
-          <div class="border-t border-gray-200 dark:border-slate-700 pt-3 flex items-center gap-2">
-            <svg id="review-anon-icon" class="w-4 h-4 text-gray-400" style="display:none;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <div style="border-top: 1px solid var(--border); padding-top: .75rem; display: flex; align-items: center; gap: .5rem;">
+            <svg id="review-anon-icon" style="width: 1rem; height: 1rem; color: var(--muted2); display: none;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path d="M13.828 10.172a4 4 0 00-5.656 0l-4.242 4.242a4 4 0 105.656 5.656l4.242-4.242a4 4 0 00-5.656-5.656l4.242 4.242"/>
             </svg>
-            <span id="review-anon-label" class="text-xs text-gray-500 dark:text-gray-400">—</span>
+            <span id="review-anon-label" style="font-size: .75rem; color: var(--muted2);">—</span>
           </div>
         </div>
 
-        <label class="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300 cursor-pointer select-none">
+        <label style="display: flex; align-items: center; gap: .75rem; font-size: .875rem; color: var(--text); cursor: pointer; user-select: none;">
           <input type="checkbox" name="is_anonymous"
-                 class="rounded border-gray-300 text-amber-500 focus:ring-amber-400 w-4 h-4"/>
+                 style="border-radius: 4px; accent-color: var(--amber); width: 1rem; height: 1rem;"/>
           Submit anonymously
         </label>
       </div>
 
       {{-- ── Navigation ── --}}
       <div>
-        <p x-show="showError" class="text-xs text-red-500 mb-3 flex items-center gap-1.5">
-          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <p x-show="showError" style="font-size: .75rem; color: #ef4444; margin-bottom: .75rem; display: flex; align-items: center; gap: .375rem;">
+          <svg class="shrink-0" style="width: .875rem; height: .875rem;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/>
           </svg>
           Please fill in all required fields before proceeding.
         </p>
 
-        <div class="flex items-center justify-between gap-3">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: .75rem;">
 
           <button type="button" class="btn-back"
             @click="step = Math.max(step - 1, 1); showError = false"
@@ -512,7 +532,7 @@
             ← Back
           </button>
 
-          <button type="button" class="btn-next ml-auto"
+          <button type="button" class="btn-next" style="margin-left: auto;"
             x-show="step < 4"
             @click="canProceed()
               ? (step = Math.min(step + 1, 4), showError = false, updateReview())
@@ -520,7 +540,7 @@
             Next →
           </button>
 
-          <button type="submit" class="btn-submit ml-auto" x-show="step === 4">
+          <button type="submit" class="btn-submit" style="margin-left: auto;" x-show="step === 4">
             Submit Problem
           </button>
 
