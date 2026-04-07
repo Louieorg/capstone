@@ -14,6 +14,7 @@ class Feedback extends Model
         'description',
         'impact',
         'category',
+        'department',
         'category_other',
         'frequency',
         'current_process',
@@ -27,7 +28,7 @@ class Feedback extends Model
 
     protected $casts = [
         'affected_group' => 'array',   // auto JSON encode/decode
-        'is_anonymous'   => 'boolean',
+        'is_anonymous' => 'boolean',
     ];
 
     public function votes()

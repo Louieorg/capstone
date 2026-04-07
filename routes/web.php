@@ -1,10 +1,10 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\FeedbackController;
-use App\Http\Controllers\IdeaController;
-use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\AdviserController;
+use App\Http\Controllers\FeedbackController;
+use App\Http\Controllers\GoogleAuthController;
+use App\Http\Controllers\IdeaController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -77,11 +77,11 @@ Route::middleware(['auth'])->group(function () {
 
     // Save idea
     Route::post('/idea/save', [IdeaController::class, 'save'])
-        ->name('idea.save'); 
-    
-        Route::patch('/my-ideas/{id}/status', [IdeaController::class, 'updateStatus'])
-    ->name('idea.updateStatus')
-    ->middleware('auth');
+        ->name('idea.save');
+
+    Route::patch('/my-ideas/{id}/status', [IdeaController::class, 'updateStatus'])
+        ->name('idea.updateStatus')
+        ->middleware('auth');
 
     // View saved ideas
     Route::get('/my-ideas', function () {
@@ -94,10 +94,15 @@ Route::middleware(['auth'])->group(function () {
 
     // Notifications
     Route::get('/notifications', function () {
-        $notifications = auth()->user()->notifications;
+        $user = auth()->user();
+
+        $user->unreadNotifications->markAsRead();
+        $user->unsetRelation('unreadNotifications');
+
+        $notifications = $user->notifications()->latest()->get();
+
         return view('notifications.index', compact('notifications'));
     })->name('notifications');
-
 
     /*
     |--------------------------------------------------------------------------
@@ -109,7 +114,7 @@ Route::middleware(['auth'])->group(function () {
 
         // Adviser dashboard
         Route::get('/adviser/dashboard', [AdviserController::class, 'dashboard'])
-    ->name('adviser.dashboard');
+            ->name('adviser.dashboard');
 
         // Submit review (rate limited)
         Route::post('/adviser/dashboard', [FeedbackController::class, 'storeReview'])
@@ -117,7 +122,6 @@ Route::middleware(['auth'])->group(function () {
             ->middleware('throttle:3,1');
 
     });
-
 
     /*
     |--------------------------------------------------------------------------

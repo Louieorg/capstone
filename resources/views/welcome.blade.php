@@ -205,6 +205,16 @@ nav.scrolled {
 .auth-body { padding: 28px; }
 .panel { display: none; }
 .panel.active { display: block; }
+.auth-warning {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  background: rgba(127, 29, 29, 0.28);
+  color: #fecaca;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
 
 /* Redirect to correct tab if there are errors */
 .form-row {
@@ -638,10 +648,15 @@ footer p { font-size: 12px; color: var(--muted2); }
       <div class="panel active" id="panel-login">
         <form method="POST" action="{{ route('login') }}">
           @csrf
+          @if ($errors->has('email'))
+            <div class="auth-warning" role="alert">
+              Incorrect email or password. Please try again.
+            </div>
+          @endif
           <div class="form-group">
             <label class="form-label">Email address</label>
             <div class="input-wrap">
-              <input type="email" name="email" class="form-input" placeholder="you@school.edu" required>
+              <input type="email" name="email" value="{{ old('email') }}" class="form-input" placeholder="you@school.edu" required>
               {{-- mail icon --}}
             </div>
           </div>

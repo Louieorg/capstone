@@ -6,310 +6,530 @@
 @section('content')
 
 <style>
-  :root {
-    --amber: #fbb034;
-    --amber-dim: rgba(251,176,52,0.10);
-    --amber-border: rgba(251,176,52,0.22);
-  }
+html.dark {
+  --surface:    #13141a;
+  --surface2:   #1a1b23;
+  --border:     rgba(255,255,255,0.07);
+  --border-h:   rgba(251,176,52,0.28);
+  --text:       #f0f0f5;
+  --text2:      #9a9bb0;
+  --text3:      #5e6175;
+  --amber:      #fbb034;
+  --adim:       rgba(251,176,52,0.10);
+  --amid:       rgba(251,176,52,0.22);
+  --green:      #5fcd8a;
+  --green-bg:   rgba(95,205,138,0.10);
+  --green-b:    rgba(95,205,138,0.22);
+  --red:        #f87171;
+  --red-bg:     rgba(248,113,113,0.10);
+  --red-b:      rgba(248,113,113,0.22);
+  --blue:       #60a5fa;
+  --blue-bg:    rgba(96,165,250,0.10);
+  --blue-b:     rgba(96,165,250,0.20);
+  --prog-track: rgba(255,255,255,0.06);
+}
+html:not(.dark) {
+  --surface:    #ffffff;
+  --surface2:   #f9f8f6;
+  --border:     rgba(0,0,0,0.08);
+  --border-h:   rgba(186,117,23,0.35);
+  --text:       #111014;
+  --text2:      #5a5870;
+  --text3:      #9a97b0;
+  --amber:      #b57318;
+  --adim:       rgba(186,117,23,0.08);
+  --amid:       rgba(186,117,23,0.18);
+  --green:      #15803d;
+  --green-bg:   rgba(22,163,74,0.08);
+  --green-b:    rgba(22,163,74,0.20);
+  --red:        #dc2626;
+  --red-bg:     rgba(220,38,38,0.08);
+  --red-b:      rgba(220,38,38,0.20);
+  --blue:       #1d4ed8;
+  --blue-bg:    rgba(29,78,216,0.08);
+  --blue-b:     rgba(29,78,216,0.18);
+  --prog-track: rgba(0,0,0,0.07);
+}
 
-  @keyframes fadeInUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
-  .anim-1 { animation: fadeInUp .4s ease both; }
-  .anim-2 { animation: fadeInUp .4s .07s ease both; }
-  .anim-3 { animation: fadeInUp .4s .14s ease both; }
-  .anim-4 { animation: fadeInUp .4s .21s ease both; }
+@keyframes fadeInUp {
+  from { opacity:0; transform:translateY(14px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.anim-1 { animation: fadeInUp .4s ease both; }
+.anim-2 { animation: fadeInUp .4s .07s ease both; }
+.anim-3 { animation: fadeInUp .4s .14s ease both; }
+.anim-4 { animation: fadeInUp .4s .21s ease both; }
 
-  .dash-card {
-    background: white; border: 1px solid #f3f4f6;
-    border-radius: 18px; overflow: hidden;
-    transition: box-shadow .2s, border-color .2s;
-  }
-  .dark .dash-card { background: #1e293b; border-color: rgba(255,255,255,.06); }
+/* ── Stat grid ── */
+.stat-grid {
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 14px;
+}
+@media (max-width: 900px) { .stat-grid { grid-template-columns: repeat(2,1fr); } }
+@media (max-width: 480px) { .stat-grid { grid-template-columns: 1fr; } }
 
-  .dash-card-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 16px 20px; border-bottom: 1px solid #f3f4f6;
-  }
-  .dark .dash-card-header { border-color: rgba(255,255,255,.06); }
-  .dash-card-title { font-family:'Sora',sans-serif; font-size:.9rem; font-weight:600; }
+.s-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 20px;
+  position: relative; overflow: hidden;
+  transition: border-color .2s, transform .2s;
+}
+.s-card:hover { border-color: var(--border-h); transform: translateY(-2px); }
+.s-card.featured { border-color: var(--amid); }
+.s-card::after {
+  content: ''; position: absolute; top: -18px; right: -18px;
+  width: 64px; height: 64px; border-radius: 50%;
+  background: var(--adim); pointer-events: none;
+}
+.s-icon {
+  width: 34px; height: 34px; border-radius: 9px;
+  background: var(--adim); border: 1px solid var(--amid);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 14px; color: var(--amber);
+}
+.s-icon.red   { background: var(--red-bg);   border-color: var(--red-b);   color: var(--red); }
+.s-icon.green { background: var(--green-bg); border-color: var(--green-b); color: var(--green); }
+.s-icon.blue  { background: var(--blue-bg);  border-color: var(--blue-b);  color: var(--blue); }
+.s-label {
+  font-size: 10.5px; font-weight: 600; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text3); margin-bottom: 7px;
+}
+.s-val {
+  font-family: 'Sora', sans-serif; font-size: 32px; font-weight: 800;
+  line-height: 1; color: var(--amber); margin-bottom: 4px;
+}
+.s-card:not(.featured) .s-val { color: var(--text); }
+.s-hint { font-size: 11.5px; color: var(--text3); }
+.prog-bar {
+  height: 5px; border-radius: 999px;
+  background: var(--prog-track); overflow: hidden; margin-top: 8px;
+}
+.prog-fill {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(to right, #fbb034, #f97316);
+  transition: width .6s ease;
+}
+html:not(.dark) .prog-fill {
+  background: linear-gradient(to right, #b57318, #c2410c);
+}
 
-  /* ── Stat card ── */
-  .stat-card { position:relative; overflow:hidden; border-radius:16px; padding:20px 22px; border:1px solid #f3f4f6; background:white; }
-  .dark .stat-card { background:#1e293b; border-color:rgba(255,255,255,.06); }
-  .stat-card::after { content:''; position:absolute; top:-20px; right:-20px; width:70px; height:70px; border-radius:50%; background:var(--amber-dim); pointer-events:none; }
+/* ── Main layout ── */
+.main-grid {
+  display: grid; grid-template-columns: 1fr 300px; gap: 18px; align-items: start;
+}
+@media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+.left-col  { display: flex; flex-direction: column; gap: 14px; }
+.right-col { display: flex; flex-direction: column; gap: 14px; }
 
-  /* ── Category row ── */
-  .cat-row {
-    display:flex; align-items:center; gap:12px;
-    padding:12px 14px; border-radius:12px;
-    border:1px solid #f3f4f6; transition: all .18s;
-    text-decoration:none;
-  }
-  .dark .cat-row { border-color:rgba(255,255,255,.06); }
-  .cat-row:hover { border-color:var(--amber-border); background:var(--amber-dim); transform:translateX(3px); }
+/* ── Dash card ── */
+.dash-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; overflow: hidden; transition: border-color .2s;
+}
+.dash-card:hover { border-color: var(--border-h); }
+.dc-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
+}
+.dc-title {
+  font-family: 'Sora', sans-serif; font-size: 14px;
+  font-weight: 700; color: var(--text);
+}
+.dc-sub { font-size: 11.5px; color: var(--text3); }
+.dc-body { padding: 14px 16px; }
 
-  /* ── Review row ── */
-  .review-row {
-    padding:14px 16px; border-radius:12px;
-    border:1px solid #f3f4f6; transition:border-color .18s;
-  }
-  .dark .review-row { border-color:rgba(255,255,255,.06); }
-  .review-row:hover { border-color:var(--amber-border); }
+/* ── Badge ── */
+.lk-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; border: 1px solid; white-space: nowrap;
+}
+.b-amber { background: var(--adim);     color: var(--amber); border-color: var(--amid); }
+.b-green { background: var(--green-bg); color: var(--green); border-color: var(--green-b); }
+.b-red   { background: var(--red-bg);   color: var(--red);   border-color: var(--red-b); }
+.b-blue  { background: var(--blue-bg);  color: var(--blue);  border-color: var(--blue-b); }
 
-  /* ── Recommendation pill ── */
-  .pill { display:inline-flex; align-items:center; padding:2px 10px; border-radius:999px; font-size:.7rem; font-weight:600; }
-  .pill-green  { background:rgba(22,163,74,.1);  color:#16a34a; border:1px solid rgba(22,163,74,.2); }
-  .pill-amber  { background:var(--amber-dim);    color:var(--amber); border:1px solid var(--amber-border); }
-  .pill-red    { background:rgba(239,68,68,.1);  color:#ef4444; border:1px solid rgba(239,68,68,.2); }
-  .pill-blue   { background:rgba(59,130,246,.1); color:#3b82f6; border:1px solid rgba(59,130,246,.2); }
+/* ── Category row ── */
+.cat-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 13px; border-radius: 11px;
+  border: 1px solid var(--border);
+  text-decoration: none; color: inherit;
+  transition: border-color .15s, background .15s, transform .15s;
+  margin-bottom: 7px;
+}
+.cat-row:last-child { margin-bottom: 0; }
+.cat-row:hover {
+  border-color: var(--amid);
+  background: var(--adim);
+  transform: translateX(3px);
+}
+.cat-icon {
+  width: 34px; height: 34px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.cat-icon.pending { background: var(--adim); border: 1px solid var(--amid); color: var(--amber); }
+.cat-icon.done    { background: var(--green-bg); border: 1px solid var(--green-b); color: var(--green); }
+.cat-name {
+  font-family: 'Sora', sans-serif; font-size: 13px;
+  font-weight: 700; color: var(--text); margin-bottom: 2px;
+  transition: color .15s;
+}
+.cat-row:hover .cat-name { color: var(--amber); }
+.cat-sub { font-size: 11.5px; color: var(--text3); }
+.cat-arrow {
+  font-size: 14px; color: var(--text3); margin-left: auto; flex-shrink: 0;
+  transition: color .15s, transform .15s;
+}
+.cat-row:hover .cat-arrow { color: var(--amber); transform: translateX(3px); }
 
-  /* ── Empty state ── */
-  .empty-state { padding:36px 20px; text-align:center; }
-  .empty-state p { font-size:.8125rem; color:#9ca3af; margin-top:8px; }
+/* ── Review row ── */
+.review-row {
+  padding: 14px 16px; border-radius: 11px;
+  border: 1px solid var(--border);
+  transition: border-color .15s; margin-bottom: 8px;
+}
+.review-row:last-child { margin-bottom: 0; }
+.review-row:hover { border-color: var(--amid); }
+.rr-top {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 10px; margin-bottom: 6px;
+}
+.rr-title {
+  font-family: 'Sora', sans-serif; font-size: 13px;
+  font-weight: 700; color: var(--text); line-height: 1.4;
+}
+.rr-comment {
+  font-size: 12.5px; color: var(--text2); line-height: 1.6; margin-bottom: 8px;
+  display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden;
+}
+.rr-foot {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.rr-time { font-size: 11px; color: var(--text3); }
 
-  /* ── Progress bar ── */
-  .prog-bar { height:6px; border-radius:999px; background:#f3f4f6; overflow:hidden; }
-  .dark .prog-bar { background:rgba(255,255,255,.06); }
-  .prog-fill { height:100%; border-radius:999px; background:linear-gradient(to right,#fbb034,#f97316); transition:width .6s ease; }
+/* ── Recommendation breakdown ── */
+.rec-row { margin-bottom: 14px; }
+.rec-row:last-child { margin-bottom: 0; }
+.rec-meta {
+  display: flex; align-items: center;
+  justify-content: space-between; margin-bottom: 5px;
+}
+.rec-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12.5px; color: var(--text2);
+}
+.rec-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.rec-count { font-size: 12.5px; font-weight: 700; color: var(--text); }
+.rec-pct { font-size: 10.5px; color: var(--text3); margin-top: 3px; text-align: right; }
+.divider { height: 1px; background: var(--border); margin: 14px 0; }
+
+/* ── Tip card ── */
+.tip-card {
+  border-radius: 14px; padding: 18px;
+  border: 1px solid var(--amid); background: var(--adim);
+}
+.tip-label {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--amber); margin-bottom: 12px;
+}
+.tip-list { display: flex; flex-direction: column; gap: 9px; }
+.tip-item { display: flex; gap: 9px; font-size: 12.5px; color: var(--text2); line-height: 1.55; }
+.tip-num {
+  font-family: 'Sora', sans-serif; font-size: 11.5px;
+  font-weight: 700; color: var(--amber); flex-shrink: 0; margin-top: 1px;
+}
+
+/* ── Progress card ── */
+.prog-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; overflow: hidden; transition: border-color .2s;
+}
+.prog-card:hover { border-color: var(--border-h); }
+.prog-big {
+  font-family: 'Sora', sans-serif; font-size: 28px;
+  font-weight: 800; color: var(--amber); line-height: 1;
+}
+.prog-sub { font-size: 12px; color: var(--text3); margin-top: 3px; margin-bottom: 12px; }
+.prog-bar-lg { height: 8px; border-radius: 999px; background: var(--prog-track); overflow: hidden; }
+.prog-fill-lg {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(to right, #fbb034, #f97316);
+  transition: width .6s ease;
+}
+html:not(.dark) .prog-fill-lg { background: linear-gradient(to right, #b57318, #c2410c); }
+
+/* ── Empty state ── */
+.empty-state { padding: 28px; text-align: center; }
+.empty-ico {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: var(--adim); border: 1px solid var(--amid);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 10px; color: var(--amber);
+}
+.empty-text { font-size: 13px; color: var(--text3); }
 </style>
 
-<div class="max-w-6xl mx-auto space-y-6">
+<div class="max-w-6xl mx-auto" style="display:flex;flex-direction:column;gap:18px">
 
   {{-- ══ STAT CARDS ══ --}}
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 anim-1">
+  <div class="stat-grid anim-1">
 
-    {{-- Total ready categories --}}
-    <div class="stat-card">
-      <div class="w-9 h-9 rounded-xl flex items-center justify-center mb-3 border" style="background:var(--amber-dim); border-color:var(--amber-border);">
-        <i data-lucide="layers" class="w-4 h-4" style="color:var(--amber);"></i>
+    <div class="s-card featured">
+      <div class="s-icon">
+        <i data-lucide="layers" style="width:15px;height:15px;"></i>
       </div>
-      <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Ready to Review</p>
-      <p class="text-3xl font-bold text-gray-800 dark:text-white" style="font-family:'Sora',sans-serif;">{{ $readyCategories->count() }}</p>
-      <p class="text-xs text-gray-400 mt-1">categories with ideas</p>
+      <div class="s-label">Ready to Review</div>
+      <div class="s-val">{{ $readyCategories->count() }}</div>
+      <div class="s-hint">categories with ideas</div>
     </div>
 
-    {{-- Pending --}}
-    <div class="stat-card">
-      <div class="w-9 h-9 rounded-xl flex items-center justify-center mb-3 border border-red-100 dark:border-red-900/30" style="background:rgba(239,68,68,.08);">
-        <i data-lucide="clock" class="w-4 h-4 text-red-500"></i>
+    <div class="s-card">
+      <div class="s-icon red">
+        <i data-lucide="clock" style="width:15px;height:15px;"></i>
       </div>
-      <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Awaiting Review</p>
-      <p class="text-3xl font-bold text-gray-800 dark:text-white" style="font-family:'Sora',sans-serif;">{{ $pendingCategories->count() }}</p>
-      <p class="text-xs text-gray-400 mt-1">not yet reviewed</p>
+      <div class="s-label">Awaiting Review</div>
+      <div class="s-val">{{ $pendingCategories->count() }}</div>
+      <div class="s-hint">not yet reviewed</div>
     </div>
 
-    {{-- Reviewed --}}
-    <div class="stat-card">
-      <div class="w-9 h-9 rounded-xl flex items-center justify-center mb-3 border border-green-100 dark:border-green-900/30" style="background:rgba(22,163,74,.08);">
-        <i data-lucide="check-circle" class="w-4 h-4 text-green-500"></i>
+    <div class="s-card">
+      <div class="s-icon green">
+        <i data-lucide="check-circle" style="width:15px;height:15px;"></i>
       </div>
-      <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Reviewed</p>
-      <p class="text-3xl font-bold text-gray-800 dark:text-white" style="font-family:'Sora',sans-serif;">{{ $reviewedCategories->count() }}</p>
-      <p class="text-xs text-gray-400 mt-1">categories done</p>
+      <div class="s-label">Reviewed</div>
+      <div class="s-val">{{ $reviewedCategories->count() }}</div>
+      <div class="s-hint">categories done</div>
     </div>
 
-    {{-- Review progress --}}
-    <div class="stat-card">
-      <div class="w-9 h-9 rounded-xl flex items-center justify-center mb-3 border border-blue-100 dark:border-blue-900/30" style="background:rgba(59,130,246,.08);">
-        <i data-lucide="trending-up" class="w-4 h-4 text-blue-500"></i>
+    <div class="s-card">
+      <div class="s-icon blue">
+        <i data-lucide="trending-up" style="width:15px;height:15px;"></i>
       </div>
-      <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Completion</p>
-      @php $pct = $readyCategories->count() > 0 ? round(($reviewedCategories->count() / $readyCategories->count()) * 100) : 0; @endphp
-      <p class="text-3xl font-bold text-gray-800 dark:text-white" style="font-family:'Sora',sans-serif;">{{ $pct }}%</p>
-      <div class="prog-bar mt-2"><div class="prog-fill" style="width:{{ $pct }}%"></div></div>
+      <div class="s-label">Completion</div>
+      @php
+        $pct = $readyCategories->count() > 0
+          ? round(($reviewedCategories->count() / $readyCategories->count()) * 100)
+          : 0;
+      @endphp
+      <div class="s-val">{{ $pct }}%</div>
+      <div class="prog-bar">
+        <div class="prog-fill" style="width:{{ $pct }}%"></div>
+      </div>
     </div>
 
   </div>
 
   {{-- ══ MAIN GRID ══ --}}
-  <div class="grid md:grid-cols-3 gap-5">
+  <div class="main-grid">
 
-    {{-- ── LEFT: Pending + Reviewed categories (spans 2) ── --}}
-    <div class="md:col-span-2 space-y-5">
+    {{-- LEFT: categories + reviews --}}
+    <div class="left-col">
 
-      {{-- Pending review --}}
+      {{-- Needs review --}}
       <div class="dash-card anim-2">
-        <div class="dash-card-header">
-          <span class="dash-card-title text-gray-800 dark:text-gray-100">⏳ Needs Your Review</span>
+        <div class="dc-head">
+          <span class="dc-title">Needs your review</span>
           @if($pendingCategories->count())
-          <span class="pill pill-red">{{ $pendingCategories->count() }} pending</span>
+            <span class="lk-badge b-red">{{ $pendingCategories->count() }} pending</span>
           @endif
         </div>
-        <div class="p-4 space-y-2">
+        <div class="dc-body">
           @forelse($pendingCategories as $cat)
-          <a href="{{ route('feedback.category', $cat->category) }}" class="cat-row group">
-            <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border" style="background:var(--amber-dim); border-color:var(--amber-border);">
-              <i data-lucide="folder-open" class="w-4 h-4" style="color:var(--amber);"></i>
-            </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-semibold text-gray-800 dark:text-white truncate group-hover:text-amber-500 transition" style="font-family:'Sora',sans-serif;">
-                {{ $cat->category }}
-              </p>
-              <p class="text-xs text-gray-400">{{ $cat->total_reports }} {{ Str::plural('report', $cat->total_reports) }}</p>
-            </div>
-            <div class="flex items-center gap-2 shrink-0">
-              <span class="pill pill-red">Unreviewed</span>
-              <span class="text-gray-300 dark:text-gray-600 group-hover:text-amber-400 transition">→</span>
-            </div>
-          </a>
+            <a href="{{ route('feedback.category', $cat->category) }}" class="cat-row">
+              <div class="cat-icon pending">
+                <i data-lucide="folder-open" style="width:14px;height:14px;"></i>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div class="cat-name">{{ $cat->category }}</div>
+                <div class="cat-sub">{{ $cat->total_reports }} {{ Str::plural('report', $cat->total_reports) }}</div>
+              </div>
+              <span class="lk-badge b-red">Unreviewed</span>
+              <span class="cat-arrow">→</span>
+            </a>
           @empty
-          <div class="empty-state">
-            <p class="text-2xl">✅</p>
-            <p>All categories reviewed — great work!</p>
-          </div>
+            <div class="empty-state">
+              <div class="empty-ico">
+                <i data-lucide="check-circle" style="width:16px;height:16px;color:var(--green);"></i>
+              </div>
+              <p class="empty-text">All categories reviewed — great work!</p>
+            </div>
           @endforelse
         </div>
       </div>
 
-      {{-- Reviewed categories --}}
+      {{-- Already reviewed --}}
       @if($reviewedCategories->count())
       <div class="dash-card anim-3">
-        <div class="dash-card-header">
-          <span class="dash-card-title text-gray-800 dark:text-gray-100">✅ Already Reviewed</span>
-          <span class="pill pill-green">{{ $reviewedCategories->count() }} done</span>
+        <div class="dc-head">
+          <span class="dc-title">Already reviewed</span>
+          <span class="lk-badge b-green">{{ $reviewedCategories->count() }} done</span>
         </div>
-        <div class="p-4 space-y-2">
+        <div class="dc-body">
           @foreach($reviewedCategories as $cat)
-          @php $eval = $evaluations[$cat->category] ?? null; @endphp
-          <a href="{{ route('feedback.category', $cat->category) }}" class="cat-row group">
-            <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border border-green-100 dark:border-green-900/30" style="background:rgba(22,163,74,.08);">
-              <i data-lucide="check" class="w-4 h-4 text-green-500"></i>
-            </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-semibold text-gray-800 dark:text-white truncate group-hover:text-amber-500 transition" style="font-family:'Sora',sans-serif;">
-                {{ $cat->category }}
-              </p>
-              <p class="text-xs text-gray-400">{{ $cat->total_reports }} {{ Str::plural('report', $cat->total_reports) }}
-                @if($eval) · Score: <span class="font-medium" style="color:var(--amber);">{{ $eval->final_score ?? $eval->overall_score }}</span>@endif
-              </p>
-            </div>
-            <span class="pill pill-green shrink-0">Reviewed</span>
-          </a>
+            @php $eval = $evaluations[$cat->category] ?? null; @endphp
+            <a href="{{ route('feedback.category', $cat->category) }}" class="cat-row">
+              <div class="cat-icon done">
+                <i data-lucide="check" style="width:14px;height:14px;"></i>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div class="cat-name">{{ $cat->category }}</div>
+                <div class="cat-sub">
+                  {{ $cat->total_reports }} {{ Str::plural('report', $cat->total_reports) }}
+                  @if($eval)
+                    · Score: <strong style="color:var(--amber)">{{ $eval->final_score ?? $eval->overall_score }}</strong>
+                  @endif
+                </div>
+              </div>
+              <span class="lk-badge b-green">Reviewed</span>
+            </a>
           @endforeach
         </div>
       </div>
       @endif
 
-      {{-- Recent review activity --}}
+      {{-- Recent reviews --}}
       <div class="dash-card anim-4">
-        <div class="dash-card-header">
-          <span class="dash-card-title text-gray-800 dark:text-gray-100">🕐 Recent Reviews</span>
-          <span class="text-xs text-gray-400">Latest activity</span>
+        <div class="dc-head">
+          <span class="dc-title">Recent reviews</span>
+          <span class="dc-sub">Latest activity</span>
         </div>
-        <div class="p-4 space-y-3">
+        <div class="dc-body">
           @forelse($recentReviews as $review)
-          <div class="review-row">
-            <div class="flex items-start justify-between gap-3 mb-1">
-              <p class="text-sm font-semibold text-gray-800 dark:text-white leading-snug" style="font-family:'Sora',sans-serif;">
-                {{ $review->idea_title }}
-              </p>
-              <span class="pill shrink-0
-                @if($review->recommendation === 'Recommended') pill-green
-                @elseif($review->recommendation === 'Needs Revision') pill-amber
-                @else pill-red @endif">
-                {{ $review->recommendation }}
-              </span>
+            <div class="review-row">
+              <div class="rr-top">
+                <div class="rr-title">{{ $review->idea_title }}</div>
+                @php
+                  $recBadge = $review->recommendation === 'Recommended'
+                    ? 'b-green' : ($review->recommendation === 'Needs Revision' ? 'b-amber' : 'b-red');
+                @endphp
+                <span class="lk-badge {{ $recBadge }}" style="flex-shrink:0">
+                  {{ $review->recommendation }}
+                </span>
+              </div>
+              <p class="rr-comment">{{ $review->comment }}</p>
+              <div class="rr-foot">
+                <span class="lk-badge b-blue">{{ $review->category }}</span>
+                <span class="rr-time">{{ $review->created_at->diffForHumans() }}</span>
+              </div>
             </div>
-            <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-2">{{ $review->comment }}</p>
-            <div class="flex items-center justify-between text-xs text-gray-400">
-              <span class="pill pill-blue">{{ $review->category }}</span>
-              <span>{{ $review->created_at->diffForHumans() }}</span>
-            </div>
-          </div>
           @empty
-          <div class="empty-state">
-            <p class="text-2xl">📋</p>
-            <p>No reviews submitted yet. Start by reviewing a category above.</p>
-          </div>
+            <div class="empty-state">
+              <div class="empty-ico">
+                <i data-lucide="clipboard-list" style="width:16px;height:16px;"></i>
+              </div>
+              <p class="empty-text">No reviews submitted yet. Start by reviewing a category above.</p>
+            </div>
           @endforelse
         </div>
       </div>
 
     </div>
 
-    {{-- ── RIGHT: Recommendation summary ── --}}
-    <div class="space-y-5">
+    {{-- RIGHT: stats + tip + progress --}}
+    <div class="right-col">
 
       {{-- Recommendation breakdown --}}
       <div class="dash-card anim-2">
-        <div class="dash-card-header">
-          <span class="dash-card-title text-gray-800 dark:text-gray-100">📊 My Recommendations</span>
+        <div class="dc-head">
+          <span class="dc-title">My recommendations</span>
         </div>
-        <div class="p-5 space-y-4">
-
+        <div class="dc-body">
           @if($totalReviewed > 0)
-
-          @foreach([
-            'Recommended'     => ['pill-green', 'check-circle'],
-            'Needs Revision'  => ['pill-amber', 'edit'],
-            'Not Recommended' => ['pill-red',   'x-circle'],
-          ] as $label => [$pillClass, $icon])
-          @php $count = $recommendationStats[$label] ?? 0; $pct = $totalReviewed > 0 ? round(($count / $totalReviewed) * 100) : 0; @endphp
-          <div>
-            <div class="flex items-center justify-between mb-1.5">
-              <div class="flex items-center gap-2">
-                <i data-lucide="{{ $icon }}" class="w-3.5 h-3.5
-                  {{ $label === 'Recommended' ? 'text-green-500' : ($label === 'Needs Revision' ? 'text-amber-500' : 'text-red-500') }}"></i>
-                <span class="text-xs font-medium text-gray-600 dark:text-gray-400">{{ $label }}</span>
+            @foreach([
+              'Recommended'     => ['var(--green)',  'linear-gradient(to right,var(--green),#22c55e)'],
+              'Needs Revision'  => ['var(--amber)',  'linear-gradient(to right,#fbb034,#f97316)'],
+              'Not Recommended' => ['var(--red)',    'linear-gradient(to right,var(--red),#f87171)'],
+            ] as $label => [$dotColor, $fillGrad])
+              @php
+                $count = $recommendationStats[$label] ?? 0;
+                $pctR  = $totalReviewed > 0 ? round(($count / $totalReviewed) * 100) : 0;
+              @endphp
+              <div class="rec-row">
+                <div class="rec-meta">
+                  <span class="rec-label">
+                    <span class="rec-dot" style="background:{{ $dotColor }}"></span>
+                    {{ $label }}
+                  </span>
+                  <span class="rec-count">{{ $count }}</span>
+                </div>
+                <div class="prog-bar">
+                  <div class="prog-fill" style="width:{{ $pctR }}%;background:{{ $fillGrad }}"></div>
+                </div>
+                <div class="rec-pct">{{ $pctR }}%</div>
               </div>
-              <span class="text-xs font-bold text-gray-700 dark:text-gray-300">{{ $count }}</span>
-            </div>
-            <div class="prog-bar">
-              <div class="prog-fill" style="width:{{ $pct }}%;
-                background:{{ $label === 'Recommended' ? 'linear-gradient(to right,#16a34a,#22c55e)' : ($label === 'Needs Revision' ? 'linear-gradient(to right,#fbb034,#f97316)' : 'linear-gradient(to right,#ef4444,#f87171)') }}">
-              </div>
-            </div>
-            <p class="text-[10px] text-gray-400 mt-1 text-right">{{ $pct }}%</p>
-          </div>
-          @endforeach
+            @endforeach
 
-          <div class="border-t border-gray-100 dark:border-slate-700 pt-4 mt-2">
-            <div class="flex justify-between items-center">
-              <span class="text-xs text-gray-400">Total reviews</span>
-              <span class="text-sm font-bold" style="color:var(--amber); font-family:'Sora',sans-serif;">{{ $totalReviewed }}</span>
+            <div class="divider"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:12px;color:var(--text3)">Total reviews</span>
+              <span style="font-family:'Sora',sans-serif;font-size:18px;font-weight:800;color:var(--amber)">
+                {{ $totalReviewed }}
+              </span>
             </div>
-          </div>
-
           @else
-          <div class="empty-state">
-            <p class="text-2xl">📝</p>
-            <p>Your review summary will appear here once you start evaluating ideas.</p>
-          </div>
+            <div class="empty-state">
+              <div class="empty-ico">
+                <i data-lucide="bar-chart-2" style="width:16px;height:16px;"></i>
+              </div>
+              <p class="empty-text">Your review summary will appear here once you start evaluating ideas.</p>
+            </div>
           @endif
-
         </div>
       </div>
 
-      {{-- Quick tip card --}}
-      <div class="rounded-2xl p-5 border" style="background:var(--amber-dim); border-color:var(--amber-border);">
-        <p class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:var(--amber);">💡 How to review</p>
-        <ol class="text-xs text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
-          <li class="flex gap-2"><span class="font-bold shrink-0" style="color:var(--amber);">1.</span> Click a pending category above</li>
-          <li class="flex gap-2"><span class="font-bold shrink-0" style="color:var(--amber);">2.</span> Read the AI-generated top idea and its explanation</li>
-          <li class="flex gap-2"><span class="font-bold shrink-0" style="color:var(--amber);">3.</span> Click <strong>Add Review</strong> and fill in your scores</li>
-          <li class="flex gap-2"><span class="font-bold shrink-0" style="color:var(--amber);">4.</span> Your score is combined with the system score for a final rating</li>
-        </ol>
+      {{-- How to review tip --}}
+      <div class="tip-card">
+        <div class="tip-label">How to review</div>
+        <div class="tip-list">
+          <div class="tip-item">
+            <span class="tip-num">1.</span>
+            <span>Click a pending category from the list</span>
+          </div>
+          <div class="tip-item">
+            <span class="tip-num">2.</span>
+            <span>Read the AI-generated top idea and its explanation</span>
+          </div>
+          <div class="tip-item">
+            <span class="tip-num">3.</span>
+            <span>Click <strong style="color:var(--amber)">Add Review</strong> and fill in your scores</span>
+          </div>
+          <div class="tip-item">
+            <span class="tip-num">4.</span>
+            <span>Your score merges with the system score for a final rating</span>
+          </div>
+        </div>
       </div>
 
       {{-- Overall progress --}}
-      <div class="dash-card">
-        <div class="dash-card-header">
-          <span class="dash-card-title text-gray-800 dark:text-gray-100">Overall Progress</span>
+      <div class="prog-card">
+        <div class="dc-head" style="border-bottom:1px solid var(--border)">
+          <span class="dc-title">Overall progress</span>
+          @php
+            $totalCats = $readyCategories->count();
+            $doneCats  = $reviewedCategories->count();
+            $leftCats  = $pendingCategories->count();
+            $overallPct = $totalCats > 0 ? round(($doneCats / $totalCats) * 100) : 0;
+          @endphp
+          @if($leftCats > 0)
+            <span class="lk-badge b-red">{{ $leftCats }} left</span>
+          @else
+            <span class="lk-badge b-green">Complete!</span>
+          @endif
         </div>
-        <div class="p-5">
-          @php $total = $readyCategories->count(); $done = $reviewedCategories->count(); @endphp
-          <div class="flex items-end justify-between mb-3">
+        <div style="padding:18px">
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:10px">
             <div>
-              <p class="text-3xl font-bold" style="font-family:'Sora',sans-serif; color:var(--amber);">{{ $done }}/{{ $total }}</p>
-              <p class="text-xs text-gray-400">categories reviewed</p>
+              <div class="prog-big">{{ $doneCats }} / {{ $totalCats }}</div>
+              <div class="prog-sub">categories reviewed</div>
             </div>
-            @if($total > 0 && $done === $total)
-            <span class="pill pill-green">Complete!</span>
-            @elseif($pendingCategories->count() > 0)
-            <span class="pill pill-red">{{ $pendingCategories->count() }} left</span>
-            @endif
+            <span style="font-family:'Sora',sans-serif;font-size:20px;font-weight:800;color:var(--amber)">
+              {{ $overallPct }}%
+            </span>
           </div>
-          <div class="prog-bar" style="height:8px;">
-            <div class="prog-fill" style="width:{{ $total > 0 ? round(($done/$total)*100) : 0 }}%"></div>
+          <div class="prog-bar-lg">
+            <div class="prog-fill-lg" style="width:{{ $overallPct }}%"></div>
           </div>
         </div>
       </div>

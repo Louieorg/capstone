@@ -3,13 +3,12 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\RegisterUserRequest;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules;
 use Illuminate\View\View;
 
 class RegisteredUserController extends Controller
@@ -27,32 +26,23 @@ class RegisteredUserController extends Controller
      *
      * @throws \Illuminate\Validation\ValidationException
      */
-    public function store(Request $request): RedirectResponse
+    public function store(RegisterUserRequest $request): RedirectResponse
     {
-        $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-        ]);
-
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'name' => trim($request->string('first_name')->toString().' '.$request->string('last_name')->toString()),
+            'email' => $request->string('email')->toString(),
+            'password' => $request->string('password')->toString(),
         ]);
 
         event(new Registered($user));
 
         Auth::login($user);
+        $request->session()->regenerate();
 
         $user = Auth::user();
 
-if ($user->role === 'admin') {
-    return redirect()->route('admin.dashboard');
-} elseif ($user->role === 'adviser') {
-    return redirect()->route('adviser.dashboard');
-} else {
-    return redirect()->route('home'); // or landing page
-}
+        return redirect()
+            ->route($user->role === 'admin' ? 'admin.dashboard' : ($user->role === 'adviser' ? 'adviser.dashboard' : 'home'))
+            ->with('success', 'Account created successfully! Welcome to LIKHA.');
     }
 }

@@ -49,6 +49,18 @@ html.dark {
 }
 .field:hover  { border-color: var(--amid); }
 .field:focus  { border-color: var(--amber); box-shadow: 0 0 0 3px var(--adim); }
+select.field {
+  color: var(--text);
+  background-color: var(--surface);
+  color-scheme: light dark;
+}
+select.field option {
+  color: var(--text);
+  background-color: var(--surface);
+}
+select.field:invalid {
+  color: var(--muted);
+}
 
 /* ── Floating label ── */
 .float-wrap { position: relative; }
@@ -156,6 +168,7 @@ html.dark {
       otherGroup: false,
       otherGroupVal: '',
       otherCategory: false,
+      otherDepartment: {{ old('department') === 'Other' ? 'true' : 'false' }},
       otherProcess: false,
 
       canProceed() {
@@ -297,6 +310,39 @@ html.dark {
                      class="field"/>
               <p style="font-size: .6875rem; color: var(--muted2);">
                 This will be reviewed by admin and may become a new category.
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <label class="field-label">College / Office</label>
+
+            <select name="department" class="field"
+                    @change="otherDepartment = $event.target.value === 'Other'">
+              <option value="">Select college or office (optional)…</option>
+              <optgroup label="Colleges">
+                <option value="CICS" {{ old('department') === 'CICS' ? 'selected' : '' }}>CICS</option>
+                <option value="CHM" {{ old('department') === 'CHM' ? 'selected' : '' }}>CHM</option>
+                <option value="CCJE" {{ old('department') === 'CCJE' ? 'selected' : '' }}>CCJE</option>
+                <option value="CIT" {{ old('department') === 'CIT' ? 'selected' : '' }}>CIT</option>
+                <option value="CTE" {{ old('department') === 'CTE' ? 'selected' : '' }}>CTE</option>
+                <option value="CFAS" {{ old('department') === 'CFAS' ? 'selected' : '' }}>CFAS</option>
+                <option value="CBEA" {{ old('department') === 'CBEA' ? 'selected' : '' }}>CBEA</option>
+              </optgroup>
+              <optgroup label="Offices">
+                <option value="Registrar" {{ old('department') === 'Registrar' ? 'selected' : '' }}>Registrar</option>
+                <option value="Guidance Office" {{ old('department') === 'Guidance Office' ? 'selected' : '' }}>Guidance Office</option>
+              </optgroup>
+              <option value="Other" {{ old('department') === 'Other' ? 'selected' : '' }}>Other</option>
+            </select>
+
+            <div x-show="otherDepartment" x-transition.opacity class="mt-2 space-y-1">
+              <input type="text" name="department_other"
+                     value="{{ old('department_other') }}"
+                     placeholder="Enter the college or office…"
+                     class="field"/>
+              <p style="font-size: .6875rem; color: var(--muted2);">
+                Optional: specify a custom college or office.
               </p>
             </div>
           </div>

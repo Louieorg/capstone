@@ -140,6 +140,67 @@ html:not(.dark) {
   border-color: var(--amid);
   box-shadow: 0 0 0 3px var(--adim);
 }
+select.lk-input {
+  background: var(--surface2);
+  color: var(--text);
+  color-scheme: light dark;
+}
+select.lk-input option {
+  background: var(--surface);
+  color: var(--text);
+}
+select.lk-input:invalid {
+  color: var(--text3);
+}
+
+/* ── Adviser review form ── */
+.review-form {
+  margin: 0 28px 28px;
+  padding: 20px 22px;
+  border-radius: 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+}
+.review-form-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+.review-form-head-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--amber);
+  flex-shrink: 0;
+}
+.review-form-copy {
+  font-size: 12.5px;
+  color: var(--text3);
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+.review-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 640px) {
+  .review-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.review-field-label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 11.5px;
+  color: var(--text3);
+}
 
 /* ── Buttons ── */
 .btn-amber {
@@ -432,10 +493,13 @@ html.dark .btn-amber { background: #fbb034; }
     {{-- Adviser review form --}}
     @auth
     @if(auth()->user()->role === 'adviser')
-    <div id="reviewForm" class="hidden" style="margin:0 28px 28px;padding:20px 22px;border-radius:12px;background:var(--blue-bg);border:1px solid var(--blue-b)">
-      <p style="font-size:12.5px;font-weight:600;color:var(--blue);margin-bottom:16px;display:flex;align-items:center;gap:6px">
-        <span style="width:7px;height:7px;border-radius:50%;background:var(--blue);display:inline-block"></span>
+    <div id="reviewForm" class="hidden review-form">
+      <p class="review-form-head">
+        <span class="review-form-head-dot"></span>
         Adviser Evaluation Form
+      </p>
+      <p class="review-form-copy">
+        Add your recommendation and scoring using the same 1 to 5 scale the system uses for evaluation.
       </p>
       <form method="POST" action="{{ route('adviser.review') }}" style="display:flex;flex-direction:column;gap:12px">
         @csrf
@@ -448,10 +512,10 @@ html.dark .btn-amber { background: #fbb034; }
           <option value="Needs Revision">Needs Revision</option>
           <option value="Not Recommended">Not Recommended</option>
         </select>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="review-grid">
           @foreach(['feasibility'=>'Feasibility (1=Hard, 5=Easy)','impact'=>'Impact (1=Low, 5=High)','complexity'=>'Complexity (1=Hard, 5=Easy)','innovation'=>'Innovation (1=Low, 5=High)'] as $field => $label)
           <div>
-            <label style="font-size:11.5px;color:var(--text3);display:block;margin-bottom:5px">{{ $label }}</label>
+            <label class="review-field-label">{{ $label }}</label>
             <input type="number" name="{{ $field }}" min="1" max="5" class="lk-input" required>
           </div>
           @endforeach

@@ -659,6 +659,16 @@
   });
   @endif
 
+  @if(session('info'))
+  Swal.fire({
+    toast: true, position: 'top-end', icon: 'info',
+    title: "{{ session('info') }}",
+    showConfirmButton: false, timer: 3500, timerProgressBar: true,
+    background: '#13141a', color: '#f0f0f5',
+    iconColor: '#60a5fa',
+  });
+  @endif
+
   @if(session('showLogin'))
   document.addEventListener('DOMContentLoaded', () => {
     document.querySelector('[x-data]').__x.$data.loginOpen = true;
