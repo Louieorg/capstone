@@ -126,6 +126,11 @@
       color: var(--muted); text-decoration: none;
     }
     .h-icon-btn:hover { border-color: var(--amber-mid); color: var(--amber); }
+    .notif-trigger.is-open {
+      border-color: var(--amber-mid);
+      color: var(--amber);
+      background: var(--amber-dim);
+    }
     .notif-badge {
       position: absolute; top: -3px; right: -3px;
       min-width: 16px; height: 16px; border-radius: 999px;
@@ -139,6 +144,117 @@
       display: flex; align-items: center; justify-content: center;
       font-weight: 700; font-size: 13px; color: #0a0b0f; cursor: pointer;
       box-shadow: 0 0 10px var(--amber-glow);
+    }
+    .notif-dropdown {
+      position: absolute;
+      top: 42px;
+      right: 0;
+      width: min(360px, calc(100vw - 32px));
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      z-index: 60;
+      box-shadow: 0 12px 28px rgba(0,0,0,.28);
+    }
+    .notif-dropdown-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+    }
+    .notif-dropdown-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .notif-dropdown-sub {
+      font-size: 11px;
+      color: var(--muted2);
+    }
+    .notif-dropdown-list {
+      max-height: 360px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .notif-item {
+      display: flex;
+      gap: 12px;
+      padding: 12px 14px;
+      text-decoration: none;
+      color: inherit;
+      transition: background .15s ease;
+      border-bottom: 1px solid var(--border);
+    }
+    .notif-item:last-child {
+      border-bottom: none;
+    }
+    .notif-item:hover {
+      background: var(--amber-dim);
+    }
+    .notif-item-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      background: var(--amber-dim);
+      border: 1px solid var(--amber-mid);
+      color: var(--amber);
+    }
+    .notif-item-body {
+      min-width: 0;
+      flex: 1;
+    }
+    .notif-item-message {
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--text);
+    }
+    .notif-item-meta {
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-size: 11px;
+      color: var(--muted2);
+    }
+    .notif-item-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--amber-mid);
+      background: var(--amber-dim);
+      color: var(--amber);
+      font-weight: 600;
+    }
+    .notif-empty {
+      padding: 18px 14px;
+      text-align: center;
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+    .notif-view-all {
+      display: block;
+      padding: 11px 14px;
+      text-align: center;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--amber);
+      border-top: 1px solid var(--border);
+      background: var(--surface2);
+    }
+    .notif-view-all:hover {
+      background: var(--amber-dim);
     }
     .h-btn-ghost {
       padding: 7px 16px; border-radius: 9px;
@@ -384,12 +500,85 @@
     {{-- Right --}}
     <div class="h-right">
       @auth
-        <a href="/notifications" class="h-icon-btn">
-          <i data-lucide="bell" style="width:16px;height:16px;"></i>
-          @if(auth()->user()->unreadNotifications->count())
-            <span class="notif-badge">{{ auth()->user()->unreadNotifications->count() }}</span>
-          @endif
-        </a>
+        @php
+          $notifications = auth()->user()->notifications()->latest()->take(6)->get();
+          $unreadNotificationCount = auth()->user()->unreadNotifications()->count();
+        @endphp
+        <div x-data="{ open: false }" class="relative">
+          <button
+            type="button"
+            class="h-icon-btn notif-trigger"
+            :class="{ 'is-open': open }"
+            @click="open = !open"
+            :aria-expanded="open.toString()"
+            aria-label="Toggle notifications">
+            <i data-lucide="bell" style="width:16px;height:16px;"></i>
+            @if($unreadNotificationCount)
+              <span class="notif-badge">{{ $unreadNotificationCount }}</span>
+            @endif
+          </button>
+
+          <div
+            x-show="open"
+            @click.outside="open = false"
+            @keydown.escape.window="open = false"
+            x-transition
+            x-cloak
+            class="notif-dropdown">
+            <div class="notif-dropdown-head">
+              <div>
+                <div class="notif-dropdown-title">Notifications</div>
+                <div class="notif-dropdown-sub">Recent updates from your ideas and reports</div>
+              </div>
+              @if($unreadNotificationCount)
+                <span class="notif-item-chip">{{ $unreadNotificationCount }} new</span>
+              @endif
+            </div>
+
+            <div class="notif-dropdown-list">
+              @forelse($notifications as $notification)
+                @php
+                  $category = $notification->data['category'] ?? null;
+                  $ideaTitle = $notification->data['idea_title'] ?? null;
+                  $hasGeneratedIdeaTarget = filled($category) && filled($ideaTitle);
+                @endphp
+                @if($hasGeneratedIdeaTarget)
+                <a
+                  href="{{ route('notifications.redirect', $notification) }}"
+                  class="notif-item">
+                @else
+                <div class="notif-item">
+                @endif
+                  <div class="notif-item-icon" aria-hidden="true">
+                    <i data-lucide="bell-ring" style="width:15px;height:15px;"></i>
+                  </div>
+                  <div class="notif-item-body">
+                    <div class="notif-item-message">{{ $notification->data['message'] ?? 'New notification' }}</div>
+                    <div class="notif-item-meta">
+                      <span>{{ $notification->created_at->diffForHumans() }}</span>
+                      @if($hasGeneratedIdeaTarget)
+                        <span class="notif-item-chip">Open generated capstone</span>
+                      @endif
+                      @if(is_null($notification->read_at))
+                        <span>Unread</span>
+                      @endif
+                    </div>
+                  </div>
+                @if($hasGeneratedIdeaTarget)
+                </a>
+                @else
+                </div>
+                @endif
+              @empty
+                <div class="notif-empty">No notifications yet.</div>
+              @endforelse
+            </div>
+
+            @if($notifications->isNotEmpty())
+              <a href="{{ route('notifications') }}" class="notif-view-all">View all notifications</a>
+            @endif
+          </div>
+        </div>
 
         <div x-data="{ open: false }" class="relative">
           <div class="h-avatar" @click="open = !open">

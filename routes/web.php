@@ -4,6 +4,7 @@ use App\Http\Controllers\AdviserController;
 use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\IdeaController;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -103,6 +104,25 @@ Route::middleware(['auth'])->group(function () {
 
         return view('notifications.index', compact('notifications'));
     })->name('notifications');
+
+    Route::get('/notifications/{notification}', function (DatabaseNotification $notification) {
+        abort_unless($notification->notifiable_id === auth()->id(), 404);
+
+        if (is_null($notification->read_at)) {
+            $notification->markAsRead();
+        }
+
+        $category = $notification->data['category'] ?? null;
+        $ideaTitle = $notification->data['idea_title'] ?? null;
+
+        if ($category && $ideaTitle) {
+            return redirect()->to(
+                route('feedback.category', ['category' => $category, 'idea' => $ideaTitle]).'#idea-'.\Illuminate\Support\Str::slug($ideaTitle)
+            );
+        }
+
+        return redirect()->route('notifications');
+    })->name('notifications.redirect');
 
     /*
     |--------------------------------------------------------------------------

@@ -4,6 +4,9 @@
 @section('subtitle', 'Recurring problems and suggested capstone solution')
 
 @section('content')
+@php
+  $highlightedIdeaTitle = request('idea');
+@endphp
 <style>
 /* ── All color decisions live here, keyed to html.dark ── */
 
@@ -77,6 +80,10 @@ html:not(.dark) {
   transition: border-color .2s, transform .2s;
 }
 .lk-card:hover { border-color: var(--border-h); }
+.lk-card.idea-highlight {
+  border-color: var(--amid);
+  box-shadow: 0 0 0 4px var(--adim);
+}
 
 /* ── Accordion ── */
 .accordion-btn {
@@ -257,9 +264,13 @@ html.dark .btn-amber { background: #fbb034; }
 
   {{-- ══ TOP RECOMMENDED IDEA ══ --}}
   @if(isset($topIdea))
+  @php
+    $isTopIdeaHighlighted = $highlightedIdeaTitle === ($topIdea['title'] ?? null);
+  @endphp
   <div x-data="{ detailsOpen:false, explainOpen:false, objOpen:false, evalOpen:false, confOpen:false }"
-       class="lk-card anim-1"
-       style="border-color:var(--amid);overflow:hidden">
+       id="idea-{{ \Illuminate\Support\Str::slug($topIdea['title'] ?? 'top-idea') }}"
+       class="lk-card anim-1 {{ $isTopIdeaHighlighted ? 'idea-highlight' : '' }}"
+       style="border-color:var(--amid);overflow:hidden;{{ $isTopIdeaHighlighted ? 'box-shadow:0 0 0 4px var(--adim);' : '' }}">
 
     {{-- Amber top line --}}
     <div style="height:3px;background:linear-gradient(to right,#fbb034,#f97316)"></div>
@@ -569,7 +580,10 @@ html.dark .btn-amber { background: #fbb034; }
     <p class="sec-label">Other suggested ideas</p>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">
       @foreach($otherIdeas as $idea)
-      <div class="lk-card" style="padding:20px 20px 18px;display:flex;flex-direction:column;gap:12px">
+      <div
+        id="idea-{{ \Illuminate\Support\Str::slug($idea['title'] ?? 'idea') }}"
+        class="lk-card {{ $highlightedIdeaTitle === ($idea['title'] ?? null) ? 'idea-highlight' : '' }}"
+        style="padding:20px 20px 18px;display:flex;flex-direction:column;gap:12px">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span class="lk-badge badge-amber">Alternative</span>
           @php $ip = $idea['priority'] ?? 'Low'; @endphp

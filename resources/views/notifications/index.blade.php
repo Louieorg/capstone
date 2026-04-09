@@ -97,7 +97,17 @@ html:not(.dark) {
 
 @forelse($notifications as $notification)
 
+@php
+  $category = $notification->data['category'] ?? null;
+  $ideaTitle = $notification->data['idea_title'] ?? null;
+  $hasGeneratedIdeaTarget = filled($category) && filled($ideaTitle);
+@endphp
+
+@if($hasGeneratedIdeaTarget)
+<a href="{{ route('notifications.redirect', $notification) }}" class="notif-card" style="text-decoration:none;color:inherit">
+@else
 <div class="notif-card">
+@endif
   <div class="notif-icon" aria-hidden="true">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5"/>
@@ -106,9 +116,18 @@ html:not(.dark) {
   </div>
   <div>
     <div class="notif-message">{{ $notification->data['message'] }}</div>
-    <div class="notif-meta">{{ $notification->created_at->diffForHumans() }}</div>
+    <div class="notif-meta">
+      {{ $notification->created_at->diffForHumans() }}
+      @if($hasGeneratedIdeaTarget)
+        • Click to open the generated capstone idea
+      @endif
+    </div>
   </div>
+@if($hasGeneratedIdeaTarget)
+</a>
+@else
 </div>
+@endif
 
 @empty
 
