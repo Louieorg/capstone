@@ -10,12 +10,16 @@
 <div class="bg-white border rounded-xl p-8 text-center">
 
 <h2 class="text-xl font-semibold text-gray-800 mb-3">
-Problem Submitted Successfully
+{{ session('warning') ? 'Problem Submitted for Review' : 'Problem Submitted Successfully' }}
 </h2>
 
 <p class="text-sm text-gray-600 mb-6">
+@if(session('warning'))
+{{ session('warning') }}
+@else
 Your report has been received and is currently under review by the administrator.
 Once approved, it will appear in the problem feed where students can view and support it.
+@endif
 </p>
 
 <div class="flex justify-center gap-4">

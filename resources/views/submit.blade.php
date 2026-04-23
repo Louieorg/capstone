@@ -195,7 +195,7 @@ select.field:invalid {
 
     <div class="h-1 w-full bg-gradient-to-r from-amber-400 to-orange-500"></div>
 
-    <form method="POST" action="{{ route('feedback.store') }}" class="p-6 sm:p-8 space-y-8">
+    <form method="POST" action="{{ route('feedback.store') }}" enctype="multipart/form-data" class="p-6 sm:p-8 space-y-8">
       @csrf
       <input type="hidden" name="force_submit" value="1">
 
@@ -373,6 +373,16 @@ select.field:invalid {
             <textarea name="impact" rows="3" class="field resize-none"
               placeholder="How does this affect people?"
               :required="step === 2">{{ old('impact') }}</textarea>
+          </div>
+          <div>
+            <label class="field-label">Supporting Evidence</label>
+            <input type="file" name="attachment" accept=".jpg,.jpeg,.png,.pdf" class="field">
+            <p style="font-size: .6875rem; color: var(--muted2); margin-top: .5rem;">
+              Optional: upload a JPG, PNG, or PDF file up to 5MB.
+            </p>
+            @error('attachment')
+              <p style="font-size: .75rem; color: #ef4444; margin-top: .5rem;">{{ $message }}</p>
+            @enderror
           </div>
         </div>
       </div>

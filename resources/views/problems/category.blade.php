@@ -635,6 +635,20 @@ html.dark .btn-amber { background: #fbb034; }
         <p style="font-size:13.5px;color:var(--text);line-height:1.7;margin-bottom:12px">
           {{ $feedback->description }}
         </p>
+        @if($feedback->attachment_path)
+          <div style="margin-bottom:12px">
+            @if($feedback->attachment_type === 'image')
+              <a href="{{ asset('storage/'.$feedback->attachment_path) }}" target="_blank" rel="noopener noreferrer" style="display:inline-block">
+                <img src="{{ asset('storage/'.$feedback->attachment_path) }}" alt="Supporting evidence" style="max-width:180px;max-height:120px;border-radius:12px;border:1px solid var(--border);object-fit:cover">
+              </a>
+            @else
+              <a href="{{ asset('storage/'.$feedback->attachment_path) }}" target="_blank" rel="noopener noreferrer" class="lk-badge badge-blue" style="text-decoration:none">
+                <i data-lucide="paperclip" style="width:12px;height:12px;"></i>
+                View Evidence
+              </a>
+            @endif
+          </div>
+        @endif
         <div style="display:flex;flex-wrap:wrap;align-items:center;gap:7px;font-size:11.5px">
 
           @if($feedback->frequency)

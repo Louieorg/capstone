@@ -341,6 +341,21 @@ html:not(.dark) {
         {{-- Description --}}
         <p class="p-desc">{{ $feedback->description }}</p>
 
+        @if($feedback->attachment_path)
+          <div style="margin:12px 0">
+            @if($feedback->attachment_type === 'image')
+              <a href="{{ asset('storage/'.$feedback->attachment_path) }}" target="_blank" rel="noopener noreferrer" style="display:inline-block">
+                <img src="{{ asset('storage/'.$feedback->attachment_path) }}" alt="Supporting evidence for {{ $feedback->title }}" style="max-width:180px;max-height:120px;border-radius:12px;border:1px solid var(--border);object-fit:cover">
+              </a>
+            @else
+              <a href="{{ asset('storage/'.$feedback->attachment_path) }}" target="_blank" rel="noopener noreferrer" class="p-link" style="display:inline-flex">
+                <i data-lucide="paperclip" style="width:13px;height:13px;"></i>
+                View Evidence
+              </a>
+            @endif
+          </div>
+        @endif
+
         {{-- Footer --}}
         <div class="p-footer">
           <div class="p-actions">

@@ -424,8 +424,22 @@ html:not(.dark) {
       @forelse($pendingFeedback as $item)
         <div class="pending-item">
           <p class="pending-desc">{{ $item->description }}</p>
+          @if($item->attachment_path)
+            <div style="margin:10px 0">
+              @if($item->attachment_type === 'image')
+                <a href="{{ asset('storage/'.$item->attachment_path) }}" target="_blank" rel="noopener noreferrer" style="display:inline-block">
+                  <img src="{{ asset('storage/'.$item->attachment_path) }}" alt="Supporting evidence" style="max-width:160px;max-height:105px;border-radius:12px;border:1px solid var(--border);object-fit:cover">
+                </a>
+              @else
+                <a href="{{ asset('storage/'.$item->attachment_path) }}" target="_blank" rel="noopener noreferrer" class="lk-badge b-green" style="text-decoration:none">View Evidence</a>
+              @endif
+            </div>
+          @endif
           <div class="pending-foot">
             <span class="lk-badge b-amber">{{ $item->category }}</span>
+            @if($item->is_flagged)
+              <span class="lk-badge b-red">Flagged for review</span>
+            @endif
             <div style="display:flex;gap:8px">
               <form method="POST" action="{{ route('feedback.approve', $item->id) }}">
                 @csrf @method('PATCH')
@@ -459,6 +473,9 @@ html:not(.dark) {
           <div class="ri-dot"></div>
           <div class="ri-body">
             <div class="ri-bdesc">{{ $feedback->description }}</div>
+            @if($feedback->attachment_path)
+              <a href="{{ asset('storage/'.$feedback->attachment_path) }}" target="_blank" rel="noopener noreferrer" style="font-size:11.5px;font-weight:700;color:var(--amber);text-decoration:none">View Evidence</a>
+            @endif
           </div>
           <span class="lk-badge b-amber" style="flex-shrink:0">{{ $feedback->category }}</span>
           <span class="ri-time">{{ $feedback->created_at->diffForHumans() }}</span>

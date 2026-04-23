@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreFeedbackRequest;
 use App\Models\AdviserReview;
 use App\Models\Feedback;
 use App\Models\FeedbackVote;
@@ -16,6 +17,8 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class FeedbackController extends Controller
 {
@@ -32,22 +35,27 @@ class FeedbackController extends Controller
     {
         $trending = Feedback::withCount('votes')
             ->where('status', 'approved')
+            ->notFlagged()
             ->orderByDesc('votes_count')
             ->take(5)
             ->get();
 
         // total approved problems
-        $totalProblems = Feedback::where('status', 'approved')->count();
+        $totalProblems = Feedback::where('status', 'approved')
+            ->notFlagged()
+            ->count();
 
         $ideaCandidates = $this->ideaCandidateCategories()->count();
 
         // total distinct categories
         $totalCategories = Feedback::select('category')
+            ->notFlagged()
             ->distinct()
             ->count();
 
         // get categories with counts
         $categories = Feedback::where('status', 'approved')
+            ->notFlagged()
             ->select('category')
             ->selectRaw('COUNT(*) as total')
             ->groupBy('category')
@@ -63,25 +71,8 @@ class FeedbackController extends Controller
         ));
     }
 
-    public function store(Request $request)
+    public function store(StoreFeedbackRequest $request)
     {
-        $request->validate([
-            'title' => 'required|min:5',
-            'category' => 'required',
-            'department' => 'nullable|string|max:255',
-            'department_other' => 'nullable|string|max:255',
-            'description' => 'required|min:10',
-            'impact' => 'required|min:10',
-            'frequency' => 'required',
-            'current_process' => 'required',
-            'affected_users' => 'required',
-            'affected_group' => 'required|array|min:1',   // ← now an array
-
-            // Only required when "Other" is selected
-            'category_other' => 'required_if:category,Other|nullable|string|max:100',
-            'current_process_other' => 'required_if:current_process,Other|nullable|string|max:100',
-        ]);
-
         if (! auth()->check()) {
             return redirect()->back()->with('showLogin', true);
         }
@@ -92,6 +83,7 @@ class FeedbackController extends Controller
             ->unique();
 
         $similarProblems = Feedback::where('status', 'approved')
+            ->notFlagged()
             ->where('category', $request->category) // 🔥 IMPORTANT FILTER
             ->get()
             ->filter(function ($feedback) use ($keywords) {
@@ -137,6 +129,22 @@ class FeedbackController extends Controller
             ->values()
             ->toArray();
 
+        $isFlagged = $this->isDuplicateSubmission($request, $finalCategory)
+            || $this->isRapidSubmission($request);
+
+        $attachmentPath = null;
+        $attachmentType = null;
+
+        if ($request->hasFile('attachment')) {
+            $attachment = $request->file('attachment');
+            $extension = strtolower($attachment->getClientOriginalExtension());
+            $safeName = Str::slug(pathinfo($attachment->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'attachment';
+            $filename = $safeName.'-'.Str::uuid().'.'.$extension;
+
+            $attachmentPath = Storage::disk('public')->putFileAs('attachments', $attachment, $filename);
+            $attachmentType = in_array($extension, ['jpg', 'jpeg', 'png'], true) ? 'image' : 'pdf';
+        }
+
         Feedback::create([
             'user_id' => $request->has('is_anonymous') ? null : Auth::id(),
             'title' => $request->title,
@@ -151,11 +159,19 @@ class FeedbackController extends Controller
             'affected_users' => $request->affected_users,
             'affected_group' => $affectedGroups,
             'is_anonymous' => $request->has('is_anonymous'),
+            'is_flagged' => $isFlagged,
+            'attachment_path' => $attachmentPath,
+            'attachment_type' => $attachmentType,
         ]);
 
         // SUCCESS MESSAGE FOR TOAST
         return redirect()->route('feedback.submitted')
-            ->with('success', 'Problem submitted successfully.');
+            ->with(
+                $isFlagged ? 'warning' : 'success',
+                $isFlagged
+                    ? 'Problem submitted for admin review. It will be excluded from idea generation until approved as valid.'
+                    : 'Problem submitted successfully.'
+            );
     }
 
     public function submitted()
@@ -165,7 +181,8 @@ class FeedbackController extends Controller
 
     public function index(Request $request)
     {
-        $query = Feedback::where('status', 'approved');
+        $query = Feedback::where('status', 'approved')
+            ->notFlagged();
 
         if ($request->search) {
             $query->where('description', 'like', '%'.$request->search.'%');
@@ -186,6 +203,7 @@ class FeedbackController extends Controller
 
         // ✅ ADD THIS BACK
         $categories = Feedback::where('status', 'approved')
+            ->notFlagged()
             ->select('category')
             ->distinct()
             ->pluck('category');
@@ -196,6 +214,7 @@ class FeedbackController extends Controller
     public function summary()
     {
         $categories = Feedback::where('status', 'approved')
+            ->notFlagged()
             ->select('category')
             ->selectRaw('COUNT(*) as total')
             ->groupBy('category')
@@ -209,6 +228,7 @@ class FeedbackController extends Controller
     {
         $feedbacks = Feedback::where('category', $category)
             ->where('status', 'approved')
+            ->notFlagged()
             ->withCount('votes')
             ->latest()
             ->get()
@@ -411,16 +431,19 @@ class FeedbackController extends Controller
         $totalFeedback = Feedback::count();
 
         $categoryData = Feedback::where('status', 'approved')
+            ->notFlagged()
             ->select('category')
             ->selectRaw('COUNT(*) as total')
             ->groupBy('category')
             ->get();
 
         $totalCategories = Feedback::select('category')
+            ->notFlagged()
             ->distinct()
             ->count();
 
         $topCategory = Feedback::select('category')
+            ->notFlagged()
             ->selectRaw('COUNT(*) as total')
             ->groupBy('category')
             ->orderByDesc('total')
@@ -436,6 +459,7 @@ class FeedbackController extends Controller
 
         $topProblems = Feedback::withCount('votes')
             ->where('status', 'approved')
+            ->notFlagged()
             ->orderByDesc('votes_count')
             ->take(5)
             ->get();
@@ -443,17 +467,20 @@ class FeedbackController extends Controller
         $ideaCandidates = $this->ideaCandidateCategories();
 
         $monthlyReports = Feedback::selectRaw('MONTH(created_at) as month, COUNT(*) as total')
+            ->notFlagged()
             ->groupBy('month')
             ->orderBy('month')
             ->get();
 
         $impactLevels = Feedback::select('affected_users')
+            ->notFlagged()
             ->selectRaw('COUNT(*) as total')
             ->groupBy('affected_users')
             ->get();
 
         // ── Affected groups — extract from JSON and count ──
         $affectedGroupData = Feedback::where('status', 'approved')
+            ->notFlagged()
             ->select('affected_group')
             ->get()
             ->flatMap(function ($feedback) {
@@ -490,6 +517,7 @@ class FeedbackController extends Controller
         $feedback = Feedback::findOrFail($id);
 
         $feedback->status = 'approved';
+        $feedback->is_flagged = false;
         $feedback->save();
 
         return back()->with('success', 'Feedback approved.');
@@ -541,6 +569,7 @@ class FeedbackController extends Controller
 
         // STEP 2: Get candidate problems (filtered by category if available)
         $feedbacks = Feedback::where('status', 'approved')
+            ->notFlagged()
             ->when($request->category, function ($query) use ($request) {
                 $query->where('category', $request->category);
             })
@@ -686,6 +715,7 @@ class FeedbackController extends Controller
     {
         return Feedback::query()
             ->where('status', 'approved')
+            ->notFlagged()
             ->has('votes', '>=', self::MINIMUM_VOTES_FOR_IDEA_GENERATION)
             ->select('category')
             ->selectRaw('COUNT(*) as total')
@@ -693,5 +723,48 @@ class FeedbackController extends Controller
             ->having('total', '>=', self::MINIMUM_REPORTS_FOR_IDEA_GENERATION)
             ->orderByDesc('total')
             ->get();
+    }
+
+    private function isDuplicateSubmission(StoreFeedbackRequest $request, string $category): bool
+    {
+        $title = $this->normalizedText((string) $request->title);
+        $description = $this->normalizedText((string) $request->description);
+
+        return Feedback::query()
+            ->notFlagged()
+            ->where('category', $category)
+            ->get(['title', 'description'])
+            ->contains(function (Feedback $feedback) use ($title, $description): bool {
+                return $this->similarityScore($title, $this->normalizedText($feedback->title)) >= 80.0
+                    || $this->similarityScore($description, $this->normalizedText($feedback->description)) >= 80.0;
+            });
+    }
+
+    private function isRapidSubmission(StoreFeedbackRequest $request): bool
+    {
+        if (! $request->user()) {
+            return false;
+        }
+
+        return Feedback::query()
+            ->where('user_id', $request->user()->id)
+            ->where('created_at', '>=', now()->subMinute())
+            ->count() >= 3;
+    }
+
+    private function similarityScore(string $first, string $second): float
+    {
+        if ($first === '' || $second === '') {
+            return 0.0;
+        }
+
+        similar_text($first, $second, $percentage);
+
+        return $percentage;
+    }
+
+    private function normalizedText(?string $value): string
+    {
+        return trim(preg_replace('/\s+/', ' ', strtolower($value ?? '')) ?? '');
     }
 }

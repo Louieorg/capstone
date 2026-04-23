@@ -3,7 +3,9 @@
 use App\Models\Feedback;
 use App\Models\FeedbackVote;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 
 test('authenticated users can submit feedback with a department', function () {
     $user = User::factory()->create();
@@ -74,6 +76,130 @@ test('authenticated users can submit feedback without selecting a department', f
 
     expect(Feedback::query()->where('title', 'Library printer delays')->value('department'))
         ->toBeNull();
+});
+
+test('authenticated users can submit feedback with supporting evidence', function () {
+    Storage::fake('public');
+
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->post(route('feedback.store'), [
+        'title' => 'Damaged laboratory equipment',
+        'category' => 'Facilities',
+        'description' => 'The equipment is visibly damaged and students cannot complete the lab activity safely.',
+        'impact' => 'This blocks required activities and may create safety issues for students.',
+        'frequency' => 'Often',
+        'current_process' => 'Report verbally to staff',
+        'affected_users' => '50-200',
+        'affected_group' => ['Students'],
+        'attachment' => UploadedFile::fake()->image('unsafe equipment.png'),
+        'force_submit' => '1',
+    ]);
+
+    $response->assertRedirect(route('feedback.submitted', absolute: false));
+
+    $feedback = Feedback::query()
+        ->where('title', 'Damaged laboratory equipment')
+        ->firstOrFail();
+
+    expect($feedback->attachment_path)->toStartWith('attachments/unsafe-equipment-')
+        ->and($feedback->attachment_type)->toBe('image');
+
+    Storage::disk('public')->assertExists($feedback->attachment_path);
+});
+
+test('low quality placeholder feedback is rejected before saving', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->post(route('feedback.store'), [
+        'title' => 'test problem',
+        'category' => 'Facilities',
+        'description' => 'test sample none 123',
+        'impact' => 'aaaaaa',
+        'frequency' => 'Often',
+        'current_process' => 'Report verbally to staff',
+        'affected_users' => 'Less than 50',
+        'affected_group' => ['Students'],
+        'force_submit' => '1',
+    ]);
+
+    $response->assertSessionHasErrors(['title', 'description', 'impact']);
+
+    $this->assertDatabaseMissing('feedback', [
+        'title' => 'test problem',
+    ]);
+});
+
+test('duplicate feedback is flagged and excluded from normal processing', function () {
+    $user = User::factory()->create();
+
+    Feedback::query()->create([
+        'user_id' => $user->id,
+        'title' => 'Library printer queue delays',
+        'description' => 'Students wait too long because library printer queue handling is inconsistent during peak hours.',
+        'impact' => 'This delays urgent printing requirements and causes missed class submissions.',
+        'category' => 'Facilities',
+        'frequency' => 'Often',
+        'current_process' => 'Report verbally to staff',
+        'affected_users' => '50-200',
+        'affected_group' => ['Students'],
+        'is_anonymous' => false,
+        'status' => 'pending',
+    ]);
+
+    $response = $this->actingAs($user)->post(route('feedback.store'), [
+        'title' => 'Library printer queue delays',
+        'category' => 'Facilities',
+        'description' => 'Students wait too long because library printer queue handling is inconsistent during peak hours.',
+        'impact' => 'This delays urgent printing requirements and causes missed class submissions.',
+        'frequency' => 'Often',
+        'current_process' => 'Report verbally to staff',
+        'affected_users' => '50-200',
+        'affected_group' => ['Students'],
+        'force_submit' => '1',
+    ]);
+
+    $response->assertRedirect(route('feedback.submitted', absolute: false));
+    $response->assertSessionHas('warning');
+
+    expect(Feedback::query()->where('title', 'Library printer queue delays')->latest('id')->first()->is_flagged)
+        ->toBeTrue();
+});
+
+test('rapid repeated submissions are flagged for admin review', function () {
+    $user = User::factory()->create();
+
+    collect(range(1, 3))->each(function (int $index) use ($user): void {
+        Feedback::query()->create([
+            'user_id' => $user->id,
+            'title' => "Rapid valid campus concern {$index}",
+            'description' => "Students experience a unique service delay in office {$index} during enrollment processing hours.",
+            'impact' => 'This creates repeated follow ups and disrupts student transaction schedules.',
+            'category' => 'Enrollment',
+            'frequency' => 'Often',
+            'current_process' => 'Manual or paper-based process',
+            'affected_users' => '50-200',
+            'affected_group' => ['Students'],
+            'is_anonymous' => false,
+            'status' => 'pending',
+            'created_at' => now()->subSeconds(20),
+        ]);
+    });
+
+    $this->actingAs($user)->post(route('feedback.store'), [
+        'title' => 'Rapid valid campus concern final',
+        'category' => 'Enrollment',
+        'description' => 'Students experience another documented service delay during enrollment processing hours.',
+        'impact' => 'This creates repeated follow ups and disrupts student transaction schedules.',
+        'frequency' => 'Often',
+        'current_process' => 'Manual or paper-based process',
+        'affected_users' => '50-200',
+        'affected_group' => ['Students'],
+        'force_submit' => '1',
+    ])->assertSessionHas('warning');
+
+    expect(Feedback::query()->where('title', 'Rapid valid campus concern final')->first()->is_flagged)
+        ->toBeTrue();
 });
 
 test('community validation updates after a new vote is added', function () {
