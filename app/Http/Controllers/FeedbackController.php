@@ -18,6 +18,8 @@ use Illuminate\Support\Facades\Cache;
 
 class FeedbackController extends Controller
 {
+    private const MINIMUM_VOTES_FOR_IDEA_GENERATION = 10;
+
     public function create()
     {
         return view('submit');
@@ -212,7 +214,9 @@ class FeedbackController extends Controller
             ->where('status', 'approved')
             ->withCount('votes')
             ->latest()
-            ->get();
+            ->get()
+            ->filter(fn (Feedback $feedback): bool => $feedback->votes_count >= self::MINIMUM_VOTES_FOR_IDEA_GENERATION)
+            ->values();
 
         if ($feedbacks->count() < 3) {
             return view('low-data');
@@ -289,11 +293,10 @@ class FeedbackController extends Controller
 
                 // ── Notify users whose feedback contributed to this idea ──
                 if ($isNew) {
-                    $contributingUsers = Feedback::where('category', $category)
-                        ->where('status', 'approved')
-                        ->whereNotNull('user_id')
-                        ->distinct()
-                        ->pluck('user_id');
+                    $contributingUsers = $groupFeedbacks
+                        ->pluck('user_id')
+                        ->filter()
+                        ->unique();
 
                     foreach ($contributingUsers as $userId) {
                         $user = User::find($userId);

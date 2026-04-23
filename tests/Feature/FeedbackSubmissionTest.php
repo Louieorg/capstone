@@ -98,9 +98,20 @@ test('community validation updates after a new vote is added', function () {
         ]);
     });
 
+    $baselineVoters = User::factory()->count(10)->create();
+
+    $feedbacks->each(function (Feedback $feedback) use ($baselineVoters): void {
+        $baselineVoters->each(function (User $user) use ($feedback): void {
+            FeedbackVote::query()->create([
+                'feedback_id' => $feedback->id,
+                'user_id' => $user->id,
+            ]);
+        });
+    });
+
     $this->get(route('feedback.category', ['category' => 'Scheduling']))
         ->assertOk()
-        ->assertSeeText('0 / 5');
+        ->assertSeeText('3.75 / 5');
 
     FeedbackVote::query()->create([
         'feedback_id' => $feedbacks->first()->id,
@@ -109,5 +120,5 @@ test('community validation updates after a new vote is added', function () {
 
     $this->get(route('feedback.category', ['category' => 'Scheduling']))
         ->assertOk()
-        ->assertSeeText('0.13 / 5');
+        ->assertSeeText('3.88 / 5');
 });
