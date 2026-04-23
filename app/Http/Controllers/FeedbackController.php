@@ -12,6 +12,7 @@ use App\Services\ClusteringService;
 use App\Services\ConfidenceService;
 use App\Services\IdeaGeneratorService;
 use App\Services\SeverityService;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -19,6 +20,8 @@ use Illuminate\Support\Facades\Cache;
 class FeedbackController extends Controller
 {
     private const MINIMUM_VOTES_FOR_IDEA_GENERATION = 10;
+
+    private const MINIMUM_REPORTS_FOR_IDEA_GENERATION = 3;
 
     public function create()
     {
@@ -36,13 +39,7 @@ class FeedbackController extends Controller
         // total approved problems
         $totalProblems = Feedback::where('status', 'approved')->count();
 
-        // categories that have enough reports for capstone ideas
-        $ideaCandidates = Feedback::where('status', 'approved')
-            ->select('category')
-            ->groupBy('category')
-            ->havingRaw('COUNT(*) >= 3')
-            ->get()
-            ->count();
+        $ideaCandidates = $this->ideaCandidateCategories()->count();
 
         // total distinct categories
         $totalCategories = Feedback::select('category')
@@ -218,8 +215,11 @@ class FeedbackController extends Controller
             ->filter(fn (Feedback $feedback): bool => $feedback->votes_count >= self::MINIMUM_VOTES_FOR_IDEA_GENERATION)
             ->values();
 
-        if ($feedbacks->count() < 3) {
-            return view('low-data');
+        if ($feedbacks->count() < self::MINIMUM_REPORTS_FOR_IDEA_GENERATION) {
+            return view('low-data', [
+                'minimumReports' => self::MINIMUM_REPORTS_FOR_IDEA_GENERATION,
+                'minimumVotes' => self::MINIMUM_VOTES_FOR_IDEA_GENERATION,
+            ]);
         }
 
         $voteSignature = md5($feedbacks
@@ -440,12 +440,7 @@ class FeedbackController extends Controller
             ->take(5)
             ->get();
 
-        $ideaCandidates = Feedback::where('status', 'approved')
-            ->select('category')
-            ->selectRaw('COUNT(*) as total')
-            ->groupBy('category')
-            ->having('total', '>=', 3)
-            ->get();
+        $ideaCandidates = $this->ideaCandidateCategories();
 
         $monthlyReports = Feedback::selectRaw('MONTH(created_at) as month, COUNT(*) as total')
             ->groupBy('month')
@@ -685,5 +680,18 @@ class FeedbackController extends Controller
             'overall_score' => $overall,
             'recommendation' => $recommendation,
         ];
+    }
+
+    private function ideaCandidateCategories(): EloquentCollection
+    {
+        return Feedback::query()
+            ->where('status', 'approved')
+            ->has('votes', '>=', self::MINIMUM_VOTES_FOR_IDEA_GENERATION)
+            ->select('category')
+            ->selectRaw('COUNT(*) as total')
+            ->groupBy('category')
+            ->having('total', '>=', self::MINIMUM_REPORTS_FOR_IDEA_GENERATION)
+            ->orderByDesc('total')
+            ->get();
     }
 }

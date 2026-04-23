@@ -136,7 +136,8 @@
     <div class="empty-icon">📊</div>
     <h2 class="empty-title">Not Enough Data Yet</h2>
     <p class="empty-desc">
-      This category doesn't have enough reports to generate a capstone idea. Help us grow by submitting more problems!
+      The minimum vote requirement has not been met yet. A category needs at least
+      {{ $minimumReports ?? 3 }} approved reports with {{ $minimumVotes ?? 10 }} or more votes each before LIKHA can generate capstone ideas.
     </p>
     <div class="empty-actions">
       <a href="{{ route('feedback.create') }}" class="btn-primary">
@@ -149,7 +150,7 @@
       </a>
     </div>
     <div class="empty-hint">
-      Need 3+ reports in a category to unlock AI-powered ideas
+      Keep voting on real campus problems to unlock AI-powered ideas.
     </div>
   </div>
 </div>

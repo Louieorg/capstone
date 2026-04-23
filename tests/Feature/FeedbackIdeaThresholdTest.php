@@ -37,7 +37,7 @@ function addVotesForIdeaThreshold(Feedback $feedback, int $votes): void
         });
 }
 
-test('category idea generation only processes problems with at least ten votes', function () {
+test('category idea generation only processes problems with at least ten votes', function (): void {
     Cache::flush();
 
     $clusteringSpy = new class
@@ -108,4 +108,28 @@ test('category idea generation only processes problems with at least ten votes',
         ))->toBeTrue()
         ->and($clusteringSpy->processedFeedbacks->pluck('id')->contains($underThresholdFeedback->id))
         ->toBeFalse();
+});
+
+test('home candidate count only includes categories with three reports that each have at least ten votes', function (): void {
+    collect(range(1, 3))->each(function (int $index): void {
+        $feedback = createApprovedFeedbackForIdeaThreshold([
+            'category' => 'Under Voted Category',
+            'title' => "Under voted issue {$index}",
+        ]);
+
+        addVotesForIdeaThreshold($feedback, 9);
+    });
+
+    collect(range(1, 3))->each(function (int $index): void {
+        $feedback = createApprovedFeedbackForIdeaThreshold([
+            'category' => 'Qualified Category',
+            'title' => "Qualified candidate issue {$index}",
+        ]);
+
+        addVotesForIdeaThreshold($feedback, 10);
+    });
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertSeeInOrder(['Capstone Candidates', '1', 'AI-scored & under review']);
 });

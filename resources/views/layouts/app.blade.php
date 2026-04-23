@@ -10,7 +10,6 @@
   @stack('head')
 
   <script src="https://unpkg.com/lucide@latest"></script>
-  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
   <style>
     [x-cloak] { display: none !important; }
@@ -878,7 +877,11 @@
     }).then(r => { if (r.isConfirmed) document.getElementById('logoutForm').submit(); });
   }
 </script>
-<script>lucide.createIcons();</script>
+<script>
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+</script>
 @stack('scripts')
 </body>
 </html>

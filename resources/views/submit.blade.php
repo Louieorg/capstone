@@ -169,7 +169,8 @@ select.field:invalid {
       otherGroupVal: '',
       otherCategory: false,
       otherDepartment: {{ old('department') === 'Other' ? 'true' : 'false' }},
-      otherProcess: false,
+      currentProcessVal: @js(old('current_process')),
+      otherProcess: {{ old('current_process') === 'Other' ? 'true' : 'false' }},
 
       canProceed() {
           if (this.step === 1) {
@@ -440,6 +441,7 @@ select.field:invalid {
     <label class="check-card group" style="align-items:flex-start; gap:12px;">
       <input type="radio" name="current_process" value="{{ $value }}"
              {{ old('current_process') === $value ? 'checked' : '' }}
+             @change="otherProcess = false"
              class="mt-0.5 shrink-0" style="accent-color:var(--amber); width:15px; height:15px;"/>
       <div class="flex items-start gap-3 flex-1 min-w-0">
         <i data-lucide="{{ $meta['icon'] }}"
