@@ -376,11 +376,23 @@ select.field:invalid {
           </div>
           <div>
             <label class="field-label">Supporting Evidence</label>
-            <input type="file" name="attachment" accept=".jpg,.jpeg,.png,.pdf" class="field">
-            <p style="font-size: .6875rem; color: var(--muted2); margin-top: .5rem;">
-              Optional: upload a JPG, PNG, or PDF file up to 5MB.
-            </p>
-            @error('attachment')
+
+            <div id="evidenceZone" class="field" style="min-height:100px; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:8px;">
+              <p class="text-sm">Drag and drop photos, screenshots or PDFs here, or</p>
+              <div>
+                <label class="btn-next" style="cursor:pointer;">
+                  Browse files
+                  <input type="file" id="evidenceInput" name="evidence[]" accept=".jpg,.jpeg,.png,.webp,.pdf" multiple style="display:none;" />
+                </label>
+              </div>
+              <p style="font-size: .6875rem; color: var(--muted2);">You can upload multiple files (images or PDFs). Max 10MB each.</p>
+            </div>
+
+            <input type="file" name="attachment" accept=".jpg,.jpeg,.png,.pdf" class="field" style="margin-top:10px;display:none;">
+
+            <div id="evidencePreview" class="mt-3 grid grid-cols-3 gap-3"></div>
+
+            @error('evidence.*')
               <p style="font-size: .75rem; color: #ef4444; margin-top: .5rem;">{{ $message }}</p>
             @enderror
           </div>
@@ -484,6 +496,69 @@ select.field:invalid {
     </label>
  
   </div>
+
+  <script>
+    (function(){
+      const input = document.getElementById('evidenceInput');
+      const zone = document.getElementById('evidenceZone');
+      const preview = document.getElementById('evidencePreview');
+
+      zone.addEventListener('click', () => input.click());
+
+      input.addEventListener('change', (e) => handleFiles(e.target.files));
+
+      zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.style.opacity = '0.9'; });
+      zone.addEventListener('dragleave', (e) => { e.preventDefault(); zone.style.opacity = '1'; });
+      zone.addEventListener('drop', (e) => { e.preventDefault(); zone.style.opacity = '1'; handleFiles(e.dataTransfer.files); });
+
+      function handleFiles(files){
+        for (const file of files) {
+          const reader = new FileReader();
+          const card = document.createElement('div');
+          card.className = 'rounded-lg border p-2';
+          card.style.display = 'flex';
+          card.style.flexDirection = 'column';
+          card.style.alignItems = 'center';
+
+          if (file.type.startsWith('image/')) {
+            reader.onload = (ev) => {
+              const img = document.createElement('img');
+              img.src = ev.target.result;
+              img.style.maxHeight = '90px';
+              img.style.borderRadius = '8px';
+              card.appendChild(img);
+              addMeta()
+            };
+            reader.readAsDataURL(file);
+          } else {
+            const icon = document.createElement('div');
+            icon.innerText = 'PDF';
+            icon.style.fontWeight = '700';
+            card.appendChild(icon);
+            addMeta();
+          }
+
+          function addMeta(){
+            const name = document.createElement('div');
+            name.style.fontSize = '.8rem';
+            name.style.marginTop = '6px';
+            name.innerText = file.name + ' (' + (Math.round(file.size/1024/10)/100) + ' MB)';
+            card.appendChild(name);
+
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'btn-back';
+            remove.style.marginTop = '8px';
+            remove.innerText = 'Remove';
+            remove.addEventListener('click', () => card.remove());
+            card.appendChild(remove);
+
+            preview.appendChild(card);
+          }
+        }
+      }
+    })();
+  </script>
  
   {{-- Other text input ── --}}
   <div x-show="otherProcess" x-transition.opacity class="mt-3">

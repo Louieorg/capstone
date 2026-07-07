@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreFeedbackCommentRequest;
 use App\Http\Requests\StoreFeedbackRequest;
 use App\Models\AdviserReview;
 use App\Models\Feedback;
+use App\Models\FeedbackComment;
 use App\Models\FeedbackVote;
 use App\Models\IdeaEvaluation;
 use App\Models\User;
@@ -13,12 +15,19 @@ use App\Services\ClusteringService;
 use App\Services\ConfidenceService;
 use App\Services\IdeaGeneratorService;
 use App\Services\SeverityService;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\View\View;
 
 class FeedbackController extends Controller
 {
@@ -26,70 +35,71 @@ class FeedbackController extends Controller
 
     private const MINIMUM_REPORTS_FOR_IDEA_GENERATION = 3;
 
-    public function create()
+    public function create(): View
     {
         return view('submit');
     }
 
-    public function home()
+    public function home(): View
     {
-        $trending = Feedback::withCount('votes')
-            ->where('status', 'approved')
-            ->notFlagged()
-            ->orderByDesc('votes_count')
-            ->take(5)
+        $approvedFeedbacks = $this->approvedFeedbackQuery()
+            ->latest()
             ->get();
 
-        // total approved problems
-        $totalProblems = Feedback::where('status', 'approved')
-            ->notFlagged()
-            ->count();
+        $contexts = $this->buildFeedbackContexts($approvedFeedbacks);
+        $feed = $this->decorateFeedbackCollection($approvedFeedbacks->take(12)->values(), $contexts);
+        $trending = $this->decorateFeedbackCollection(
+            $approvedFeedbacks
+                ->sortByDesc(fn (Feedback $feedback): float => $this->trendingScore($feedback, $contexts))
+                ->take(5)
+                ->values(),
+            $contexts
+        );
 
+        $totalProblems = $approvedFeedbacks->count();
         $ideaCandidates = $this->ideaCandidateCategories()->count();
-
-        // total distinct categories
-        $totalCategories = Feedback::select('category')
-            ->notFlagged()
-            ->distinct()
-            ->count();
-
-        // get categories with counts
-        $categories = Feedback::where('status', 'approved')
-            ->notFlagged()
-            ->select('category')
-            ->selectRaw('COUNT(*) as total')
+        $totalCategories = $approvedFeedbacks->pluck('category')->unique()->count();
+        $categories = $approvedFeedbacks
             ->groupBy('category')
-            ->orderByDesc('total')
+            ->map(fn (Collection $group): array => [
+                'name' => (string) $group->first()->category,
+                'total' => $group->count(),
+            ])
+            ->sortByDesc('total')
+            ->values();
+        $generatedIdeas = IdeaEvaluation::query()
+            ->latest()
+            ->take(4)
             ->get();
 
-        return view('landing', compact(
+        return view('home', compact(
+            'feed',
             'trending',
             'totalProblems',
             'ideaCandidates',
             'totalCategories',
-            'categories'
+            'categories',
+            'generatedIdeas'
         ));
     }
 
-    public function store(StoreFeedbackRequest $request)
+    public function store(StoreFeedbackRequest $request): RedirectResponse
     {
         if (! auth()->check()) {
             return redirect()->back()->with('showLogin', true);
         }
 
-        // Duplicate Problem Detection
         $keywords = collect(explode(' ', strtolower($request->title.' '.$request->description)))
-            ->filter(fn ($word) => strlen($word) > 3)
+            ->filter(fn (string $word): bool => strlen($word) > 3)
             ->unique();
 
-        $similarProblems = Feedback::where('status', 'approved')
+        $similarProblems = Feedback::query()
+            ->where('status', 'approved')
             ->notFlagged()
-            ->where('category', $request->category) // 🔥 IMPORTANT FILTER
+            ->where('category', $request->category)
             ->get()
-            ->filter(function ($feedback) use ($keywords) {
-
+            ->filter(function (Feedback $feedback) use ($keywords): bool {
                 $text = strtolower($feedback->title.' '.$feedback->description);
-
                 $matchCount = 0;
 
                 foreach ($keywords as $word) {
@@ -98,7 +108,6 @@ class FeedbackController extends Controller
                     }
                 }
 
-                // require at least 2 matching keywords
                 return $matchCount >= 2;
             })
             ->take(3);
@@ -109,23 +118,17 @@ class FeedbackController extends Controller
                 ->with('similarProblems', $similarProblems);
         }
 
-        // Resolve final category value
         $finalCategory = $request->category === 'Other'
             ? $request->category_other
             : $request->category;
-
         $finalDepartment = $request->department === 'Other'
             ? $request->department_other
             : $request->department;
-
-        // Resolve final current_process value
         $finalProcess = $request->current_process === 'Other'
             ? ($request->current_process_other ?? 'Other')
             : $request->current_process;
-
-        // Filter out empty "Other:" entries from the group array
         $affectedGroups = collect($request->affected_group)
-            ->filter(fn ($g) => $g !== '' && $g !== 'Other: ')
+            ->filter(fn (string $group): bool => $group !== '' && $group !== 'Other: ')
             ->values()
             ->toArray();
 
@@ -145,16 +148,16 @@ class FeedbackController extends Controller
             $attachmentType = in_array($extension, ['jpg', 'jpeg', 'png'], true) ? 'image' : 'pdf';
         }
 
-        Feedback::create([
+        $created = Feedback::create([
             'user_id' => $request->has('is_anonymous') ? null : Auth::id(),
             'title' => $request->title,
             'description' => $request->description,
             'impact' => $request->impact,
-            'category' => $finalCategory,           // ← resolved
-            'category_other' => $request->category_other, // ← stored for admin
+            'category' => $finalCategory,
+            'category_other' => $request->category_other,
             'department' => filled($finalDepartment) ? $finalDepartment : null,
             'frequency' => $request->frequency,
-            'current_process' => $finalProcess,            // ← resolved
+            'current_process' => $finalProcess,
             'current_process_other' => $request->current_process_other,
             'affected_users' => $request->affected_users,
             'affected_group' => $affectedGroups,
@@ -164,7 +167,34 @@ class FeedbackController extends Controller
             'attachment_type' => $attachmentType,
         ]);
 
-        // SUCCESS MESSAGE FOR TOAST
+        // Persist supporting evidence files after feedback is created.
+        if ($request->hasFile('evidence')) {
+            $captions = $request->input('evidence_captions', []);
+
+            foreach ($request->file('evidence') as $index => $file) {
+                if (! $file->isValid()) {
+                    continue;
+                }
+
+                $extension = strtolower($file->getClientOriginalExtension());
+                $safeName = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'evidence';
+                $filename = $safeName.'-'.Str::uuid().'.'.$extension;
+
+                $path = Storage::disk('public')->putFileAs('evidence', $file, $filename);
+
+                \App\Models\FeedbackEvidence::query()->create([
+                    'feedback_id' => $created->id,
+                    'user_id' => $request->has('is_anonymous') ? null : Auth::id(),
+                    'file_path' => $path,
+                    'file_name' => $file->getClientOriginalName(),
+                    'file_type' => in_array($extension, ['jpg', 'jpeg', 'png', 'webp'], true) ? 'image' : 'pdf',
+                    'mime_type' => $file->getMimeType(),
+                    'file_size' => $file->getSize(),
+                    'caption' => $captions[$index] ?? null,
+                ]);
+            }
+        }
+
         return redirect()->route('feedback.submitted')
             ->with(
                 $isFlagged ? 'warning' : 'success',
@@ -174,46 +204,127 @@ class FeedbackController extends Controller
             );
     }
 
-    public function submitted()
+    public function submitted(): View
     {
         return view('feedback.submitted');
     }
 
-    public function index(Request $request)
+    public function index(Request $request): View
     {
-        $query = Feedback::where('status', 'approved')
-            ->notFlagged();
+        $query = $this->approvedFeedbackQuery();
 
-        if ($request->search) {
-            $query->where('description', 'like', '%'.$request->search.'%');
+        if ($request->filled('search')) {
+            $search = (string) $request->search;
+            $query->where(function (Builder $builder) use ($search): void {
+                $builder
+                    ->where('title', 'like', '%'.$search.'%')
+                    ->orWhere('description', 'like', '%'.$search.'%')
+                    ->orWhere('impact', 'like', '%'.$search.'%');
+            });
         }
 
-        if ($request->category) {
+        if ($request->filled('category')) {
             $query->where('category', $request->category);
         }
 
-        $feedbacks = $query
-            ->withCount('votes')
-            ->with(['votes' => function ($query) {
-                $query->where('user_id', auth()->id());
-            }])
-            ->when($request->sort === 'latest', fn ($q) => $q->latest())
-            ->when($request->sort !== 'latest', fn ($q) => $q->orderByDesc('votes_count'))
-            ->paginate(5);
+        $sort = (string) $request->get('sort', 'trending');
+        $feedbacks = $query->get();
+        $contexts = $this->buildFeedbackContexts($feedbacks);
+        $decorated = $this->decorateFeedbackCollection($feedbacks, $contexts);
 
-        // ✅ ADD THIS BACK
-        $categories = Feedback::where('status', 'approved')
+        $sorted = (match ($sort) {
+            'newest' => $decorated->sortByDesc('created_at'),
+            'supported' => $decorated->sortByDesc('votes_count'),
+            'severity' => $decorated->sortByDesc('severity_score'),
+            default => $decorated->sortByDesc(fn (Feedback $feedback): float => $this->trendingScore($feedback, $contexts)),
+        })->values();
+
+        $perPage = 9;
+        $page = max(1, (int) $request->integer('page', 1));
+        $paginated = new LengthAwarePaginator(
+            $sorted->forPage($page, $perPage),
+            $sorted->count(),
+            $perPage,
+            $page,
+            [
+                'path' => $request->url(),
+                'query' => $request->query(),
+            ]
+        );
+
+        $categories = Feedback::query()
+            ->where('status', 'approved')
             ->notFlagged()
             ->select('category')
             ->distinct()
+            ->orderBy('category')
             ->pluck('category');
+        $recentIdeas = IdeaEvaluation::query()->latest()->take(4)->get();
 
-        return view('problems.index', compact('feedbacks', 'categories'));
+        return view('problems.index', [
+            'feedbacks' => $paginated,
+            'categories' => $categories,
+            'recentIdeas' => $recentIdeas,
+            'activeSort' => $sort,
+        ]);
     }
 
-    public function summary()
+    public function show(Feedback $feedback): View
     {
-        $categories = Feedback::where('status', 'approved')
+        abort_unless($feedback->status === 'approved' && ! $feedback->is_flagged, 404);
+
+        $categoryFeedbacks = $this->approvedFeedbackQuery()
+            ->where('category', $feedback->category)
+            ->get();
+        $contexts = $this->buildFeedbackContexts($categoryFeedbacks);
+        $feedback = $this->decorateFeedbackCollection($categoryFeedbacks, $contexts)->firstWhere('id', $feedback->id);
+        $clusterFeedbacks = $categoryFeedbacks
+            ->filter(fn (Feedback $item): bool => in_array($item->id, $feedback->cluster_feedback_ids ?? [], true))
+            ->values();
+        $relatedProblems = $this->buildRelatedProblems($feedback, $clusterFeedbacks);
+        $evidenceFiles = \App\Models\FeedbackEvidence::query()->where('feedback_id', $feedback->id)->latest()->get();
+
+        $analysis = [
+            'category' => $feedback->category,
+            'severity_level' => $feedback->severity_level,
+            'severity_score' => $feedback->severity_score,
+            'confidence_level' => $feedback->confidence_level,
+            'confidence_score' => $feedback->confidence_score,
+            'affected_groups' => $feedback->affected_groups,
+            'recurring_reports' => $feedback->recurring_report_count,
+            'support_count' => $feedback->cluster_support_count,
+            'why_it_matters' => $feedback->why_it_matters,
+            'timeline' => $feedback->timeline,
+            'evidence_files' => $evidenceFiles->count(),
+        ];
+        $comments = FeedbackComment::query()
+            ->with('user')
+            ->where('feedback_id', $feedback->id)
+            ->latest()
+            ->get();
+
+        return view('feedback.show', compact('feedback', 'relatedProblems', 'analysis', 'comments', 'evidenceFiles'));
+    }
+
+    public function storeComment(StoreFeedbackCommentRequest $request, Feedback $feedback): RedirectResponse
+    {
+        abort_unless($feedback->status === 'approved' && ! $feedback->is_flagged, 404);
+
+        FeedbackComment::query()->create([
+            'feedback_id' => $feedback->id,
+            'user_id' => $request->user()->id,
+            'body' => $request->validated()['body'],
+        ]);
+
+        return redirect()
+            ->route('feedback.show', $feedback)
+            ->with('success', 'Supporting experience added.');
+    }
+
+    public function summary(): View
+    {
+        $categories = Feedback::query()
+            ->where('status', 'approved')
             ->notFlagged()
             ->select('category')
             ->selectRaw('COUNT(*) as total')
@@ -224,12 +335,14 @@ class FeedbackController extends Controller
         return view('problems.summary', compact('categories'));
     }
 
-    public function showCategory($category)
+    public function showCategory(string $category): View
     {
-        $feedbacks = Feedback::where('category', $category)
+        $feedbacks = Feedback::query()
+            ->where('category', $category)
             ->where('status', 'approved')
             ->notFlagged()
-            ->withCount('votes')
+            ->with('user')
+            ->withCount(['votes', 'comments', 'evidence'])
             ->latest()
             ->get()
             ->filter(fn (Feedback $feedback): bool => $feedback->votes_count >= self::MINIMUM_VOTES_FOR_IDEA_GENERATION)
@@ -243,94 +356,63 @@ class FeedbackController extends Controller
         }
 
         $voteSignature = md5($feedbacks
-            ->map(fn ($feedback) => "{$feedback->id}:{$feedback->votes_count}")
+            ->map(fn (Feedback $feedback): string => "{$feedback->id}:{$feedback->votes_count}")
             ->implode('|'));
-
-        // Cache key includes feedback shape plus vote distribution so
-        // confidence breakdown updates immediately when votes change.
         $cacheKey = "ideas_{$category}_{$feedbacks->count()}_{$feedbacks->max('id')}_{$voteSignature}";
 
-        $suggestedIdeas = Cache::remember($cacheKey, now()->addMinutes(30), function () use (
-            $feedbacks, $category
-        ) {
+        $suggestedIdeas = Cache::remember($cacheKey, now()->addMinutes(30), function () use ($feedbacks, $category): array {
             $groups = app(ClusteringService::class)->group($feedbacks);
             $ideas = [];
 
             foreach ($groups as $groupName => $groupFeedbacks) {
                 $reports = $groupFeedbacks->count();
                 $votes = $groupFeedbacks->sum('votes_count');
-                $frequencyScore = $groupFeedbacks->map(fn ($f) => match ($f->frequency) {
-                    'Rarely' => 1,
-                    'Sometimes' => 2,
-                    'Often' => 3,
-                    'Everyday' => 4,
-                    default => 1,
-                })->avg();
-                $impactScore = $groupFeedbacks->map(function ($f) {
-                    $base = match ($f->affected_users) {
-                        'Less than 50' => 1,
-                        '50-200' => 2,
-                        '200-500' => 3,
-                        'More than 500' => 4,
-                        default => 1,
-                    };
-
-                    // Bonus: +0.5 for each extra affected group beyond the first (max +1)
-                    $groupCount = is_array($f->affected_group) ? count($f->affected_group) : 1;
-                    $bonus = min(1, ($groupCount - 1) * 0.5);
-
-                    return $base + $bonus;
-                })->avg();
-
-                // Get the dominant current_process across feedbacks in this group
+                $frequencyScore = $this->averageFrequencyScore($groupFeedbacks);
+                $impactScore = $this->averageImpactScore($groupFeedbacks);
                 $dominantProcess = $groupFeedbacks
                     ->pluck('current_process')
                     ->filter()
-                    ->groupBy(fn ($p) => $p)
+                    ->groupBy(fn (string $process): string => $process)
                     ->map->count()
                     ->sortDesc()
                     ->keys()
                     ->first();
 
                 $severity = app(SeverityService::class)->compute($reports, $votes, $frequencyScore, $impactScore, $dominantProcess);
-                // ── Confidence now uses actual feedback data ──
                 $confidence = app(ConfidenceService::class)->compute($reports, $votes, $frequencyScore, $impactScore, $groupFeedbacks);
                 $evaluation = $this->evaluateIdea($reports, $votes, $frequencyScore, $impactScore, $dominantProcess);
                 $ideaData = app(IdeaGeneratorService::class)->generate(
-                    $groupName, $category, $groupFeedbacks,
-                    $reports, $votes, $frequencyScore, $impactScore
+                    $groupName,
+                    $category,
+                    $groupFeedbacks,
+                    $reports,
+                    $votes,
+                    $frequencyScore,
+                    $impactScore
                 );
 
-                // Persist evaluation (outside cache closure is fine — idempotent)
-                $isNew = ! IdeaEvaluation::where('idea_title', $ideaData['title'])
+                $isNew = ! IdeaEvaluation::query()
+                    ->where('idea_title', $ideaData['title'])
                     ->where('category', $category)
                     ->exists();
 
-                IdeaEvaluation::updateOrCreate(
+                IdeaEvaluation::query()->updateOrCreate(
                     ['idea_title' => $ideaData['title'], 'category' => $category],
                     $evaluation
                 );
 
-                // ── Notify users whose feedback contributed to this idea ──
                 if ($isNew) {
-                    $contributingUsers = $groupFeedbacks
-                        ->pluck('user_id')
-                        ->filter()
-                        ->unique();
+                    $contributingUsers = $groupFeedbacks->pluck('user_id')->filter()->unique();
 
                     foreach ($contributingUsers as $userId) {
                         $user = User::find($userId);
+
                         if ($user) {
                             $user->notify(new IdeaGenerated($ideaData['title'], $category));
                         }
                     }
                 }
 
-                // ── Unified idea score ────────────────────────────────
-                // Severity    → How bad is this problem?        (40%)
-                // Confidence  → How trustworthy is the data?    (30%)
-                // Impact      → How wide is the effect?         (20%)
-                // Process gap → Is there no solution yet?       (10%)
                 $processGap = match (true) {
                     str_contains(strtolower($dominantProcess ?? ''), 'no solution') => 5.0,
                     str_contains(strtolower($dominantProcess ?? ''), 'manual') => 3.5,
@@ -355,13 +437,6 @@ class FeedbackController extends Controller
                     default => 'Low',
                 };
 
-                $seriousness = match ($priority) {
-                    'High' => 'Critical Issue',
-                    'Medium' => 'Moderate Issue',
-                    default => 'Minor Issue',
-                };
-
-                // Build severity/confidence explanation strings
                 $sevReasons = array_filter([
                     $reports >= 5 ? 'frequently reported' : null,
                     $votes >= 20 ? 'strong user concern' : null,
@@ -369,13 +444,18 @@ class FeedbackController extends Controller
                     $impactScore >= 3 ? 'affects many users' : null,
                     ($severity['process_bonus'] ?? 0) > 0 ? 'no adequate existing solution' : null,
                 ]);
+
                 $ideas[] = [
                     'group' => $groupName,
                     'title' => $ideaData['title'],
                     'description' => $ideaData['description'],
                     'score' => $ideaScore,
                     'priority' => $priority,
-                    'seriousness' => $seriousness,
+                    'seriousness' => match ($priority) {
+                        'High' => 'Critical Issue',
+                        'Medium' => 'Moderate Issue',
+                        default => 'Minor Issue',
+                    },
                     'general_objective' => $ideaData['general_objective'],
                     'specific_objectives' => $ideaData['specific_objectives'],
                     'explanation' => $ideaData['explanation'],
@@ -383,8 +463,8 @@ class FeedbackController extends Controller
                     'severity_score' => $severity['score'],
                     'severity_level' => $severity['level'],
                     'severity_explanation' => count($sevReasons)
-                                                   ? 'This problem is severe because it is '.implode(', ', $sevReasons).'.'
-                                                   : 'This problem has low reported impact.',
+                        ? 'This problem is severe because it is '.implode(', ', $sevReasons).'.'
+                        : 'This problem has low reported impact.',
                     'confidence_score' => $confidence['score'],
                     'confidence_level' => $confidence['level'],
                     'confidence_explanation' => $confidence['explanation'],
@@ -404,97 +484,86 @@ class FeedbackController extends Controller
                         'severity' => $severity['level'],
                         'confidence' => $confidence['level'],
                     ],
+                    'reports_count' => $reports,
+                    'support_count' => $votes,
+                    'affected_groups' => $groupFeedbacks->pluck('affected_group')->flatten()->filter()->unique()->values()->all(),
                 ];
             }
 
-            usort($ideas, fn ($a, $b) => $b['score'] <=> $a['score']);
+            usort($ideas, fn (array $left, array $right): int => $right['score'] <=> $left['score']);
 
             return $ideas;
         });
 
         $topIdea = $suggestedIdeas[0] ?? null;
         $otherIdeas = array_slice($suggestedIdeas, 1);
-
         $topReview = $topIdea
-            ? AdviserReview::where('idea_title', $topIdea['title'])
+            ? AdviserReview::query()
+                ->where('idea_title', $topIdea['title'])
                 ->where('category', $category)
-                ->latest()->first()
+                ->latest()
+                ->first()
             : null;
 
-        return view('problems.category', compact(
-            'feedbacks', 'category', 'topIdea', 'otherIdeas', 'topReview'
-        ));
+        return view('problems.category', compact('feedbacks', 'category', 'topIdea', 'otherIdeas', 'topReview'));
     }
 
-    public function admin()
+    public function admin(): View
     {
         $totalFeedback = Feedback::count();
-
-        $categoryData = Feedback::where('status', 'approved')
+        $categoryData = Feedback::query()
+            ->where('status', 'approved')
             ->notFlagged()
             ->select('category')
             ->selectRaw('COUNT(*) as total')
             ->groupBy('category')
             ->get();
-
-        $totalCategories = Feedback::select('category')
+        $totalCategories = Feedback::query()
+            ->select('category')
             ->notFlagged()
             ->distinct()
             ->count();
-
-        $topCategory = Feedback::select('category')
+        $topCategory = Feedback::query()
+            ->select('category')
             ->notFlagged()
             ->selectRaw('COUNT(*) as total')
             ->groupBy('category')
             ->orderByDesc('total')
             ->first();
-
-        $recentFeedback = Feedback::latest()
-            ->take(5)
-            ->get();
-
-        $pendingFeedback = Feedback::where('status', 'pending')
-            ->latest()
-            ->get();
-
-        $topProblems = Feedback::withCount('votes')
+        $recentFeedback = Feedback::query()->latest()->take(5)->get();
+        $pendingFeedback = Feedback::query()->where('status', 'pending')->latest()->get();
+        $topProblems = Feedback::query()
+            ->withCount('votes')
             ->where('status', 'approved')
             ->notFlagged()
             ->orderByDesc('votes_count')
             ->take(5)
             ->get();
-
         $ideaCandidates = $this->ideaCandidateCategories();
-
-        $monthlyReports = Feedback::selectRaw('MONTH(created_at) as month, COUNT(*) as total')
+        $monthlyReports = Feedback::query()
+            ->selectRaw('MONTH(created_at) as month, COUNT(*) as total')
             ->notFlagged()
             ->groupBy('month')
             ->orderBy('month')
             ->get();
-
-        $impactLevels = Feedback::select('affected_users')
+        $impactLevels = Feedback::query()
+            ->select('affected_users')
             ->notFlagged()
             ->selectRaw('COUNT(*) as total')
             ->groupBy('affected_users')
             ->get();
-
-        // ── Affected groups — extract from JSON and count ──
-        $affectedGroupData = Feedback::where('status', 'approved')
+        $affectedGroupData = Feedback::query()
+            ->where('status', 'approved')
             ->notFlagged()
             ->select('affected_group')
             ->get()
-            ->flatMap(function ($feedback) {
-                // affected_group is cast to array, so this safely extracts all groups
-                return $feedback->affected_group ?? [];
-            })
-            ->filter(fn ($group) => ! empty(trim($group)))  // Filter out empty/whitespace-only values
+            ->flatMap(fn (Feedback $feedback): array => $feedback->affected_group ?? [])
+            ->filter(fn (string $group): bool => ! empty(trim($group)))
             ->countBy()
-            ->map(function ($count, $group) {
-                return (object) [
-                    'affected_group' => $group,
-                    'total' => $count,
-                ];
-            })
+            ->map(fn (int $count, string $group): object => (object) [
+                'affected_group' => $group,
+                'total' => $count,
+            ])
             ->values();
 
         return view('admin.dashboard', compact(
@@ -512,10 +581,9 @@ class FeedbackController extends Controller
         ));
     }
 
-    public function approve($id)
+    public function approve(int $id): RedirectResponse
     {
         $feedback = Feedback::findOrFail($id);
-
         $feedback->status = 'approved';
         $feedback->is_flagged = false;
         $feedback->save();
@@ -523,7 +591,7 @@ class FeedbackController extends Controller
         return back()->with('success', 'Feedback approved.');
     }
 
-    public function reject($id)
+    public function reject(int $id): RedirectResponse
     {
         $feedback = Feedback::findOrFail($id);
         $feedback->update(['status' => 'rejected']);
@@ -531,81 +599,76 @@ class FeedbackController extends Controller
         return back()->with('success', 'Feedback rejected.');
     }
 
-    public function vote($id)
+    public function vote(int $id): RedirectResponse
     {
         if (! auth()->check()) {
             return redirect()->back()->with('showLogin', true);
         }
-        $feedback = Feedback::findOrFail($id);
 
-        $existingVote = FeedbackVote::where('feedback_id', $id)
+        $feedback = Feedback::findOrFail($id);
+        $existingVote = FeedbackVote::query()
+            ->where('feedback_id', $id)
             ->where('user_id', Auth::id())
             ->first();
 
         if ($existingVote) {
             $existingVote->delete();
 
-            return back()->with('success', 'Vote removed.');
-        } else {
-            FeedbackVote::create([
-                'feedback_id' => $id,
-                'user_id' => Auth::id(),
-            ]);
-
-            return back()->with('success', 'Vote recorded.');
+            return back()->with('success', 'Support removed.');
         }
+
+        FeedbackVote::query()->create([
+            'feedback_id' => $feedback->id,
+            'user_id' => Auth::id(),
+        ]);
+
+        return back()->with('success', 'Problem supported.');
     }
 
-    public function similarProblems(Request $request)
+    public function similarProblems(Request $request): JsonResponse
     {
-        // STEP 1: Clean and extract keywords
-        $keywords = collect(explode(' ', strtolower($request->title)))
-            ->filter(fn ($word) => strlen($word) > 3)
+        $keywords = collect(explode(' ', strtolower((string) $request->title)))
+            ->filter(fn (string $word): bool => strlen($word) > 3)
             ->unique();
-
-        // OPTIONAL: remove common useless words
         $stopWords = ['the', 'and', 'for', 'with', 'this', 'that', 'from', 'have', 'has'];
-        $keywords = $keywords->reject(fn ($word) => in_array($word, $stopWords));
+        $keywords = $keywords->reject(fn (string $word): bool => in_array($word, $stopWords, true));
 
-        // STEP 2: Get candidate problems (filtered by category if available)
-        $feedbacks = Feedback::where('status', 'approved')
+        $feedbacks = Feedback::query()
+            ->where('status', 'approved')
             ->notFlagged()
-            ->when($request->category, function ($query) use ($request) {
+            ->when($request->category, function (Builder $query) use ($request): void {
                 $query->where('category', $request->category);
             })
             ->withCount('votes')
             ->latest()
             ->get();
 
-        // STEP 3: Score similarity
-        $similar = $feedbacks->map(function ($feedback) use ($keywords) {
+        $similar = $feedbacks
+            ->map(function (Feedback $feedback) use ($keywords): Feedback {
+                $text = strtolower($feedback->title.' '.$feedback->description);
+                $matchCount = 0;
 
-            $text = strtolower($feedback->title.' '.$feedback->description);
-
-            $matchCount = 0;
-
-            foreach ($keywords as $word) {
-                if (str_contains($text, $word)) {
-                    $matchCount++;
+                foreach ($keywords as $word) {
+                    if (str_contains($text, $word)) {
+                        $matchCount++;
+                    }
                 }
-            }
 
-            // attach score
-            $feedback->match_score = $matchCount;
+                $feedback->match_score = $matchCount;
 
-            return $feedback;
-        })
-            ->filter(fn ($f) => $f->match_score >= 2) // 🔥 require at least 2 matches
-            ->sortByDesc('match_score') // 🔥 best matches first
+                return $feedback;
+            })
+            ->filter(fn (Feedback $feedback): bool => $feedback->match_score >= 2)
+            ->sortByDesc('match_score')
             ->take(5)
             ->values();
 
         return response()->json($similar);
     }
 
-    public function storeReview(Request $request)
+    public function storeReview(Request $request): RedirectResponse
     {
-        AdviserReview::create([
+        AdviserReview::query()->create([
             'idea_title' => $request->idea_title,
             'category' => $request->category,
             'comment' => $request->comment,
@@ -613,46 +676,210 @@ class FeedbackController extends Controller
             'user_id' => auth()->id(),
         ]);
 
-        // GET SYSTEM EVALUATION
-        $evaluation = IdeaEvaluation::where('idea_title', $request->idea_title)
+        $evaluation = IdeaEvaluation::query()
+            ->where('idea_title', $request->idea_title)
             ->where('category', $request->category)
             ->first();
 
         if ($evaluation) {
-
-            // SAVE ADVISER SCORES
             $evaluation->adviser_feasibility = $request->feasibility;
             $evaluation->adviser_impact = $request->impact;
             $evaluation->adviser_complexity = $request->complexity;
             $evaluation->adviser_innovation = $request->innovation;
 
-            // COMPUTE ADVISER SCORE
-            $adviserScore =
-                ($request->impact * 0.35) +
-                ($request->feasibility * 0.25) +
-                ($request->complexity * 0.20) +
-                ($request->innovation * 0.20);
-
-            // FINAL SCORE (SYSTEM + ADVISER)
-            $finalScore =
-                ($evaluation->overall_score * 0.7) +
-                ($adviserScore * 0.3);
+            $adviserScore = ($request->impact * 0.35)
+                + ($request->feasibility * 0.25)
+                + ($request->complexity * 0.20)
+                + ($request->innovation * 0.20);
+            $finalScore = ($evaluation->overall_score * 0.7) + ($adviserScore * 0.3);
 
             $evaluation->final_score = round($finalScore, 2);
-
             $evaluation->save();
         }
 
         return back()->with('success', 'Review submitted with evaluation.');
     }
 
-    private function evaluateIdea($reports, $votes, $frequencyScore, $impactScore, $currentProcess = null)
+    private function approvedFeedbackQuery(): Builder
     {
-        // IMPACT: how many people are affected (scale 1–5)
-        $impact = min(5, round($impactScore + ($votes / 20)));
+        return Feedback::query()
+            ->where('status', 'approved')
+            ->notFlagged()
+            ->with('user')
+            ->withCount(['votes', 'comments'])
+            ->when(Auth::check(), function (Builder $query): void {
+                $query->with(['votes' => function (HasMany $voteQuery): void {
+                    $voteQuery->where('user_id', Auth::id());
+                }]);
+            });
+    }
 
-        // FEASIBILITY: how realistic is it to build a solution?
-        // High frequency = well-understood problem = MORE feasible to solve
+    private function decorateFeedbackCollection(Collection $feedbacks, array $contexts): Collection
+    {
+        return $feedbacks->map(function (Feedback $feedback) use ($contexts): Feedback {
+            $context = $contexts[$feedback->id] ?? [];
+
+            foreach ($context as $key => $value) {
+                $feedback->setAttribute($key, $value);
+            }
+
+            $feedback->setAttribute('has_supported', $feedback->relationLoaded('votes') && $feedback->votes->isNotEmpty());
+
+            return $feedback;
+        });
+    }
+
+    private function buildFeedbackContexts(Collection $feedbacks): array
+    {
+        $contexts = [];
+
+        foreach ($feedbacks->groupBy('category') as $categoryFeedbacks) {
+            $clusters = app(ClusteringService::class)->group($categoryFeedbacks);
+
+            foreach ($clusters as $clusterName => $clusterFeedbacks) {
+                $reports = $clusterFeedbacks->count();
+                $supportCount = $clusterFeedbacks->sum('votes_count');
+                $commentCount = $clusterFeedbacks->sum('comments_count');
+                $frequencyScore = $this->averageFrequencyScore($clusterFeedbacks);
+                $impactScore = $this->averageImpactScore($clusterFeedbacks);
+                $dominantProcess = $clusterFeedbacks
+                    ->pluck('current_process')
+                    ->filter()
+                    ->groupBy(fn (string $process): string => $process)
+                    ->map->count()
+                    ->sortDesc()
+                    ->keys()
+                    ->first();
+                $severity = app(SeverityService::class)->compute($reports, $supportCount, $frequencyScore, $impactScore, $dominantProcess);
+                $confidence = app(ConfidenceService::class)->compute($reports, $supportCount, $frequencyScore, $impactScore, $clusterFeedbacks);
+                $affectedGroups = $clusterFeedbacks
+                    ->pluck('affected_group')
+                    ->flatten()
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all();
+                $timeline = $this->buildTimeline($clusterFeedbacks);
+                $whyItMatters = Str::of($severity['level'].' severity and '.$confidence['level'].' confidence')
+                    ->append(' because ')
+                    ->append($reports > 1 ? "{$reports} related reports" : 'this report')
+                    ->append($supportCount > 0 ? ", {$supportCount} support signals" : '')
+                    ->append(count($affectedGroups) > 0 ? ', and '.count($affectedGroups).' affected groups' : '')
+                    ->append(' are pointing to the same institutional friction.')
+                    ->value();
+
+                foreach ($clusterFeedbacks as $feedback) {
+                    $contexts[$feedback->id] = [
+                        'cluster_name' => Str::headline((string) $clusterName),
+                        'recurring_report_count' => $reports,
+                        'cluster_support_count' => $supportCount,
+                        'cluster_comment_count' => $commentCount,
+                        'severity_score' => $severity['score'],
+                        'severity_level' => $severity['level'],
+                        'confidence_score' => $confidence['score'],
+                        'confidence_level' => $confidence['level'],
+                        'affected_groups' => $affectedGroups,
+                        'why_it_matters' => $whyItMatters,
+                        'timeline' => $timeline,
+                        'cluster_feedback_ids' => $clusterFeedbacks->pluck('id')->all(),
+                    ];
+                }
+            }
+        }
+
+        return $contexts;
+    }
+
+    private function buildTimeline(Collection $feedbacks): array
+    {
+        $runningReports = 0;
+        $runningSupport = 0;
+        $thresholdMarked = false;
+        $timeline = [];
+
+        foreach ($feedbacks->sortBy('created_at')->groupBy(fn (Feedback $feedback): string => $feedback->created_at->format('F Y')) as $month => $items) {
+            $runningReports += $items->count();
+            $runningSupport += $items->sum('votes_count');
+
+            $timeline[] = [
+                'label' => $month,
+                'reports' => $items->count(),
+                'supports' => $items->sum('votes_count'),
+                'threshold_reached' => ! $thresholdMarked
+                    && $runningReports >= self::MINIMUM_REPORTS_FOR_IDEA_GENERATION
+                    && $runningSupport >= self::MINIMUM_VOTES_FOR_IDEA_GENERATION,
+                'idea_generated' => $runningReports >= self::MINIMUM_REPORTS_FOR_IDEA_GENERATION
+                    && $runningSupport >= self::MINIMUM_VOTES_FOR_IDEA_GENERATION,
+            ];
+
+            if (($timeline[array_key_last($timeline)]['threshold_reached'] ?? false) === true) {
+                $thresholdMarked = true;
+            }
+        }
+
+        return $timeline;
+    }
+
+    private function buildRelatedProblems(Feedback $feedback, Collection $clusterFeedbacks): Collection
+    {
+        return $clusterFeedbacks
+            ->where('id', '!=', $feedback->id)
+            ->map(function (Feedback $item) use ($feedback): Feedback {
+                $item->setAttribute('similarity', round($this->similarityScore(
+                    $this->normalizedText($feedback->title.' '.$feedback->description),
+                    $this->normalizedText($item->title.' '.$item->description)
+                )));
+
+                return $item;
+            })
+            ->sortByDesc('similarity')
+            ->take(3)
+            ->values();
+    }
+
+    private function trendingScore(Feedback $feedback, array $contexts): float
+    {
+        $context = $contexts[$feedback->id] ?? [];
+        $recencyScore = max(0, 30 - $feedback->created_at->diffInDays(now()));
+
+        return ($feedback->votes_count * 3)
+            + (($context['recurring_report_count'] ?? 1) * 2)
+            + (($context['severity_score'] ?? 0) * 2)
+            + (($context['confidence_score'] ?? 0) * 2)
+            + $recencyScore;
+    }
+
+    private function averageFrequencyScore(Collection $feedbacks): float
+    {
+        return round((float) $feedbacks->map(fn (Feedback $feedback): int => match ($feedback->frequency) {
+            'Rarely' => 1,
+            'Sometimes' => 2,
+            'Often' => 3,
+            'Everyday' => 4,
+            default => 1,
+        })->avg(), 2);
+    }
+
+    private function averageImpactScore(Collection $feedbacks): float
+    {
+        return round((float) $feedbacks->map(function (Feedback $feedback): float {
+            $base = match ($feedback->affected_users) {
+                'Less than 50' => 1,
+                '50-200' => 2,
+                '200-500' => 3,
+                'More than 500' => 4,
+                default => 1,
+            };
+            $groupCount = is_array($feedback->affected_group) ? count($feedback->affected_group) : 1;
+            $bonus = min(1, ($groupCount - 1) * 0.5);
+
+            return $base + $bonus;
+        })->avg(), 2);
+    }
+
+    private function evaluateIdea(int $reports, int $votes, float $frequencyScore, float $impactScore, ?string $currentProcess = null): array
+    {
+        $impact = min(5, round($impactScore + ($votes / 20)));
         $feasibility = match (true) {
             $frequencyScore >= 3.5 => 4,
             $frequencyScore >= 2.5 => 3,
@@ -660,13 +887,10 @@ class FeedbackController extends Controller
             default => 2,
         };
 
-        // Boost feasibility if there's no existing system — greenfield is easier
         if (str_contains(strtolower($currentProcess ?? ''), 'no solution')) {
             $feasibility = min(5, $feasibility + 1);
         }
 
-        // COMPLEXITY: how technically involved is the solution?
-        // More reports = more edge cases = higher complexity
         $complexity = match (true) {
             $reports >= 8 => 4,
             $reports >= 5 => 3,
@@ -674,11 +898,8 @@ class FeedbackController extends Controller
             default => 2,
         };
 
-        // INNOVATION: how underserved is this problem?
-        // No existing solution + high impact = HIGH innovation opportunity
         $noSolution = str_contains(strtolower($currentProcess ?? ''), 'no solution')
-                   || str_contains(strtolower($currentProcess ?? ''), 'manual');
-
+            || str_contains(strtolower($currentProcess ?? ''), 'manual');
         $innovation = match (true) {
             $noSolution && $impactScore >= 3 => 5,
             $noSolution => 4,
@@ -686,7 +907,6 @@ class FeedbackController extends Controller
             default => 2,
         };
 
-        // OVERALL SCORE
         $overall = round(
             ($impact * 0.35) +
             ($feasibility * 0.25) +
@@ -695,19 +915,17 @@ class FeedbackController extends Controller
             2
         );
 
-        $recommendation = match (true) {
-            $overall >= 4.0 => 'Highly Recommended',
-            $overall >= 3.0 => 'Recommended',
-            default => 'Needs Improvement',
-        };
-
         return [
             'feasibility' => $feasibility,
             'impact' => $impact,
             'complexity' => $complexity,
             'innovation' => $innovation,
             'overall_score' => $overall,
-            'recommendation' => $recommendation,
+            'recommendation' => match (true) {
+                $overall >= 4.0 => 'Highly Recommended',
+                $overall >= 3.0 => 'Recommended',
+                default => 'Needs Improvement',
+            },
         ];
     }
 

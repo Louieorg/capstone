@@ -44,6 +44,10 @@ class StoreFeedbackRequest extends FormRequest
             'affected_users' => 'required|string|max:255',
             'affected_group' => 'required|array|min:1',
             'attachment' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'evidence' => 'nullable|array',
+            'evidence.*' => 'file|mimes:jpg,jpeg,png,webp,pdf|max:10240',
+            'evidence_captions' => 'nullable|array',
+            'evidence_captions.*' => 'nullable|string|max:255',
             'category_other' => 'required_if:category,Other|nullable|string|max:100',
             'current_process_other' => 'required_if:current_process,Other|nullable|string|max:100',
         ];

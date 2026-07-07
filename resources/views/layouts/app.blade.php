@@ -481,15 +481,15 @@
     </button>
 
     {{-- Logo --}}
-    <a href="{{ route('home') }}" class="h-logo">
+    <a href="{{ route('landing') }}" class="h-logo">
       <div class="h-logo-icon">L</div>
       <span class="h-logo-text">LIKHA</span>
     </a>
 
     {{-- Search --}}
     <div class="h-search">
-      <form method="GET" action="{{ route('feedback.index') }}">
-        <input type="text" name="search" placeholder="Search campus problems…" value="{{ request('search') }}">
+      <form method="GET" action="{{ route('discover') }}">
+        <input type="text" name="search" placeholder="Search institutional problems…" value="{{ request('search') }}">
         <button type="submit">
           <i data-lucide="search" style="width:14px;height:14px;color:#7e8194;"></i>
         </button>
@@ -589,7 +589,7 @@
               <div style="font-size:13px;font-weight:500;color:var(--text)">{{ auth()->user()->name }}</div>
               <div style="font-size:11px;color:var(--muted2)">{{ ucfirst(auth()->user()->role) }}</div>
             </div>
-            <a href="/settings" class="sb-dd-item"><i data-lucide="settings"></i> Settings</a>
+            <a href="{{ route('profile.edit') }}" class="sb-dd-item"><i data-lucide="user-round"></i> Profile</a>
             <button class="sb-dd-item" onclick="
               const d=document.documentElement.classList.toggle('dark');
               localStorage.setItem('theme',d?'dark':'light')">
@@ -624,7 +624,7 @@
         <a href="{{ route('home') }}"
            class="nav-item {{ request()->routeIs('home') ? 'nav-active' : '' }}">
           <i data-lucide="home"></i>
-          <span class="nav-label">Home</span>
+          <span class="nav-label">Home Feed</span>
         </a>
 
         <a href="{{ route('feedback.create') }}"
@@ -633,10 +633,10 @@
           <span class="nav-label">Submit Problem</span>
         </a>
 
-        <a href="{{ route('feedback.index') }}"
-           class="nav-item {{ request()->routeIs('feedback.index') ? 'nav-active' : '' }}">
-          <i data-lucide="list"></i>
-          <span class="nav-label">Problems</span>
+        <a href="{{ route('discover') }}"
+           class="nav-item {{ request()->routeIs('feedback.index') || request()->routeIs('discover') || request()->routeIs('feedback.show') ? 'nav-active' : '' }}">
+          <i data-lucide="compass"></i>
+          <span class="nav-label">Discover</span>
         </a>
 
         <a href="{{ route('feedback.summary') }}"
@@ -646,6 +646,12 @@
         </a>
 
         @auth
+          <a href="{{ route('profile.edit') }}"
+             class="nav-item {{ request()->routeIs('profile.edit') ? 'nav-active' : '' }}">
+            <i data-lucide="badge-check"></i>
+            <span class="nav-label">My Contribution</span>
+          </a>
+
           <a href="/my-ideas"
              class="nav-item {{ request()->is('my-ideas') ? 'nav-active' : '' }}">
             <i data-lucide="bookmark"></i>
@@ -687,7 +693,7 @@
 
           <div x-show="open && !collapsed" @click.outside="open = false" x-transition
             class="sb-dropdown">
-            <a href="/settings" class="sb-dd-item"><i data-lucide="settings"></i> Settings</a>
+            <a href="{{ route('profile.edit') }}" class="sb-dd-item"><i data-lucide="user-round"></i> Profile</a>
             <button class="sb-dd-item" onclick="const d=document.documentElement.classList.toggle('dark');localStorage.setItem('theme',d?'dark':'light')">
               <i data-lucide="sun"></i> Toggle theme
             </button>
@@ -734,11 +740,11 @@
 
 {{-- ══ BOTTOM NAV (mobile) ══ --}}
 <nav class="bottom-nav md:hidden">
-  <a href="{{ route('home') }}" class="bn-item {{ request()->routeIs('home') ? 'bn-active' : '' }}">
+  <a href="{{ route('landing') }}" class="bn-item {{ request()->routeIs('home') || request()->routeIs('landing') ? 'bn-active' : '' }}">
     <i data-lucide="home"></i><span>Home</span>
   </a>
-  <a href="{{ route('feedback.index') }}" class="bn-item {{ request()->routeIs('feedback.index') ? 'bn-active' : '' }}">
-    <i data-lucide="list"></i><span>Problems</span>
+  <a href="{{ route('discover') }}" class="bn-item {{ request()->routeIs('feedback.index') || request()->routeIs('discover') || request()->routeIs('feedback.show') ? 'bn-active' : '' }}">
+    <i data-lucide="compass"></i><span>Discover</span>
   </a>
   <a href="{{ route('feedback.create') }}" class="bn-center">
     <div class="bn-bubble">
@@ -757,7 +763,7 @@
     <button @click="loginOpen = true" class="bn-item">
       <i data-lucide="user"></i><span>Login</span>
     </button>
-  @endguest
+  @endauth
 </nav>
 
 {{-- ══ LOGIN MODAL ══ --}}

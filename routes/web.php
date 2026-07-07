@@ -4,6 +4,7 @@ use App\Http\Controllers\AdviserController;
 use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\IdeaController;
+use App\Http\Controllers\ProfileController;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Route;
 
@@ -14,18 +15,22 @@ use Illuminate\Support\Facades\Route;
 */
 
 // Landing page (FIRST PAGE)
-Route::get('/', function () {
-    return view('welcome');
-})->name('landing');
+Route::get('/', [FeedbackController::class, 'home'])->name('landing');
 
 // Home/dashboard page
 Route::get('/home', [FeedbackController::class, 'home'])->name('home');
+
+Route::get('/discover', [FeedbackController::class, 'index'])
+    ->name('discover');
 
 Route::get('/submit', [FeedbackController::class, 'create'])
     ->name('feedback.create');
 
 Route::get('/problems', [FeedbackController::class, 'index'])
     ->name('feedback.index');
+
+Route::get('/problems/{feedback}', [FeedbackController::class, 'show'])
+    ->name('feedback.show');
 
 Route::get('/summary', [FeedbackController::class, 'summary'])
     ->name('feedback.summary');
@@ -60,6 +65,10 @@ Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback']);
 
 Route::middleware(['auth'])->group(function () {
 
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
     /*
     |--------------------------------------------------------------------------
     | USER FEATURES
@@ -75,6 +84,10 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/feedback/{id}/vote', [FeedbackController::class, 'vote'])
         ->name('feedback.vote')
         ->middleware('throttle:10,1');
+
+    Route::post('/feedback/{feedback}/comments', [FeedbackController::class, 'storeComment'])
+        ->name('feedback.comments.store')
+        ->middleware('throttle:5,1');
 
     // Save idea
     Route::post('/idea/save', [IdeaController::class, 'save'])
@@ -163,6 +176,18 @@ Route::middleware(['auth'])->group(function () {
         Route::patch('/admin/feedback/{id}/reject', [FeedbackController::class, 'reject'])
             ->name('feedback.reject');
 
+    });
+
+    // Admin evidence management
+    Route::middleware('can:isAdmin')->group(function () {
+        Route::get('/admin/evidence', [\App\Http\Controllers\FeedbackEvidenceController::class, 'index'])
+            ->name('admin.evidence');
+
+        Route::get('/admin/evidence/{evidence}/download', [\App\Http\Controllers\FeedbackEvidenceController::class, 'download'])
+            ->name('admin.evidence.download');
+
+        Route::delete('/admin/evidence/{evidence}', [\App\Http\Controllers\FeedbackEvidenceController::class, 'destroy'])
+            ->name('admin.evidence.destroy');
     });
 
 });
