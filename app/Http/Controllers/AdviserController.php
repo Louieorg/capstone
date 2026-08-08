@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\AdviserReview;
 use App\Models\Feedback;
 use App\Models\IdeaEvaluation;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class AdviserController extends Controller
 {
@@ -79,5 +82,54 @@ class AdviserController extends Controller
             'evaluations',
             'readyCategories'
         ));
+    }
+
+    public function evaluations(Request $request): View
+    {
+        $adviserId = auth()->id();
+
+        $query = AdviserReview::query()->where('user_id', $adviserId);
+
+        if ($request->filled('search')) {
+            $search = (string) $request->search;
+            $query->where(function (Builder $builder) use ($search): void {
+                $builder
+                    ->where('idea_title', 'like', '%'.$search.'%')
+                    ->orWhere('category', 'like', '%'.$search.'%');
+            });
+        }
+
+        if ($request->filled('category')) {
+            $query->where('category', $request->category);
+        }
+
+        if ($request->filled('recommendation')) {
+            $query->where('recommendation', $request->recommendation);
+        }
+
+        $sort = (string) $request->get('sort', 'newest');
+
+        match ($sort) {
+            'oldest' => $query->oldest(),
+            default => $query->latest(),
+        };
+
+        $reviews = $query->paginate(15)->withQueryString();
+
+        $categories = AdviserReview::query()
+            ->where('user_id', $adviserId)
+            ->select('category')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category');
+
+        $counts = [
+            'all' => AdviserReview::where('user_id', $adviserId)->count(),
+            'recommended' => AdviserReview::where('user_id', $adviserId)->where('recommendation', 'Recommended')->count(),
+            'needs_revision' => AdviserReview::where('user_id', $adviserId)->where('recommendation', 'Needs Revision')->count(),
+            'not_recommended' => AdviserReview::where('user_id', $adviserId)->where('recommendation', 'Not Recommended')->count(),
+        ];
+
+        return view('adviser.evaluations.index', compact('reviews', 'categories', 'counts', 'sort'));
     }
 }

@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\Validator;
 
 class StoreFeedbackRequest extends FormRequest
@@ -48,9 +50,20 @@ class StoreFeedbackRequest extends FormRequest
             'evidence.*' => 'file|mimes:jpg,jpeg,png,webp,pdf|max:10240',
             'evidence_captions' => 'nullable|array',
             'evidence_captions.*' => 'nullable|string|max:255',
-            'category_other' => 'required_if:category,Other|nullable|string|max:100',
-            'current_process_other' => 'required_if:current_process,Other|nullable|string|max:100',
+            'category_other' => 'nullable|string|max:100',
+            'current_process_other' => 'nullable|string|max:100',
         ];
+    }
+
+    protected function failedValidation(ValidatorContract $validator): void
+    {
+        throw new HttpResponseException(
+            redirect()
+                ->back()
+                ->withErrors($validator)
+                ->withInput()
+                ->with('current_step', (int) $this->input('current_step', 1))
+        );
     }
 
     public function withValidator(Validator $validator): void

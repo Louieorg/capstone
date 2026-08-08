@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en" x-data="{ darkMode: localStorage.getItem('theme') === 'dark' }">
 <head>
-  <title>LIKHA</title>
+  <title>LIKHA Adviser</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -16,8 +16,6 @@
 
 <body
   x-data="{
-    loginOpen: false,
-    userOpen: false,
     collapsed: localStorage.getItem('sidebar') === 'collapsed'
   }"
   x-init="$watch('collapsed', v => localStorage.setItem('sidebar', v ? 'collapsed' : 'expanded'))">
@@ -28,58 +26,31 @@
 
   <div class="app-body">
 
-    {{-- ══ SIDEBAR (User) ══ --}}
+    {{-- ══ SIDEBAR (Adviser) ══ --}}
     <aside class="app-sidebar" :class="{ collapsed }" x-show="true">
       <nav class="sb-nav">
         <div class="sb-label">Main</div>
 
-        <a href="{{ route('home') }}"
-           class="nav-item {{ request()->routeIs('home') ? 'nav-active' : '' }}">
-          <i data-lucide="home"></i>
-          <span class="nav-label">Home Feed</span>
+        <a href="{{ route('adviser.dashboard') }}"
+           class="nav-item {{ request()->routeIs('adviser.dashboard') ? 'nav-active' : '' }}">
+          <i data-lucide="layout-dashboard"></i>
+          <span class="nav-label">Dashboard</span>
         </a>
 
-        <a href="{{ route('feedback.create') }}"
-           class="nav-item {{ request()->routeIs('feedback.create') ? 'nav-active' : '' }}">
-          <i data-lucide="plus-circle"></i>
-          <span class="nav-label">Submit Problem</span>
+        <a href="{{ Route::has('adviser.evaluations.index') ? route('adviser.evaluations.index') : '#' }}"
+           class="nav-item {{ request()->routeIs('adviser.evaluations.*') ? 'nav-active' : '' }}">
+          <i data-lucide="history"></i>
+          <span class="nav-label">Evaluation History</span>
         </a>
 
-        <a href="{{ route('discover') }}"
-           class="nav-item {{ request()->routeIs('feedback.index') || request()->routeIs('discover') || request()->routeIs('feedback.show') ? 'nav-active' : '' }}">
-          <i data-lucide="compass"></i>
-          <span class="nav-label">Discover</span>
+        <div class="sb-label">Back to LIKHA</div>
+        <a href="{{ route('home') }}" class="nav-item">
+          <i data-lucide="arrow-left"></i>
+          <span class="nav-label">Exit Adviser Panel</span>
         </a>
-
-        <a href="{{ route('feedback.summary') }}"
-           class="nav-item {{ request()->routeIs('feedback.summary') ? 'nav-active' : '' }}">
-          <i data-lucide="bar-chart-3"></i>
-          <span class="nav-label">Category Summary</span>
-        </a>
-
-        @auth
-          <a href="{{ route('profile.edit') }}"
-             class="nav-item {{ request()->routeIs('profile.edit') ? 'nav-active' : '' }}">
-            <i data-lucide="badge-check"></i>
-            <span class="nav-label">My Contribution</span>
-          </a>
-
-          <a href="/my-ideas"
-             class="nav-item {{ request()->is('my-ideas') ? 'nav-active' : '' }}">
-            <i data-lucide="bookmark"></i>
-            <span class="nav-label">Saved Ideas</span>
-          </a>
-
-          {{--
-  Admin and Adviser nav no longer live in the user sidebar — both have
-  their own dedicated layouts. Entry points live in the header avatar
-  dropdown (see layouts/partials/header.blade.php).
---}}
-        @endauth
       </nav>
 
       {{-- User footer --}}
-      @auth
       <div class="sb-user" style="position:relative">
         <div x-data="{ open: false }" style="position:relative">
           <button class="sb-user-btn" @click="if(!collapsed) open = !open">
@@ -107,7 +78,6 @@
           </div>
         </div>
       </div>
-      @endauth
     </aside>
 
     {{-- ══ MAIN ══ --}}
@@ -137,36 +107,6 @@
 
   </div>
 </div>
-
-{{-- ══ BOTTOM NAV (mobile) ══ --}}
-<nav class="bottom-nav md:hidden">
-  <a href="{{ route('landing') }}" class="bn-item {{ request()->routeIs('home') || request()->routeIs('landing') ? 'bn-active' : '' }}">
-    <i data-lucide="home"></i><span>Home</span>
-  </a>
-  <a href="{{ route('discover') }}" class="bn-item {{ request()->routeIs('feedback.index') || request()->routeIs('discover') || request()->routeIs('feedback.show') ? 'bn-active' : '' }}">
-    <i data-lucide="compass"></i><span>Discover</span>
-  </a>
-  <a href="{{ route('feedback.create') }}" class="bn-center">
-    <div class="bn-bubble">
-      <i data-lucide="plus" style="width:22px;height:22px;color:#0a0b0f;"></i>
-    </div>
-    <span>Submit</span>
-  </a>
-  <a href="{{ route('feedback.summary') }}" class="bn-item {{ request()->routeIs('feedback.summary') ? 'bn-active' : '' }}">
-    <i data-lucide="bar-chart-3"></i><span>Summary</span>
-  </a>
-  @auth
-    <a href="/my-ideas" class="bn-item {{ request()->is('my-ideas') ? 'bn-active' : '' }}">
-      <i data-lucide="bookmark"></i><span>Saved</span>
-    </a>
-  @else
-    <button @click="loginOpen = true" class="bn-item">
-      <i data-lucide="user"></i><span>Login</span>
-    </button>
-  @endauth
-</nav>
-
-@include('layouts.partials.login-modal')
 
 {{-- Scripts --}}
 @include('layouts.partials.scripts')

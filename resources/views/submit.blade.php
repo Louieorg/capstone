@@ -143,6 +143,17 @@ select.field:invalid {
 
 <div class="max-w-2xl mx-auto px-4 sm:px-6 fade-up space-y-5">
 
+@if ($errors->any())
+<div style="border: 1px solid #fecaca; background: #fef2f2; padding: 1rem; border-radius: .75rem; margin-bottom: 1rem;">
+  <p style="font-weight:600; color:#b91c1c; margin-bottom:.5rem;">Please fix the following:</p>
+  <ul style="margin:0; padding-left:1.25rem; color:#b91c1c; font-size:.875rem;">
+    @foreach ($errors->all() as $error)
+      <li>{{ $error }}</li>
+    @endforeach
+  </ul>
+</div>
+@endif
+
   {{-- ── Similar Problems Warning ── --}}
   @if(session('similarProblems'))
   <div style="border-radius: 1.5rem; border: 1px solid #fef3c7; background: #fffbeb; padding: 1.25rem;">
@@ -163,7 +174,7 @@ select.field:invalid {
 
   {{-- ── Main Form Card ── --}}
   <div x-data="{
-      step: 1,
+      step: {{ old('current_step', session('current_step', 1)) }},
       showError: false,
       otherGroup: false,
       otherGroupVal: '',
@@ -174,19 +185,25 @@ select.field:invalid {
 
       canProceed() {
           if (this.step === 1) {
-              const title    = document.querySelector('[name=title]').value.trim() !== '';
-              const checked  = document.querySelectorAll('[name=\'affected_group[]\']:checked').length > 0;
-              const category = document.querySelector('[name=category]').value !== '';
-              return title && checked && category;
+              const title = document.querySelector('[name=title]').value.trim() !== '';
+              const checked = document.querySelectorAll('[name=\'affected_group[]\']:checked').length > 0;
+              const category = document.querySelector('[name=category]').value;
+              const categoryOther = document.querySelector('[name=category_other]');
+              const needsCategoryOther = category === 'Other' && (!categoryOther || categoryOther.value.trim() === '');
+              return title && checked && category && !needsCategoryOther;
           }
           if (this.step === 2) {
               return document.querySelector('[name=description]').value.trim() !== '' &&
                      document.querySelector('[name=impact]').value.trim() !== '';
           }
           if (this.step === 3) {
-              return document.querySelector('[name=frequency]').value !== '' &&
-                     document.querySelector('[name=affected_users]').value !== '' &&
-                     document.querySelector('[name=current_process]').value !== '';
+              const frequency = document.querySelector('[name=frequency]').value;
+              const affectedUsers = document.querySelector('[name=affected_users]').value;
+              const currentProcessEl = document.querySelector('[name=current_process]:checked');
+              const currentProcess = currentProcessEl ? currentProcessEl.value : '';
+              const currentProcessOther = document.querySelector('[name=current_process_other]');
+              const needsProcessOther = currentProcess === 'Other' && (!currentProcessOther || currentProcessOther.value.trim() === '');
+              return frequency !== '' && affectedUsers !== '' && currentProcess !== '' && !needsProcessOther;
           }
           return true;
       }
@@ -195,9 +212,10 @@ select.field:invalid {
 
     <div class="h-1 w-full bg-gradient-to-r from-amber-400 to-orange-500"></div>
 
-    <form method="POST" action="{{ route('feedback.store') }}" enctype="multipart/form-data" class="p-6 sm:p-8 space-y-8">
+    <form method="POST" action="{{ route('feedback.store') }}" enctype="multipart/form-data" class="p-6 sm:p-8 space-y-8" @submit="document.querySelector('[name=current_step]').value = step">
       @csrf
       <input type="hidden" name="force_submit" value="1">
+      <input type="hidden" name="current_step" :value="step">
 
       {{-- ── Step Indicator ── --}}
       <div>
@@ -308,10 +326,13 @@ select.field:invalid {
               <input type="text" name="category_other"
                      value="{{ old('category_other') }}"
                      placeholder="Describe the affected area…"
-                     class="field"/>
+                     class="field" @input="showError = false"/>
               <p style="font-size: .6875rem; color: var(--muted2);">
                 This will be reviewed by admin and may become a new category.
               </p>
+              @error('category_other')
+                <p style="font-size: .75rem; color: #ef4444;">{{ $message }}</p>
+              @enderror
             </div>
           </div>
 
@@ -375,20 +396,20 @@ select.field:invalid {
               :required="step === 2">{{ old('impact') }}</textarea>
           </div>
           <div>
-            <label class="field-label">Supporting Evidence</label>
+            <label class="field-label">Supporting Evidence (Optional)</label>
 
             <div id="evidenceZone" class="field" style="min-height:100px; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:8px;">
               <p class="text-sm">Drag and drop photos, screenshots or PDFs here, or</p>
               <div>
-                <label class="btn-next" style="cursor:pointer;">
+                <label for="evidenceInput" class="btn-next" style="cursor:pointer;">
                   Browse files
-                  <input type="file" id="evidenceInput" name="evidence[]" accept=".jpg,.jpeg,.png,.webp,.pdf" multiple style="display:none;" />
                 </label>
+                <input type="file" id="evidenceInput" name="evidence[]" accept=".jpg,.jpeg,.png,.webp,.pdf" multiple style="position:absolute; opacity:0; pointer-events:none; width:1px; height:1px;" />
               </div>
-              <p style="font-size: .6875rem; color: var(--muted2);">You can upload multiple files (images or PDFs). Max 10MB each.</p>
+              <p style="font-size: .6875rem; color: var(--muted2);">Optional: upload multiple files (images or PDFs). Max 10MB each. You can leave this empty if you do not have files to attach.</p>
             </div>
 
-            <input type="file" name="attachment" accept=".jpg,.jpeg,.png,.pdf" class="field" style="margin-top:10px;display:none;">
+            <input type="file" name="attachment" accept=".jpg,.jpeg,.png,.pdf" class="field" style="margin-top:10px;position:absolute; opacity:0; pointer-events:none; width:1px; height:1px;">
 
             <div id="evidencePreview" class="mt-3 grid grid-cols-3 gap-3"></div>
 
@@ -512,51 +533,65 @@ select.field:invalid {
       zone.addEventListener('drop', (e) => { e.preventDefault(); zone.style.opacity = '1'; handleFiles(e.dataTransfer.files); });
 
       function handleFiles(files){
-        for (const file of files) {
-          const reader = new FileReader();
-          const card = document.createElement('div');
-          card.className = 'rounded-lg border p-2';
-          card.style.display = 'flex';
-          card.style.flexDirection = 'column';
-          card.style.alignItems = 'center';
+  // Merge new files into the actual input's FileList so they're included on submit
+  const dt = new DataTransfer();
+  for (const f of input.files) dt.items.add(f);      // keep files already there
+  for (const f of files) dt.items.add(f);            // add the newly dropped/selected ones
+  input.files = dt.files;
 
-          if (file.type.startsWith('image/')) {
-            reader.onload = (ev) => {
-              const img = document.createElement('img');
-              img.src = ev.target.result;
-              img.style.maxHeight = '90px';
-              img.style.borderRadius = '8px';
-              card.appendChild(img);
-              addMeta()
-            };
-            reader.readAsDataURL(file);
-          } else {
-            const icon = document.createElement('div');
-            icon.innerText = 'PDF';
-            icon.style.fontWeight = '700';
-            card.appendChild(icon);
-            addMeta();
-          }
+  for (const file of files) {
+    const reader = new FileReader();
+    const card = document.createElement('div');
+    card.className = 'rounded-lg border p-2';
+    card.style.display = 'flex';
+    card.style.flexDirection = 'column';
+    card.style.alignItems = 'center';
 
-          function addMeta(){
-            const name = document.createElement('div');
-            name.style.fontSize = '.8rem';
-            name.style.marginTop = '6px';
-            name.innerText = file.name + ' (' + (Math.round(file.size/1024/10)/100) + ' MB)';
-            card.appendChild(name);
+    if (file.type.startsWith('image/')) {
+      reader.onload = (ev) => {
+        const img = document.createElement('img');
+        img.src = ev.target.result;
+        img.style.maxHeight = '90px';
+        img.style.borderRadius = '8px';
+        card.appendChild(img);
+        addMeta();
+      };
+      reader.readAsDataURL(file);
+    } else {
+      const icon = document.createElement('div');
+      icon.innerText = 'PDF';
+      icon.style.fontWeight = '700';
+      card.appendChild(icon);
+      addMeta();
+    }
 
-            const remove = document.createElement('button');
-            remove.type = 'button';
-            remove.className = 'btn-back';
-            remove.style.marginTop = '8px';
-            remove.innerText = 'Remove';
-            remove.addEventListener('click', () => card.remove());
-            card.appendChild(remove);
+    function addMeta(){
+      const name = document.createElement('div');
+      name.style.fontSize = '.8rem';
+      name.style.marginTop = '6px';
+      name.innerText = file.name + ' (' + (Math.round(file.size/1024/10)/100) + ' MB)';
+      card.appendChild(name);
 
-            preview.appendChild(card);
-          }
-        }
-      }
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'btn-back';
+      remove.style.marginTop = '8px';
+      remove.innerText = 'Remove';
+      remove.addEventListener('click', () => {
+        card.remove();
+        // Also rebuild input.files without this one, or it stays "attached" after removal
+        const dt2 = new DataTransfer();
+        [...input.files].forEach(f => {
+          if (!(f.name === file.name && f.size === file.size)) dt2.items.add(f);
+        });
+        input.files = dt2.files;
+      });
+      card.appendChild(remove);
+
+      preview.appendChild(card);
+    }
+  }
+}
     })();
   </script>
  
@@ -565,7 +600,10 @@ select.field:invalid {
     <input type="text" name="current_process_other"
            value="{{ old('current_process_other') }}"
            placeholder="e.g. The department head handles it case by case…"
-           class="field"/>
+           class="field" @input="showError = false"/>
+    @error('current_process_other')
+      <p style="font-size: .75rem; color: #ef4444; margin-top: .5rem;">{{ $message }}</p>
+    @enderror
   </div>
 </div>
         </div>
@@ -582,7 +620,7 @@ select.field:invalid {
         </div>
 
         <div style="border-radius: .75rem; border: 1px solid var(--border); background: var(--surface-alt); padding: 1.25rem; margin-bottom: 1.25rem; display: flex; flex-direction: column; gap: 1rem;">
-          <p style="font-size: .75rem; text-transform: uppercase; letter-spacing: .12em; font-weight: 600; color: var(--muted2); margin-bottom: .75rem;">📋 Your Submission Summary</p>
+          <p style="font-size: .75rem; text-transform: uppercase; letter-spacing: .12em; font-weight: 600; color: var(--muted2); margin-bottom: .75rem;"> Your Submission Summary</p>
           
           {{-- Problem Title --}}
           <div style="border-top: 1px solid var(--border); padding-top: .75rem;">
@@ -660,7 +698,7 @@ select.field:invalid {
         <div style="display: flex; align-items: center; justify-content: space-between; gap: .75rem;">
 
           <button type="button" class="btn-back"
-            @click="step = Math.max(step - 1, 1); showError = false"
+            @click="step = Math.max(step - 1, 1); showError = false; document.querySelector('[name=current_step]').value = step"
             x-show="step > 1">
             ← Back
           </button>
@@ -668,7 +706,7 @@ select.field:invalid {
           <button type="button" class="btn-next" style="margin-left: auto;"
             x-show="step < 4"
             @click="canProceed()
-              ? (step = Math.min(step + 1, 4), showError = false, updateReview())
+              ? (step = Math.min(step + 1, 4), showError = false, updateReview(), document.querySelector('[name=current_step]').value = step)
               : showError = true">
             Next →
           </button>
@@ -769,13 +807,13 @@ function updateReview() {
   document.getElementById('review-affected-users').textContent = affected?.value || '—';
 
   // Current Process
-  const process = document.querySelector('[name=current_process]');
-  const processOther = document.querySelector('[name=current_process_other]');
-  let processVal = process?.value || '';
-  if (processVal === 'Other' && processOther?.value.trim()) {
-    processVal = processOther.value.trim();
-  }
-  document.getElementById('review-process').textContent = processVal || '—';
+const processEl = document.querySelector('[name=current_process]:checked');
+const processOther = document.querySelector('[name=current_process_other]');
+let processVal = processEl ? processEl.value : '';
+if (processVal === 'Other' && processOther?.value.trim()) {
+  processVal = processOther.value.trim();
+}
+document.getElementById('review-process').textContent = processVal || '—';
 
   // Anonymous status
   const isAnon = document.querySelector('[name=is_anonymous]');
@@ -816,6 +854,10 @@ document.addEventListener('DOMContentLoaded', () => {
   if (anonCheckbox) {
     anonCheckbox.addEventListener('change', updateReview);
   }
+
+  // ✅ Populate the review summary immediately in case the page loaded
+  // directly on step 4 (e.g. after a failed validation redirect with old input)
+  updateReview();
 });
 </script>
 

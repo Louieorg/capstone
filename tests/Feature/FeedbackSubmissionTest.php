@@ -33,6 +33,31 @@ test('authenticated users can submit feedback with a department', function () {
     ]);
 });
 
+test('authenticated users can submit feedback when affected groups include a null entry', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->post(route('feedback.store'), [
+        'title' => 'Null entry in affected groups',
+        'category' => 'Facilities',
+        'description' => 'The form should still save when one affected group entry is empty or null.',
+        'impact' => 'This keeps the submission flow working even when optional checkbox values are blank.',
+        'frequency' => 'Sometimes',
+        'current_process' => 'Report verbally to staff',
+        'affected_users' => 'Less than 50',
+        'affected_group' => ['Students', null],
+        'force_submit' => '1',
+    ]);
+
+    $response->assertRedirect(route('feedback.submitted', absolute: false));
+    $response->assertSessionHas('success', 'Problem submitted successfully.');
+
+    $feedback = Feedback::query()
+        ->where('title', 'Null entry in affected groups')
+        ->firstOrFail();
+
+    expect($feedback->affected_group)->toEqual(['Students']);
+});
+
 test('authenticated users can submit feedback with a custom department', function () {
     $user = User::factory()->create();
 
@@ -76,6 +101,54 @@ test('authenticated users can submit feedback without selecting a department', f
 
     expect(Feedback::query()->where('title', 'Library printer delays')->value('department'))
         ->toBeNull();
+});
+
+test('authenticated users can submit feedback without uploading any files', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->post(route('feedback.store'), [
+        'title' => 'Campus Wi-Fi access issues',
+        'category' => 'Facilities',
+        'description' => 'Students cannot reliably access campus Wi-Fi in the library and study rooms.',
+        'impact' => 'This disrupts learning, assignments, and student work during busy hours.',
+        'frequency' => 'Often',
+        'current_process' => 'Report verbally to staff',
+        'affected_users' => '50-200',
+        'affected_group' => ['Students'],
+        'force_submit' => '1',
+    ]);
+
+    $response->assertRedirect(route('feedback.submitted', absolute: false));
+    $response->assertSessionHas('success', 'Problem submitted successfully.');
+
+    $this->assertDatabaseHas('feedback', [
+        'title' => 'Campus Wi-Fi access issues',
+        'user_id' => $user->id,
+    ]);
+});
+
+test('authenticated users can submit feedback when choosing other category and process without extra details', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->post(route('feedback.store'), [
+        'title' => 'Other category report',
+        'category' => 'Other',
+        'description' => 'A report that can be submitted even when the custom category detail is left blank.',
+        'impact' => 'This affects students and staff in daily operations and should still be saved.',
+        'frequency' => 'Often',
+        'current_process' => 'Other',
+        'affected_users' => '50-200',
+        'affected_group' => ['Students'],
+        'force_submit' => '1',
+    ]);
+
+    $response->assertRedirect(route('feedback.submitted', absolute: false));
+    $this->assertDatabaseHas('feedback', [
+        'title' => 'Other category report',
+        'category' => 'Other',
+        'current_process' => 'Other',
+        'user_id' => $user->id,
+    ]);
 });
 
 test('authenticated users can submit feedback with supporting evidence', function () {

@@ -7,6 +7,11 @@ use App\Http\Controllers\IdeaController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\RecommendationController;
+use App\Http\Controllers\AdviserReviewController;
+use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\ReportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -15,7 +20,7 @@ use Illuminate\Support\Facades\Route;
 */
 
 // Landing page (FIRST PAGE)
-Route::get('/', [FeedbackController::class, 'home'])->name('landing');
+Route::get('/', [FeedbackController::class, 'landing'])->name('landing');
 
 // Home/dashboard page
 Route::get('/home', [FeedbackController::class, 'home'])->name('home');
@@ -55,7 +60,8 @@ Route::get('/similar-problems', [FeedbackController::class, 'similarProblems'])
 Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])
     ->name('google.login');
 
-Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback']);
+Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])
+    ->name('google.callback');
 
 /*
 |--------------------------------------------------------------------------
@@ -145,11 +151,12 @@ Route::middleware(['auth'])->group(function () {
 
     Route::middleware('can:isAdviser')->group(function () {
 
-        // Adviser dashboard
         Route::get('/adviser/dashboard', [AdviserController::class, 'dashboard'])
             ->name('adviser.dashboard');
 
-        // Submit review (rate limited)
+        Route::get('/adviser/evaluations', [AdviserController::class, 'evaluations'])
+            ->name('adviser.evaluations.index');
+
         Route::post('/adviser/dashboard', [FeedbackController::class, 'storeReview'])
             ->name('adviser.review')
             ->middleware('throttle:3,1');
@@ -168,13 +175,36 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/admin', [FeedbackController::class, 'admin'])
             ->name('admin.dashboard');
 
-        // Approve feedback
+        // Manage feedback
+        Route::get('/admin/feedback', [FeedbackController::class, 'manageFeedback'])
+            ->name('admin.feedback.index');
+
         Route::patch('/admin/feedback/{id}/approve', [FeedbackController::class, 'approve'])
             ->name('feedback.approve');
 
-        // Reject feedback
         Route::patch('/admin/feedback/{id}/reject', [FeedbackController::class, 'reject'])
             ->name('feedback.reject');
+
+        // Manage users
+        Route::get('/admin/users', [UserController::class, 'index'])
+            ->name('admin.users.index');
+
+        Route::patch('/admin/users/{user}/role', [UserController::class, 'updateRole'])
+            ->name('admin.users.role');
+
+        Route::delete('/admin/users/{user}', [UserController::class, 'destroy'])
+            ->name('admin.users.destroy');
+        Route::get('/admin/recommendations', [RecommendationController::class, 'index'])
+            ->name('admin.recommendations.index');
+        Route::get('/admin/adviser-reviews', [AdviserReviewController::class, 'index'])
+            ->name('admin.adviser-reviews.index');
+        Route::get('/admin/analytics', [AnalyticsController::class, 'index'])
+            ->name('admin.analytics.index');
+        Route::get('/admin/reports', [ReportController::class, 'index'])
+            ->name('admin.reports.index');
+
+        Route::get('/admin/reports/export', [ReportController::class, 'export'])
+            ->name('admin.reports.export');
 
     });
 

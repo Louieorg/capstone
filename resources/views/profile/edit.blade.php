@@ -30,11 +30,9 @@
 
     <section class="grid gap-8 xl:grid-cols-[0.9fr,1.1fr]">
         <div class="rounded-[30px] border border-black/5 bg-white/95 p-7 shadow-lg shadow-slate-900/5 dark:border-white/10 dark:bg-slate-950/80">
-            <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Profile Focus</p>
-            <h2 class="mt-3 font-['Sora'] text-3xl font-bold text-slate-900 dark:text-white">{{ $user->name }}</h2>
-            <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">{{ $user->email }}</p>
-            <p class="mt-6 text-sm leading-7 text-slate-600 dark:text-slate-300">LIKHA profiles are about institutional contribution rather than social reach. Your score increases when you document real problems, validate them with support, and add evidence that makes the system’s recommendations more trustworthy.</p>
-            <div class="mt-6 space-y-3">
+    <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Profile Focus</p>
+    <p class="mt-4 text-sm leading-7 text-slate-600 dark:text-slate-300">LIKHA profiles are about institutional contribution rather than social reach. Your score increases when you document real problems, validate them with support, and add evidence that makes the system's recommendations more trustworthy.</p>
+    <div class="mt-6 space-y-3">
                 <div class="rounded-2xl bg-slate-50 p-4 dark:bg-white/5">
                     <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Primary role</p>
                     <p class="mt-2 font-semibold text-slate-900 dark:text-white">{{ ucfirst($user->role ?? 'User') }}</p>

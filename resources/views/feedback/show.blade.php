@@ -63,7 +63,10 @@
                 <div class="mt-6 flex flex-wrap gap-3">
                     <form method="POST" action="{{ route('feedback.vote', $feedback->id) }}">
                         @csrf
-                        <button type="submit" class="rounded-full border border-amber-300 px-5 py-3 text-sm font-semibold text-amber-700 transition hover:bg-amber-50 dark:border-amber-400/40 dark:text-amber-300 dark:hover:bg-amber-500/10">{{ $feedback->has_supported ? 'Supported' : 'Support Problem' }}</button>
+                        <button type="submit" aria-label="{{ $feedback->has_supported ? 'Remove your support' : 'Support this problem' }}" aria-pressed="{{ $feedback->has_supported ? 'true' : 'false' }}" title="{{ $feedback->has_supported ? 'Supported' : 'Support this problem' }}" class="inline-flex items-center gap-2 rounded-full border px-5 py-3 text-sm font-semibold transition {{ $feedback->has_supported ? 'border-amber-500 bg-amber-100 text-amber-800 dark:border-amber-400 dark:bg-amber-500/20 dark:text-amber-200' : 'border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-400/40 dark:text-amber-300 dark:hover:bg-amber-500/10' }}">
+                            <i data-lucide="thumbs-up" class="h-4 w-4" aria-hidden="true"></i>
+                            <span>{{ $feedback->votes_count }}</span>
+                        </button>
                     </form>
                     <a href="{{ route('feedback.category', $feedback->category) }}" class="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 dark:bg-white dark:text-slate-950">View generated ideas</a>
                 </div>

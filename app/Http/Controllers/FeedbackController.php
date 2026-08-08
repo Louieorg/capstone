@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreFeedbackCommentRequest;
 use App\Http\Requests\StoreFeedbackRequest;
+use App\Jobs\EnhanceIdeaWithAi;
 use App\Models\AdviserReview;
 use App\Models\Feedback;
 use App\Models\FeedbackComment;
@@ -16,8 +17,8 @@ use App\Services\ConfidenceService;
 use App\Services\IdeaGeneratorService;
 use App\Services\SeverityService;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,9 +32,9 @@ use Illuminate\View\View;
 
 class FeedbackController extends Controller
 {
-    private const MINIMUM_VOTES_FOR_IDEA_GENERATION = 10;
+    private const MINIMUM_VOTES_FOR_IDEA_GENERATION = 1;
 
-    private const MINIMUM_REPORTS_FOR_IDEA_GENERATION = 3;
+    private const MINIMUM_REPORTS_FOR_IDEA_GENERATION = 2;
 
     public function create(): View
     {
@@ -41,6 +42,20 @@ class FeedbackController extends Controller
     }
 
     public function home(): View
+    {
+        $viewData = $this->buildHomeViewData();
+
+        return view('home', $viewData);
+    }
+
+    public function landing(): View
+    {
+        $viewData = $this->buildHomeViewData();
+
+        return view('welcome', $viewData);
+    }
+
+    private function buildHomeViewData(): array
     {
         $approvedFeedbacks = $this->approvedFeedbackQuery()
             ->latest()
@@ -72,7 +87,7 @@ class FeedbackController extends Controller
             ->take(4)
             ->get();
 
-        return view('home', compact(
+        return compact(
             'feed',
             'trending',
             'totalProblems',
@@ -80,11 +95,12 @@ class FeedbackController extends Controller
             'totalCategories',
             'categories',
             'generatedIdeas'
-        ));
+        );
     }
 
     public function store(StoreFeedbackRequest $request): RedirectResponse
     {
+
         if (! auth()->check()) {
             return redirect()->back()->with('showLogin', true);
         }
@@ -128,7 +144,7 @@ class FeedbackController extends Controller
             ? ($request->current_process_other ?? 'Other')
             : $request->current_process;
         $affectedGroups = collect($request->affected_group)
-            ->filter(fn (string $group): bool => $group !== '' && $group !== 'Other: ')
+            ->filter(fn ($group): bool => is_string($group) && trim($group) !== '' && trim($group) !== 'Other: ')
             ->values()
             ->toArray();
 
@@ -505,6 +521,30 @@ class FeedbackController extends Controller
                 ->first()
             : null;
 
+        if ($topIdea) {
+            $evaluation = IdeaEvaluation::query()
+                ->where('idea_title', $topIdea['title'])
+                ->where('category', $category)
+                ->first();
+
+            if ($evaluation && $evaluation->ai_enhanced_at) {
+                $topIdea['ai'] = [
+                    'title' => $evaluation->ai_title,
+                    'description' => $evaluation->ai_description,
+                    'general_objective' => $evaluation->ai_general_objective,
+                    'specific_objectives' => $evaluation->ai_specific_objectives,
+                ];
+            } elseif ($evaluation) {
+                dispatch(new EnhanceIdeaWithAi(
+                    $topIdea['title'],
+                    $category,
+                    $topIdea['description'],
+                    $topIdea['general_objective'],
+                    $topIdea['specific_objectives'],
+                ))->afterResponse();
+            }
+        }
+
         return view('problems.category', compact('feedbacks', 'category', 'topIdea', 'otherIdeas', 'topReview'));
     }
 
@@ -557,8 +597,8 @@ class FeedbackController extends Controller
             ->notFlagged()
             ->select('affected_group')
             ->get()
-            ->flatMap(fn (Feedback $feedback): array => $feedback->affected_group ?? [])
-            ->filter(fn (string $group): bool => ! empty(trim($group)))
+            ->flatMap(fn (Feedback $feedback): array => is_array($feedback->affected_group) ? $feedback->affected_group : [])
+            ->filter(fn ($group): bool => is_string($group) && ! empty(trim($group)))
             ->countBy()
             ->map(fn (int $count, string $group): object => (object) [
                 'affected_group' => $group,
@@ -579,6 +619,62 @@ class FeedbackController extends Controller
             'impactLevels',
             'affectedGroupData'
         ));
+    }
+
+    public function manageFeedback(Request $request): View
+    {
+        $query = Feedback::query()
+            ->with('user')
+            ->withCount(['votes', 'comments']);
+
+        if ($request->filled('search')) {
+            $search = (string) $request->search;
+            $query->where(function (Builder $builder) use ($search): void {
+                $builder
+                    ->where('title', 'like', '%'.$search.'%')
+                    ->orWhere('description', 'like', '%'.$search.'%');
+            });
+        }
+
+        if ($request->filled('category')) {
+            $query->where('category', $request->category);
+        }
+
+        $status = (string) $request->get('status', 'all');
+
+        if (in_array($status, ['pending', 'approved', 'rejected'], true)) {
+            $query->where('status', $status);
+        }
+
+        if ($request->boolean('flagged')) {
+            $query->where('is_flagged', true);
+        }
+
+        $sort = (string) $request->get('sort', 'newest');
+
+        match ($sort) {
+            'oldest' => $query->oldest(),
+            'most_supported' => $query->orderByDesc('votes_count'),
+            default => $query->latest(),
+        };
+
+        $feedbacks = $query->paginate(15)->withQueryString();
+
+        $categories = Feedback::query()
+            ->select('category')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category');
+
+        $counts = [
+            'all' => Feedback::count(),
+            'pending' => Feedback::where('status', 'pending')->count(),
+            'approved' => Feedback::where('status', 'approved')->count(),
+            'rejected' => Feedback::where('status', 'rejected')->count(),
+            'flagged' => Feedback::where('is_flagged', true)->count(),
+        ];
+
+        return view('admin.feedback.index', compact('feedbacks', 'categories', 'counts', 'status', 'sort'));
     }
 
     public function approve(int $id): RedirectResponse
@@ -668,36 +764,78 @@ class FeedbackController extends Controller
 
     public function storeReview(Request $request): RedirectResponse
     {
-        AdviserReview::query()->create([
-            'idea_title' => $request->idea_title,
-            'category' => $request->category,
-            'comment' => $request->comment,
-            'recommendation' => $request->recommendation,
-            'user_id' => auth()->id(),
+        $validated = $request->validate([
+            'idea_title' => ['required', 'string'],
+            'category' => ['required', 'string'],
+            'comment' => ['required', 'string'],
+            'recommendation' => ['required', 'in:Recommended,Needs Revision,Not Recommended'],
+            'feasibility' => ['required', 'integer', 'min:1', 'max:5'],
+            'impact' => ['required', 'integer', 'min:1', 'max:5'],
+            'complexity' => ['required', 'integer', 'min:1', 'max:5'],
+            'innovation' => ['required', 'integer', 'min:1', 'max:5'],
         ]);
 
-        $evaluation = IdeaEvaluation::query()
-            ->where('idea_title', $request->idea_title)
-            ->where('category', $request->category)
-            ->first();
+        AdviserReview::query()->updateOrCreate(
+            [
+                'idea_title' => $validated['idea_title'],
+                'category' => $validated['category'],
+                'user_id' => auth()->id(),
+            ],
+            [
+                'comment' => $validated['comment'],
+                'recommendation' => $validated['recommendation'],
+                'feasibility' => $validated['feasibility'],
+                'impact' => $validated['impact'],
+                'complexity' => $validated['complexity'],
+                'innovation' => $validated['innovation'],
+            ]
+        );
 
-        if ($evaluation) {
-            $evaluation->adviser_feasibility = $request->feasibility;
-            $evaluation->adviser_impact = $request->impact;
-            $evaluation->adviser_complexity = $request->complexity;
-            $evaluation->adviser_innovation = $request->innovation;
-
-            $adviserScore = ($request->impact * 0.35)
-                + ($request->feasibility * 0.25)
-                + ($request->complexity * 0.20)
-                + ($request->innovation * 0.20);
-            $finalScore = ($evaluation->overall_score * 0.7) + ($adviserScore * 0.3);
-
-            $evaluation->final_score = round($finalScore, 2);
-            $evaluation->save();
-        }
+        $this->recalculateAdviserScore($validated['idea_title'], $validated['category']);
 
         return back()->with('success', 'Review submitted with evaluation.');
+    }
+
+    private function recalculateAdviserScore(string $ideaTitle, string $category): void
+    {
+        $evaluation = IdeaEvaluation::query()
+            ->where('idea_title', $ideaTitle)
+            ->where('category', $category)
+            ->first();
+
+        if (! $evaluation) {
+            return;
+        }
+
+        $reviews = AdviserReview::query()
+            ->where('idea_title', $ideaTitle)
+            ->where('category', $category)
+            ->whereNotNull('feasibility')
+            ->get();
+
+        if ($reviews->isEmpty()) {
+            return;
+        }
+
+        $avgFeasibility = round($reviews->avg('feasibility'), 2);
+        $avgImpact = round($reviews->avg('impact'), 2);
+        $avgComplexity = round($reviews->avg('complexity'), 2);
+        $avgInnovation = round($reviews->avg('innovation'), 2);
+
+        $adviserScore = ($avgImpact * 0.35)
+            + ($avgFeasibility * 0.25)
+            + ($avgComplexity * 0.20)
+            + ($avgInnovation * 0.20);
+
+        $finalScore = ($evaluation->overall_score * 0.7) + ($adviserScore * 0.3);
+
+        $evaluation->update([
+            'adviser_feasibility' => $avgFeasibility,
+            'adviser_impact' => $avgImpact,
+            'adviser_complexity' => $avgComplexity,
+            'adviser_innovation' => $avgInnovation,
+            'final_score' => round($finalScore, 2),
+        ]);
     }
 
     private function approvedFeedbackQuery(): Builder

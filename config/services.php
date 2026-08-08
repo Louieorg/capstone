@@ -14,10 +14,10 @@ return [
     |
     */
     'google' => [
-    'client_id' => env('GOOGLE_CLIENT_ID'),
-    'client_secret' => env('GOOGLE_CLIENT_SECRET'),
-    'redirect' => env('GOOGLE_REDIRECT_URI'),
-],
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI'),
+    ],
 
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
@@ -40,7 +40,10 @@ return [
         ],
     ],
     'recaptcha' => [
-    'verify' => false,
-],
-
+        'verify' => false,
+    ],
+    'ollama' => [
+        'url' => env('OLLAMA_URL', 'http://localhost:11434'),
+        'model' => env('OLLAMA_MODEL', 'llama3.2'),
+    ],
 ];

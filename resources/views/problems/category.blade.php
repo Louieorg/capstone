@@ -290,7 +290,7 @@ html.dark .btn-amber { background: #fbb034; }
 
       {{-- Title --}}
       <h2 style="font-family:'Sora',sans-serif;font-size:clamp(18px,2.5vw,24px);font-weight:800;line-height:1.15;color:var(--text);margin-bottom:16px">
-        {{ $topIdea['title'] ?? 'No title available' }}
+        {{ $topIdea['ai']['title'] ?? $topIdea['title'] ?? 'No title available' }}
       </h2>
 
       {{-- Badges --}}
@@ -320,7 +320,7 @@ html.dark .btn-amber { background: #fbb034; }
 
       {{-- Description --}}
       <p style="font-size:13.5px;color:var(--text2);line-height:1.75;margin-bottom:12px">
-        {{ $topIdea['description'] ?? 'No description available' }}
+        {{ $topIdea['ai']['description'] ?? $topIdea['description'] ?? 'No description available' }}
       </p>
 
       {{-- Impact --}}
@@ -410,12 +410,12 @@ html.dark .btn-amber { background: #fbb034; }
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
             <div>
               <p style="font-size:12.5px;font-weight:600;color:var(--text);margin-bottom:8px">General objective</p>
-              <p style="font-size:13px;color:var(--text2);line-height:1.7">{{ $topIdea['general_objective'] ?? 'No objective available' }}</p>
+              <p style="font-size:13px;color:var(--text2);line-height:1.7">{{ $topIdea['ai']['general_objective'] ?? $topIdea['general_objective'] ?? 'No objective available' }}</p>
             </div>
             <div>
               <p style="font-size:12.5px;font-weight:600;color:var(--text);margin-bottom:8px">Specific objectives</p>
               <ul style="display:flex;flex-direction:column;gap:7px">
-                @foreach($topIdea['specific_objectives'] ?? [] as $obj)
+                @foreach($topIdea['ai']['specific_objectives'] ?? $topIdea['specific_objectives'] ?? [] as $obj)
                   <li style="display:flex;gap:8px;font-size:13px;color:var(--text2);line-height:1.6">
                     <span style="color:var(--amber);flex-shrink:0;margin-top:2px">▸</span>{{ $obj }}
                   </li>
