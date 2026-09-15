@@ -56,7 +56,8 @@ PROMPT;
 
         try {
 
-            $response = Http::timeout(180)
+            $response = Http::connectTimeout(config('services.ollama.connect_timeout'))
+                ->timeout(config('services.ollama.timeout'))
                 ->post(config('services.ollama.url').'/api/generate', [
                     'model' => config('services.ollama.model'),
                     'prompt' => $prompt,
@@ -121,6 +122,88 @@ PROMPT;
             ]);
 
             return $idea;
+        }
+    }
+
+    public function translate(array $fields): array
+    {
+        $prompt = <<<PROMPT
+You are translating institutional problem reports for internal processing.
+
+IMPORTANT RULES
+
+- Translate Filipino or Taglish (mixed Filipino-English) text into clear, natural English.
+- If the text is ALREADY in English, return it UNCHANGED.
+- NEVER invent, add, or remove information.
+- NEVER change the meaning.
+- Return ONLY valid JSON.
+- Do NOT use markdown.
+- Do NOT explain your answer.
+
+JSON FORMAT
+
+{
+    "title":"",
+    "description":"",
+    "impact":""
+}
+
+TEXT TO PROCESS
+
+Title:
+{$fields['title']}
+
+Description:
+{$fields['description']}
+
+Impact:
+{$fields['impact']}
+
+PROMPT;
+
+        try {
+            $response = Http::timeout(180)
+                ->post(config('services.ollama.url').'/api/generate', [
+                    'model' => config('services.ollama.model'),
+                    'prompt' => $prompt,
+                    'stream' => false,
+                    'options' => ['temperature' => 0.2],
+                ]);
+
+            if ($response->failed()) {
+                Log::error('Ollama translation request failed', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+
+                return null;
+            }
+
+            $text = trim($response->json()['response'] ?? '');
+            $text = preg_replace('/```json/i', '', $text);
+            $text = preg_replace('/```/', '', $text);
+
+            if (preg_match('/\{.*\}/s', $text, $matches)) {
+                $text = $matches[0];
+            }
+
+            $result = json_decode($text, true);
+
+            if (! is_array($result) || ! isset($result['title'], $result['description'], $result['impact'])) {
+                Log::warning('Invalid JSON returned by Ollama translation.', ['response' => $text]);
+
+                return null;
+            }
+
+            return [
+                'title' => $result['title'],
+                'description' => $result['description'],
+                'impact' => $result['impact'],
+            ];
+        } catch (\Throwable $e) {
+            Log::error('Ollama translation exception', ['message' => $e->getMessage()]);
+
+            return null;
         }
     }
 

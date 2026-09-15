@@ -10,7 +10,7 @@ use Illuminate\View\View;
 
 class UserController extends Controller
 {
-    private const VALID_ROLES = ['user', 'adviser', 'admin'];
+    private const VALID_ROLES = ['user', 'adviser', 'office_academic', 'office_chief', 'admin'];
 
     public function index(Request $request): View
     {
@@ -76,5 +76,21 @@ class UserController extends Controller
         $user->delete();
 
         return back()->with('success', 'User account removed.');
+    }
+
+    public function updateOfficeHead(Request $request, User $user): RedirectResponse
+    {
+        $validated = $request->validate([
+            'office_department' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $isOfficeHead = $request->boolean('is_office_head');
+
+        $user->update([
+            'is_office_head' => $isOfficeHead,
+            'office_department' => $isOfficeHead ? ($validated['office_department'] ?? null) : null,
+        ]);
+
+        return back()->with('success', "Office head status updated for {$user->name}.");
     }
 }

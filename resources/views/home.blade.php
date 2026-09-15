@@ -6,13 +6,13 @@
 @section('content')
 <div class="mx-auto max-w-7xl space-y-8">
     <section class="grid gap-4 lg:grid-cols-[1.6fr,1fr]">
-        <div class="rounded-[28px] border border-white/10 bg-[linear-gradient(135deg,rgba(251,176,52,0.16),rgba(19,20,26,0.96))] p-8 text-white shadow-2xl shadow-amber-950/20">
-            <p class="mb-3 text-xs font-semibold uppercase tracking-[0.35em] text-amber-200">LIKHA Feed</p>
+        <div class="rounded-[28px] border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-slate-100 p-8 text-slate-950 shadow-xl shadow-amber-900/10 dark:border-white/10 dark:from-amber-500/15 dark:via-slate-950 dark:to-slate-900 dark:text-white dark:shadow-amber-950/20">
+            <p class="mb-3 text-xs font-semibold uppercase tracking-[0.35em] text-amber-700 dark:text-amber-200">LIKHA Feed</p>
             <h1 class="max-w-2xl font-['Sora'] text-3xl font-extrabold leading-tight md:text-5xl">Campus friction, made visible.</h1>
-            <p class="mt-4 max-w-2xl text-sm leading-7 text-slate-200/85">Every post below is an institutional problem. Support and evidence comments strengthen confidence, reveal recurring pain points, and help LIKHA surface capstone-worthy opportunities without changing the underlying decision logic.</p>
+            <p class="mt-4 max-w-2xl text-sm leading-7 text-slate-600 dark:text-slate-200/85">Every post below is an institutional problem. Support and evidence comments strengthen confidence, reveal recurring pain points, and help LIKHA surface capstone-worthy opportunities without changing the underlying decision logic.</p>
             <div class="mt-6 flex flex-wrap gap-3">
-                <a href="{{ route('feedback.create') }}" class="rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200">Submit a Problem</a>
-                <a href="{{ route('discover') }}" class="rounded-full border border-white/20 px-5 py-3 text-sm font-semibold text-white/90 transition hover:border-amber-300 hover:text-amber-200">Explore Discover</a>
+                <a href="{{ route('feedback.create') }}" class="rounded-full bg-amber-500 px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm transition hover:bg-amber-400">Submit a Problem</a>
+                <a href="{{ route('discover') }}" class="rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-amber-400 hover:bg-amber-50 hover:text-amber-800 dark:border-white/20 dark:text-white/90 dark:hover:border-amber-300 dark:hover:bg-amber-500/10 dark:hover:text-amber-200">Explore Discover</a>
             </div>
         </div>
         <div class="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">

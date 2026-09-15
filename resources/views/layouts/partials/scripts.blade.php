@@ -1,5 +1,33 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+  const scrollPositionKey = `scroll-position:${window.location.pathname}${window.location.search}`;
+  const scrollContainer = document.querySelector('.app-main > main');
+  const savedScrollPosition = sessionStorage.getItem(scrollPositionKey);
+
+  if (savedScrollPosition !== null) {
+    const scrollPosition = Number(savedScrollPosition);
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: scrollPosition });
+
+        if (scrollContainer) {
+          scrollContainer.scrollTo({ top: scrollPosition });
+        }
+      });
+    });
+
+    sessionStorage.removeItem(scrollPositionKey);
+  }
+
+  document.addEventListener('submit', () => {
+    const scrollPosition = scrollContainer ? scrollContainer.scrollTop : window.scrollY;
+
+    sessionStorage.setItem(scrollPositionKey, String(scrollPosition));
+  });
+
+  
+
   // Initialize theme on page load
   if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
     document.documentElement.classList.add('dark');

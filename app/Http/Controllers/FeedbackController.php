@@ -4,12 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreFeedbackCommentRequest;
 use App\Http\Requests\StoreFeedbackRequest;
-use App\Jobs\EnhanceIdeaWithAi;
 use App\Models\AdviserReview;
 use App\Models\Feedback;
 use App\Models\FeedbackComment;
 use App\Models\FeedbackVote;
 use App\Models\IdeaEvaluation;
+use App\Models\Setting;
 use App\Models\User;
 use App\Notifications\IdeaGenerated;
 use App\Services\ClusteringService;
@@ -32,9 +32,9 @@ use Illuminate\View\View;
 
 class FeedbackController extends Controller
 {
-    private const MINIMUM_VOTES_FOR_IDEA_GENERATION = 1;
+    private const MINIMUM_VOTES_FOR_IDEA_GENERATION = 10;
 
-    private const MINIMUM_REPORTS_FOR_IDEA_GENERATION = 2;
+    private const MINIMUM_REPORTS_FOR_IDEA_GENERATION = 3;
 
     public function create(): View
     {
@@ -56,6 +56,14 @@ class FeedbackController extends Controller
     }
 
     private function buildHomeViewData(): array
+    {
+        $thresholds = $this->ideaGenerationThresholds();
+        $cacheKey = 'home-page-data:'.(Auth::id() ?? 'guest').":votes-{$thresholds['votes']}:reports-{$thresholds['reports']}";
+
+        return Cache::remember($cacheKey, now()->addSeconds(30), fn (): array => $this->buildHomeViewDataUncached());
+    }
+
+    private function buildHomeViewDataUncached(): array
     {
         $approvedFeedbacks = $this->approvedFeedbackQuery()
             ->latest()
@@ -144,7 +152,7 @@ class FeedbackController extends Controller
             ? ($request->current_process_other ?? 'Other')
             : $request->current_process;
         $affectedGroups = collect($request->affected_group)
-            ->filter(fn ($group): bool => is_string($group) && trim($group) !== '' && trim($group) !== 'Other: ')
+            ->filter(fn (string $group): bool => $group !== '' && $group !== 'Other: ')
             ->values()
             ->toArray();
 
@@ -244,29 +252,51 @@ class FeedbackController extends Controller
         }
 
         $sort = (string) $request->get('sort', 'trending');
-        $feedbacks = $query->get();
-        $contexts = $this->buildFeedbackContexts($feedbacks);
-        $decorated = $this->decorateFeedbackCollection($feedbacks, $contexts);
-
-        $sorted = (match ($sort) {
-            'newest' => $decorated->sortByDesc('created_at'),
-            'supported' => $decorated->sortByDesc('votes_count'),
-            'severity' => $decorated->sortByDesc('severity_score'),
-            default => $decorated->sortByDesc(fn (Feedback $feedback): float => $this->trendingScore($feedback, $contexts)),
-        })->values();
-
         $perPage = 9;
-        $page = max(1, (int) $request->integer('page', 1));
-        $paginated = new LengthAwarePaginator(
-            $sorted->forPage($page, $perPage),
-            $sorted->count(),
-            $perPage,
-            $page,
-            [
-                'path' => $request->url(),
-                'query' => $request->query(),
-            ]
-        );
+
+        if (in_array($sort, ['newest', 'supported'], true)) {
+            $contextFeedbacks = (clone $query)
+                ->withoutEagerLoads()
+                ->get();
+            $contexts = $this->buildFeedbackContexts($contextFeedbacks);
+            $paginatedQuery = clone $query;
+
+            if ($sort === 'supported') {
+                $paginatedQuery
+                    ->orderByDesc('votes_count')
+                    ->orderBy('id');
+            } else {
+                $paginatedQuery
+                    ->orderByDesc('created_at')
+                    ->orderBy('id');
+            }
+
+            $paginated = $paginatedQuery->paginate($perPage)->withQueryString();
+            $paginated->setCollection(
+                $this->decorateFeedbackCollection($paginated->getCollection(), $contexts)
+            );
+        } else {
+            $feedbacks = $query->get();
+            $contexts = $this->buildFeedbackContexts($feedbacks);
+            $decorated = $this->decorateFeedbackCollection($feedbacks, $contexts);
+
+            $sorted = (match ($sort) {
+                'severity' => $decorated->sortByDesc('severity_score'),
+                default => $decorated->sortByDesc(fn (Feedback $feedback): float => $this->trendingScore($feedback, $contexts)),
+            })->values();
+
+            $page = max(1, (int) $request->integer('page', 1));
+            $paginated = new LengthAwarePaginator(
+                $sorted->forPage($page, $perPage),
+                $sorted->count(),
+                $perPage,
+                $page,
+                [
+                    'path' => $request->url(),
+                    'query' => $request->query(),
+                ]
+            );
+        }
 
         $categories = Feedback::query()
             ->where('status', 'approved')
@@ -283,6 +313,39 @@ class FeedbackController extends Controller
             'recentIdeas' => $recentIdeas,
             'activeSort' => $sort,
         ]);
+    }
+
+    public function priorityIndex(Request $request): View
+    {
+        $query = $this->approvedFeedbackQuery()
+            ->where('is_priority', true)
+            ->with('takenBy');
+
+        if ($request->filled('search')) {
+            $search = (string) $request->search;
+            $query->where(function (Builder $builder) use ($search): void {
+                $builder
+                    ->where('title', 'like', '%'.$search.'%')
+                    ->orWhere('description', 'like', '%'.$search.'%')
+                    ->orWhere('impact', 'like', '%'.$search.'%');
+            });
+        }
+
+        if ($request->filled('category')) {
+            $query->where('category', $request->category);
+        }
+
+        $problems = $query->latest()->paginate(12)->withQueryString();
+        $categories = Feedback::query()
+            ->where('status', 'approved')
+            ->notFlagged()
+            ->where('is_priority', true)
+            ->select('category')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category');
+
+        return view('priority.index', compact('problems', 'categories'));
     }
 
     public function show(Feedback $feedback): View
@@ -353,6 +416,7 @@ class FeedbackController extends Controller
 
     public function showCategory(string $category): View
     {
+        $thresholds = $this->ideaGenerationThresholds();
         $feedbacks = Feedback::query()
             ->where('category', $category)
             ->where('status', 'approved')
@@ -361,20 +425,20 @@ class FeedbackController extends Controller
             ->withCount(['votes', 'comments', 'evidence'])
             ->latest()
             ->get()
-            ->filter(fn (Feedback $feedback): bool => $feedback->votes_count >= self::MINIMUM_VOTES_FOR_IDEA_GENERATION)
+            ->filter(fn (Feedback $feedback): bool => $feedback->votes_count >= $thresholds['votes'])
             ->values();
 
-        if ($feedbacks->count() < self::MINIMUM_REPORTS_FOR_IDEA_GENERATION) {
+        if ($feedbacks->count() < $thresholds['reports']) {
             return view('low-data', [
-                'minimumReports' => self::MINIMUM_REPORTS_FOR_IDEA_GENERATION,
-                'minimumVotes' => self::MINIMUM_VOTES_FOR_IDEA_GENERATION,
+                'minimumReports' => $thresholds['reports'],
+                'minimumVotes' => $thresholds['votes'],
             ]);
         }
 
         $voteSignature = md5($feedbacks
             ->map(fn (Feedback $feedback): string => "{$feedback->id}:{$feedback->votes_count}")
             ->implode('|'));
-        $cacheKey = "ideas_{$category}_{$feedbacks->count()}_{$feedbacks->max('id')}_{$voteSignature}";
+        $cacheKey = "ideas_{$category}_{$feedbacks->count()}_{$feedbacks->max('id')}_{$voteSignature}_votes-{$thresholds['votes']}_reports-{$thresholds['reports']}";
 
         $suggestedIdeas = Cache::remember($cacheKey, now()->addMinutes(30), function () use ($feedbacks, $category): array {
             $groups = app(ClusteringService::class)->group($feedbacks);
@@ -418,14 +482,13 @@ class FeedbackController extends Controller
                 );
 
                 if ($isNew) {
-                    $contributingUsers = $groupFeedbacks->pluck('user_id')->filter()->unique();
+                    $contributingUserIds = $groupFeedbacks->pluck('user_id')->filter()->unique();
+                    $contributingUsers = User::query()
+                        ->whereIn('id', $contributingUserIds)
+                        ->get();
 
-                    foreach ($contributingUsers as $userId) {
-                        $user = User::find($userId);
-
-                        if ($user) {
-                            $user->notify(new IdeaGenerated($ideaData['title'], $category));
-                        }
+                    foreach ($contributingUsers as $user) {
+                        $user->notify(new IdeaGenerated($ideaData['title'], $category));
                     }
                 }
 
@@ -520,30 +583,6 @@ class FeedbackController extends Controller
                 ->latest()
                 ->first()
             : null;
-
-        if ($topIdea) {
-            $evaluation = IdeaEvaluation::query()
-                ->where('idea_title', $topIdea['title'])
-                ->where('category', $category)
-                ->first();
-
-            if ($evaluation && $evaluation->ai_enhanced_at) {
-                $topIdea['ai'] = [
-                    'title' => $evaluation->ai_title,
-                    'description' => $evaluation->ai_description,
-                    'general_objective' => $evaluation->ai_general_objective,
-                    'specific_objectives' => $evaluation->ai_specific_objectives,
-                ];
-            } elseif ($evaluation) {
-                dispatch(new EnhanceIdeaWithAi(
-                    $topIdea['title'],
-                    $category,
-                    $topIdea['description'],
-                    $topIdea['general_objective'],
-                    $topIdea['specific_objectives'],
-                ))->afterResponse();
-            }
-        }
 
         return view('problems.category', compact('feedbacks', 'category', 'topIdea', 'otherIdeas', 'topReview'));
     }
@@ -764,78 +803,36 @@ class FeedbackController extends Controller
 
     public function storeReview(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'idea_title' => ['required', 'string'],
-            'category' => ['required', 'string'],
-            'comment' => ['required', 'string'],
-            'recommendation' => ['required', 'in:Recommended,Needs Revision,Not Recommended'],
-            'feasibility' => ['required', 'integer', 'min:1', 'max:5'],
-            'impact' => ['required', 'integer', 'min:1', 'max:5'],
-            'complexity' => ['required', 'integer', 'min:1', 'max:5'],
-            'innovation' => ['required', 'integer', 'min:1', 'max:5'],
+        AdviserReview::query()->create([
+            'idea_title' => $request->idea_title,
+            'category' => $request->category,
+            'comment' => $request->comment,
+            'recommendation' => $request->recommendation,
+            'user_id' => auth()->id(),
         ]);
 
-        AdviserReview::query()->updateOrCreate(
-            [
-                'idea_title' => $validated['idea_title'],
-                'category' => $validated['category'],
-                'user_id' => auth()->id(),
-            ],
-            [
-                'comment' => $validated['comment'],
-                'recommendation' => $validated['recommendation'],
-                'feasibility' => $validated['feasibility'],
-                'impact' => $validated['impact'],
-                'complexity' => $validated['complexity'],
-                'innovation' => $validated['innovation'],
-            ]
-        );
-
-        $this->recalculateAdviserScore($validated['idea_title'], $validated['category']);
-
-        return back()->with('success', 'Review submitted with evaluation.');
-    }
-
-    private function recalculateAdviserScore(string $ideaTitle, string $category): void
-    {
         $evaluation = IdeaEvaluation::query()
-            ->where('idea_title', $ideaTitle)
-            ->where('category', $category)
+            ->where('idea_title', $request->idea_title)
+            ->where('category', $request->category)
             ->first();
 
-        if (! $evaluation) {
-            return;
+        if ($evaluation) {
+            $evaluation->adviser_feasibility = $request->feasibility;
+            $evaluation->adviser_impact = $request->impact;
+            $evaluation->adviser_complexity = $request->complexity;
+            $evaluation->adviser_innovation = $request->innovation;
+
+            $adviserScore = ($request->impact * 0.35)
+                + ($request->feasibility * 0.25)
+                + ($request->complexity * 0.20)
+                + ($request->innovation * 0.20);
+            $finalScore = ($evaluation->overall_score * 0.7) + ($adviserScore * 0.3);
+
+            $evaluation->final_score = round($finalScore, 2);
+            $evaluation->save();
         }
 
-        $reviews = AdviserReview::query()
-            ->where('idea_title', $ideaTitle)
-            ->where('category', $category)
-            ->whereNotNull('feasibility')
-            ->get();
-
-        if ($reviews->isEmpty()) {
-            return;
-        }
-
-        $avgFeasibility = round($reviews->avg('feasibility'), 2);
-        $avgImpact = round($reviews->avg('impact'), 2);
-        $avgComplexity = round($reviews->avg('complexity'), 2);
-        $avgInnovation = round($reviews->avg('innovation'), 2);
-
-        $adviserScore = ($avgImpact * 0.35)
-            + ($avgFeasibility * 0.25)
-            + ($avgComplexity * 0.20)
-            + ($avgInnovation * 0.20);
-
-        $finalScore = ($evaluation->overall_score * 0.7) + ($adviserScore * 0.3);
-
-        $evaluation->update([
-            'adviser_feasibility' => $avgFeasibility,
-            'adviser_impact' => $avgImpact,
-            'adviser_complexity' => $avgComplexity,
-            'adviser_innovation' => $avgInnovation,
-            'final_score' => round($finalScore, 2),
-        ]);
+        return back()->with('success', 'Review submitted with evaluation.');
     }
 
     private function approvedFeedbackQuery(): Builder
@@ -930,6 +927,7 @@ class FeedbackController extends Controller
 
     private function buildTimeline(Collection $feedbacks): array
     {
+        $thresholds = $this->ideaGenerationThresholds();
         $runningReports = 0;
         $runningSupport = 0;
         $thresholdMarked = false;
@@ -944,10 +942,10 @@ class FeedbackController extends Controller
                 'reports' => $items->count(),
                 'supports' => $items->sum('votes_count'),
                 'threshold_reached' => ! $thresholdMarked
-                    && $runningReports >= self::MINIMUM_REPORTS_FOR_IDEA_GENERATION
-                    && $runningSupport >= self::MINIMUM_VOTES_FOR_IDEA_GENERATION,
-                'idea_generated' => $runningReports >= self::MINIMUM_REPORTS_FOR_IDEA_GENERATION
-                    && $runningSupport >= self::MINIMUM_VOTES_FOR_IDEA_GENERATION,
+                    && $runningReports >= $thresholds['reports']
+                    && $runningSupport >= $thresholds['votes'],
+                'idea_generated' => $runningReports >= $thresholds['reports']
+                    && $runningSupport >= $thresholds['votes'],
             ];
 
             if (($timeline[array_key_last($timeline)]['threshold_reached'] ?? false) === true) {
@@ -1069,16 +1067,29 @@ class FeedbackController extends Controller
 
     private function ideaCandidateCategories(): EloquentCollection
     {
+        $thresholds = $this->ideaGenerationThresholds();
+
         return Feedback::query()
             ->where('status', 'approved')
             ->notFlagged()
-            ->has('votes', '>=', self::MINIMUM_VOTES_FOR_IDEA_GENERATION)
+            ->has('votes', '>=', $thresholds['votes'])
             ->select('category')
             ->selectRaw('COUNT(*) as total')
             ->groupBy('category')
-            ->having('total', '>=', self::MINIMUM_REPORTS_FOR_IDEA_GENERATION)
+            ->having('total', '>=', $thresholds['reports'])
             ->orderByDesc('total')
             ->get();
+    }
+
+    /**
+     * @return array{votes: int, reports: int}
+     */
+    private function ideaGenerationThresholds(): array
+    {
+        return [
+            'votes' => (int) Setting::get('minimum_votes_for_idea_generation', self::MINIMUM_VOTES_FOR_IDEA_GENERATION),
+            'reports' => (int) Setting::get('minimum_reports_for_idea_generation', self::MINIMUM_REPORTS_FOR_IDEA_GENERATION),
+        ];
     }
 
     private function isDuplicateSubmission(StoreFeedbackRequest $request, string $category): bool

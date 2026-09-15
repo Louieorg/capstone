@@ -30,7 +30,49 @@ class Feedback extends Model
         'attachment_path',
         'attachment_type',
         'status',
+        'is_priority',
+        'priority_status',
+        'priority_taken_by',
+        'priority_taken_at',
+        'priority_resolved_at',
+        'priority_office',
+        'reviewed_by',
+        'reviewed_at',
+        'title_en',
+        'description_en',
+        'impact_en',
+        'translated_at',
     ];
+
+    public function getTranslatedTitleAttribute(): string
+    {
+        return $this->title_en ?: $this->title;
+    }
+
+    public function getTranslatedDescriptionAttribute(): string
+    {
+        return $this->description_en ?: $this->description;
+    }
+
+    public function getTranslatedImpactAttribute(): ?string
+    {
+        return $this->impact_en ?: $this->impact;
+    }
+
+    public function getPublicPriorityStatusAttribute(): ?string
+    {
+        return match ($this->priority_status) {
+            'pending' => 'Awaiting Institutional Review',
+            'taken' => 'Under Institutional Review',
+            'resolved' => 'Resolved',
+            default => null,
+        };
+    }
+
+    public function takenBy(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'priority_taken_by');
+    }
 
     protected $casts = [
         'affected_group' => 'array',   // auto JSON encode/decode
@@ -61,5 +103,10 @@ class Feedback extends Model
     public function scopeNotFlagged(Builder $query): Builder
     {
         return $query->where('is_flagged', false);
+    }
+
+    public function reviewedBy(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
     }
 }

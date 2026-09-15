@@ -7,9 +7,9 @@ class IdeaGeneratorService
     public function generate($groupName, $category, $groupFeedbacks, $reports, $votes, $frequencyScore, $impactScore)
     {
         // Build a rich text corpus from all feedback in this group
-        $allTitles = $groupFeedbacks->pluck('title')->implode(' ');
-        $allDescriptions = $groupFeedbacks->pluck('description')->implode(' ');
-        $allImpacts = $groupFeedbacks->pluck('impact')->filter()->implode(' ');
+        $allTitles = $groupFeedbacks->pluck('translated_title')->implode(' ');
+        $allDescriptions = $groupFeedbacks->pluck('translated_description')->implode(' ');
+        $allImpacts = $groupFeedbacks->pluck('translated_impact')->filter()->implode(' ');
 
         $text = strtolower($groupName.' '.$allTitles.' '.$allDescriptions.' '.$allImpacts);
 

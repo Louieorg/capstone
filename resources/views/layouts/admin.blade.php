@@ -37,6 +37,12 @@
           <span class="nav-label">Dashboard</span>
         </a>
 
+        <a href="{{ route('admin.priority.index') }}"
+   class="nav-item {{ request()->routeIs('admin.priority.*') ? 'nav-active' : '' }}">
+  <i data-lucide="alert-triangle"></i>
+  <span class="nav-label">Priority Problems</span>
+</a>
+
         {{-- Feedback Management --}}
         <div x-data="{ open: {{ request()->routeIs('admin.feedback.*') ? 'true' : 'false' }} }">
           <button @click="open = !open" class="nav-group-btn" :class="{ 'nav-group-active': {{ request()->routeIs('admin.feedback.*') ? 'true' : 'false' }} }">
@@ -109,6 +115,12 @@
           <span class="nav-label">User Management</span>
         </a>
 
+        <a href="{{ route('admin.category-assignments.index') }}"
+   class="nav-item {{ request()->routeIs('admin.category-assignments.*') ? 'nav-active' : '' }}">
+  <i data-lucide="git-branch"></i>
+  <span class="nav-label">Office Assignments</span>
+</a>
+
         {{-- Settings (route not built yet) --}}
         <a href="{{ Route::has('admin.settings') ? route('admin.settings') : '#' }}"
            class="nav-item {{ request()->routeIs('admin.settings') ? 'nav-active' : '' }}">
@@ -123,34 +135,6 @@
         </a>
       </nav>
 
-      {{-- User footer --}}
-      <div class="sb-user" style="position:relative">
-        <div x-data="{ open: false }" style="position:relative">
-          <button class="sb-user-btn" @click="if(!collapsed) open = !open">
-            <div class="sb-avatar">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</div>
-            <div class="sb-user-info">
-              <div class="sb-name">{{ auth()->user()->name }}</div>
-              <div class="sb-role">{{ ucfirst(auth()->user()->role) }}</div>
-            </div>
-            <i data-lucide="chevron-up" class="sb-chevron" style="width:12px;height:12px;color:var(--muted2);transition:transform .2s" :style="open ? '' : 'transform:rotate(180deg)'"></i>
-          </button>
-
-          <div x-show="open && !collapsed" @click.outside="open = false" x-transition
-            class="sb-dropdown">
-            <a href="{{ route('profile.edit') }}" class="sb-dd-item"><i data-lucide="user-round"></i> Profile</a>
-            <button class="sb-dd-item" onclick="const d=document.documentElement.classList.toggle('dark');localStorage.setItem('theme',d?'dark':'light')">
-              <i data-lucide="sun"></i> Toggle theme
-            </button>
-            <div class="sb-dd-sep"></div>
-            <form method="POST" action="{{ route('logout') }}" id="logoutForm">
-              @csrf
-              <button type="button" onclick="confirmLogout()" class="sb-dd-item danger">
-                <i data-lucide="log-out"></i> Logout
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
     </aside>
 
     {{-- ══ MAIN ══ --}}

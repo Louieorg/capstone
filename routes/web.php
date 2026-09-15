@@ -1,17 +1,33 @@
 <?php
 
 use App\Http\Controllers\AdviserController;
+use App\Http\Controllers\AdviserReviewController;
+use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\CategoryAssignmentController;
 use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\IdeaController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\OfficeReviewController;
+use App\Http\Controllers\PriorityProblemController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RecommendationController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\SettingController;
+use App\Http\Controllers\UserController;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\RecommendationController;
-use App\Http\Controllers\AdviserReviewController;
-use App\Http\Controllers\AnalyticsController;
-use App\Http\Controllers\ReportController;
+
+Route::middleware('can:isOfficeReviewer')->group(function () {
+    Route::get('/office/review', [OfficeReviewController::class, 'index'])
+        ->name('office.review.index');
+
+    Route::patch('/office/review/{id}/approve', [OfficeReviewController::class, 'approve'])
+        ->name('office.review.approve');
+
+    Route::patch('/office/review/{id}/reject', [OfficeReviewController::class, 'reject'])
+        ->name('office.review.reject');
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -68,8 +84,7 @@ Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])
 | PROTECTED ROUTES (Authenticated Users)
 |--------------------------------------------------------------------------
 */
-
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -85,6 +100,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/submit', [FeedbackController::class, 'store'])
         ->name('feedback.store')
         ->middleware('throttle:5,1');
+
+    Route::get('/priority-problems', [FeedbackController::class, 'priorityIndex'])
+        ->name('priority.index');
 
     // Vote (protected + rate limited)
     Route::post('/feedback/{id}/vote', [FeedbackController::class, 'vote'])
@@ -123,6 +141,9 @@ Route::middleware(['auth'])->group(function () {
 
         return view('notifications.index', compact('notifications'));
     })->name('notifications');
+
+    Route::get('/notifications/dropdown', [NotificationController::class, 'dropdown'])
+        ->name('notifications.dropdown');
 
     Route::get('/notifications/{notification}', function (DatabaseNotification $notification) {
         abort_unless($notification->notifiable_id === auth()->id(), 404);
@@ -205,6 +226,31 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('/admin/reports/export', [ReportController::class, 'export'])
             ->name('admin.reports.export');
+        Route::get('/admin/priority', [PriorityProblemController::class, 'index'])
+            ->name('admin.priority.index');
+
+        Route::patch('/admin/priority/{id}/take', [PriorityProblemController::class, 'take'])
+            ->name('admin.priority.take');
+
+        Route::patch('/admin/priority/{id}/resolve', [PriorityProblemController::class, 'resolve'])
+            ->name('admin.priority.resolve');
+
+        Route::patch('/admin/priority/{id}/reopen', [PriorityProblemController::class, 'reopen'])
+            ->name('admin.priority.reopen');
+
+        Route::patch('/admin/users/{user}/office-head', [UserController::class, 'updateOfficeHead'])
+            ->name('admin.users.office-head');
+
+        Route::get('/admin/settings', [SettingController::class, 'index'])
+            ->name('admin.settings');
+
+        Route::patch('/admin/settings', [SettingController::class, 'update'])
+            ->name('admin.settings.update');
+        Route::get('/admin/category-assignments', [CategoryAssignmentController::class, 'index'])
+            ->name('admin.category-assignments.index');
+
+        Route::post('/admin/category-assignments', [CategoryAssignmentController::class, 'update'])
+            ->name('admin.category-assignments.update');
 
     });
 

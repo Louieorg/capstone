@@ -16,7 +16,24 @@
                     <span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">#{{ Str::slug($feedback->category, '') }}</span>
                 </div>
                 <h1 class="mt-5 font-['Sora'] text-3xl font-extrabold text-slate-900 dark:text-white">{{ $feedback->title }}</h1>
-                <p class="mt-4 text-sm leading-8 text-slate-600 dark:text-slate-300">{{ $feedback->description }}</p>
+
+@if($feedback->is_priority)
+<div class="mt-4 flex items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-400/30 dark:bg-amber-500/10">
+    <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-amber-400 text-xs font-bold text-slate-900">
+        {{ $feedback->priority_office ? strtoupper(substr($feedback->priority_office, 0, 2)) : '!' }}
+    </div>
+    <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.1em] text-amber-700 dark:text-amber-300">Priority Problem &middot; {{ $feedback->public_priority_status }}</p>
+        @if($feedback->priority_office)
+            <p class="text-sm font-semibold text-slate-900 dark:text-white">Approach: {{ $feedback->priority_office }}</p>
+        @else
+            <p class="text-sm font-semibold text-slate-900 dark:text-white">Flagged as institutionally significant</p>
+        @endif
+    </div>
+</div>
+@endif
+
+<p class="mt-4 text-sm leading-8 text-slate-600 dark:text-slate-300">{{ $feedback->description }}</p>
 
                 @if ($feedback->attachment_path)
                     <div class="mt-5">

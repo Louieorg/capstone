@@ -15,9 +15,7 @@ class EnhanceIdeaWithAi implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    // Slightly above OllamaService's own 180s HTTP timeout, so this job's
-    // timeout never fires first and masks the real error.
-    public int $timeout = 200;
+    public int $timeout = 30;
 
     public function __construct(
         public string $ideaTitle,
@@ -38,20 +36,14 @@ class EnhanceIdeaWithAi implements ShouldQueue
 
         $enhanced = $ollama->enhance($original);
 
-        // OllamaService::enhance() returns the original array unchanged on any
-        // failure (timeout, unreachable, invalid JSON). Detect that here so we
-        // don't permanently mark this idea as "enhanced" with unenhanced text —
-        // leaving ai_enhanced_at null means the next page view retries.
         $succeeded = $enhanced['title'] !== $original['title']
             || $enhanced['description'] !== $original['description'];
 
         if (! $succeeded) {
-            Log::warning('AI enhancement produced no change — Ollama likely unreachable.', [
+            Log::warning('AI enhancement produced no change. Saving original recommendation as fallback.', [
                 'idea_title' => $this->ideaTitle,
                 'category' => $this->category,
             ]);
-
-            return;
         }
 
         IdeaEvaluation::query()

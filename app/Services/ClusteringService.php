@@ -12,42 +12,42 @@ class ClusteringService
     private array $groups = [
 
         'enrollment' => [
-            'primary'   => ['enroll', 'enrollment', 'registration', 'register', 'subject', 'subjects', 'grade', 'grades', 'transcript', 'clearance', 'credential', 'pre-enrollment', 'pre enrollment', 'sectioning', 'slot', 'units'],
+            'primary' => ['enroll', 'enrollment', 'registration', 'register', 'subject', 'subjects', 'grade', 'grades', 'transcript', 'clearance', 'credential', 'pre-enrollment', 'pre enrollment', 'sectioning', 'slot', 'units'],
             'secondary' => ['form', 'submit', 'requirement', 'deadline', 'online', 'portal', 'queue', 'long line', 'waiting'],
         ],
 
         'academic process' => [
-            'primary'   => ['grade', 'grading', 'thesis', 'research', 'capstone', 'defense', 'adviser', 'curriculum', 'syllabus', 'academic', 'professor', 'faculty', 'exam', 'examination', 'cheating', 'plagiarism', 'evaluation', 'feedback', 'submission'],
+            'primary' => ['grade', 'grading', 'thesis', 'research', 'capstone', 'defense', 'adviser', 'curriculum', 'syllabus', 'academic', 'professor', 'faculty', 'exam', 'examination', 'cheating', 'plagiarism', 'evaluation', 'feedback', 'submission'],
             'secondary' => ['class', 'student', 'lecture', 'attendance', 'requirement', 'assignment', 'project', 'late'],
         ],
 
         'facilities' => [
-            'primary'   => ['facility', 'facilities', 'toilet', 'comfort room', 'cr', 'bathroom', 'restroom', 'building', 'room', 'classroom', 'laboratory', 'lab', 'equipment', 'air conditioning', 'aircon', 'electricity', 'lighting', 'chair', 'table', 'maintenance', 'repair', 'broken', 'leaking', 'flooding'],
+            'primary' => ['facility', 'facilities', 'toilet', 'comfort room', 'cr', 'bathroom', 'restroom', 'building', 'room', 'classroom', 'laboratory', 'lab', 'equipment', 'air conditioning', 'aircon', 'electricity', 'lighting', 'chair', 'table', 'maintenance', 'repair', 'broken', 'leaking', 'flooding'],
             'secondary' => ['dirty', 'unsafe', 'damaged', 'old', 'crowded', 'space', 'area', 'parking'],
         ],
 
         'library' => [
-            'primary'   => ['library', 'librarian', 'book', 'books', 'reference', 'borrow', 'return', 'fine', 'fines', 'reading', 'resource', 'e-library', 'digital library', 'catalog', 'archive'],
+            'primary' => ['library', 'librarian', 'book', 'books', 'reference', 'borrow', 'return', 'fine', 'fines', 'reading', 'resource', 'e-library', 'digital library', 'catalog', 'archive'],
             'secondary' => ['quiet', 'seat', 'available', 'access', 'wifi', 'internet', 'study', 'materials'],
         ],
 
         'scheduling' => [
-            'primary'   => ['schedule', 'scheduling', 'timetable', 'conflict', 'clash', 'overlap', 'time slot', 'booking', 'reservation', 'event', 'calendar', 'class schedule', 'room assignment'],
+            'primary' => ['schedule', 'scheduling', 'timetable', 'conflict', 'clash', 'overlap', 'time slot', 'booking', 'reservation', 'event', 'calendar', 'class schedule', 'room assignment'],
             'secondary' => ['double booking', 'unavailable', 'cancel', 'reschedule', 'venue', 'available'],
         ],
 
         'network and connectivity' => [
-            'primary'   => ['wifi', 'wi-fi', 'internet', 'network', 'connectivity', 'connection', 'signal', 'bandwidth', 'slow internet', 'no internet', 'disconnected'],
+            'primary' => ['wifi', 'wi-fi', 'internet', 'network', 'connectivity', 'connection', 'signal', 'bandwidth', 'slow internet', 'no internet', 'disconnected'],
             'secondary' => ['access point', 'router', 'online', 'streaming', 'upload', 'download', 'lag'],
         ],
 
         'student services' => [
-            'primary'   => ['scholarship', 'allowance', 'financial aid', 'lost and found', 'id', 'student id', 'school id', 'guidance', 'clinic', 'health', 'cafeteria', 'canteen', 'food', 'shuttle', 'transport', 'dormitory', 'dorm', 'organization', 'org'],
+            'primary' => ['scholarship', 'allowance', 'financial aid', 'lost and found', 'id', 'student id', 'school id', 'guidance', 'clinic', 'health', 'cafeteria', 'canteen', 'food', 'shuttle', 'transport', 'dormitory', 'dorm', 'organization', 'org'],
             'secondary' => ['student', 'service', 'support', 'benefit', 'complaint', 'concern'],
         ],
 
         'administration' => [
-            'primary'   => ['registrar', 'cashier', 'payment', 'billing', 'tuition', 'fee', 'account', 'login', 'password', 'portal', 'system access', 'document', 'request', 'certificate', 'records', 'office'],
+            'primary' => ['registrar', 'cashier', 'payment', 'billing', 'tuition', 'fee', 'account', 'login', 'password', 'portal', 'system access', 'document', 'request', 'certificate', 'records', 'office'],
             'secondary' => ['process', 'manual', 'paper', 'form', 'slow', 'queue', 'staff', 'personnel'],
         ],
     ];
@@ -69,9 +69,9 @@ class ClusteringService
     {
         // Build a weighted text corpus — title matters more than description
         $text = strtolower(
-            $feedback->title . ' ' . $feedback->title . ' ' . // title counted twice
-            $feedback->description . ' ' .
-            ($feedback->impact ?? '')
+            $feedback->translated_title.' '.$feedback->translated_title.' '.
+            $feedback->translated_description.' '.
+            ($feedback->translated_impact ?? '')
         );
 
         $scores = [];
@@ -114,7 +114,7 @@ class ClusteringService
         }
 
         // Handle ties — pick the group whose primary keywords scored highest
-        $topGroups = array_keys(array_filter($scores, fn($s) => $s === $maxScore));
+        $topGroups = array_keys(array_filter($scores, fn ($s) => $s === $maxScore));
 
         if (count($topGroups) === 1) {
             return $topGroups[0];
@@ -133,12 +133,15 @@ class ClusteringService
         foreach ($tiedGroups as $groupName) {
             $score = 0;
             foreach ($this->groups[$groupName]['primary'] as $word) {
-                if (str_contains($text, $word)) $score++;
+                if (str_contains($text, $word)) {
+                    $score++;
+                }
             }
             $primaryScores[$groupName] = $score;
         }
 
         arsort($primaryScores);
+
         return array_key_first($primaryScores);
     }
 
@@ -150,7 +153,7 @@ class ClusteringService
     {
         $cat = strtolower($feedback->category ?? '');
 
-        if (!$cat || $cat === 'other') {
+        if (! $cat || $cat === 'other') {
             return 'general';
         }
 

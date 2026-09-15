@@ -174,11 +174,26 @@
             <form method="POST" action="{{ route('admin.users.role', $user->id) }}" style="display:flex;gap:6px;align-items:center">
               @csrf @method('PATCH')
               <select name="role" class="mu-role-select" onchange="this.form.submit()">
-                <option value="user" {{ $user->role === 'user' ? 'selected' : '' }}>User</option>
-                <option value="adviser" {{ $user->role === 'adviser' ? 'selected' : '' }}>Adviser</option>
-                <option value="admin" {{ $user->role === 'admin' ? 'selected' : '' }}>Admin</option>
-              </select>
+  <option value="user" {{ $user->role === 'user' ? 'selected' : '' }}>User</option>
+  <option value="adviser" {{ $user->role === 'adviser' ? 'selected' : '' }}>Adviser</option>
+  <option value="office_academic" {{ $user->role === 'office_academic' ? 'selected' : '' }}>Office — Academic Affairs</option>
+  <option value="office_chief" {{ $user->role === 'office_chief' ? 'selected' : '' }}>Office — Chief Administrative</option>
+  <option value="admin" {{ $user->role === 'admin' ? 'selected' : '' }}>Admin</option>
+</select>
             </form>
+            <form method="POST" action="{{ route('admin.users.office-head', $user->id) }}" style="display:flex;gap:6px;align-items:center">
+  @csrf @method('PATCH')
+  <label style="display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--muted)">
+    <input type="checkbox" name="is_office_head" value="1" {{ $user->is_office_head ? 'checked' : '' }} onchange="this.form.querySelector('select').disabled = !this.checked">
+    Office Head
+  </label>
+  <select name="office_department" onchange="this.form.submit()" {{ $user->is_office_head ? '' : 'disabled' }} style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:6px 10px;font-size:12px;color:var(--text)">
+    <option value="">Select dept...</option>
+    @foreach(['CICS','CHM','CCJE','CIT','CTE','CFAS','CBEA','Registrar','Guidance Office'] as $dept)
+      <option value="{{ $dept }}" {{ $user->office_department === $dept ? 'selected' : '' }}>{{ $dept }}</option>
+    @endforeach
+  </select>
+</form>
 
             <form method="POST" action="{{ route('admin.users.destroy', $user->id) }}"
                   onsubmit="return confirm('Remove {{ $user->name }}\'s account? This cannot be undone.');">

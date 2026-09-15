@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+<link rel="icon" type="image/png" href="{{ asset('images/logolikha.png') }}">
 <title>LIKHA</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
 <script src="https://unpkg.com/lucide@latest"></script>
@@ -17,13 +19,14 @@
 <!-- ══ NAV ══ -->
 <nav id="navbar">
   <a href="#" class="nav-logo">
-    <div class="nav-logo-icon">L</div>
+    <img src="{{ asset('images/logolikha.png') }}" alt="LIKHA" class="nav-logo-icon">
     <span class="nav-logo-text">LIKHA</span>
   </a>
   <div class="nav-links">
     <a href="#how">How it works</a>
     <a href="#features">Features</a>
     <a href="#roles">For you</a>
+    <a href="#faq">FAQ</a>
   </div>
   <div class="nav-cta">
     <a href="/login" class="btn-ghost-sm">Sign in</a>
@@ -48,7 +51,7 @@
    <div class="hero-left">
     <div class="eyebrow">
       <span class="eyebrow-dot"></span>
-      Campus Innovation System
+      Cagayan State University - Aparri Campus
     </div>
 
     <h1 class="hero-h1">
@@ -91,8 +94,8 @@
       </div>
       <div class="stat-divider"></div>
       <div class="stat-item">
-        <span class="stat-num">AI</span>
-        <span class="stat-label">Powered Scoring</span>
+        <span class="stat-num">Rule-Based</span>
+        <span class="stat-label">Scoring Engine</span>
       </div>
     </div>
     </div>
@@ -198,7 +201,7 @@
   <div class="marquee-track">
     <span class="hi">▲ Submit Problems</span>
     <span>·</span>
-    <span>AI Idea Generation</span>
+    <span>Rule-Based Ideas</span>
     <span>·</span>
     <span class="hi">▲ Adviser Reviews</span>
     <span>·</span>
@@ -250,7 +253,7 @@
       <div class="step">
         <div class="step-num">02</div>
         <div class="step-icon"><i data-lucide="cpu" style="width:20px;height:20px;"></i></div>
-        <h3>AI Finds the Pattern</h3>
+        <h3>The System Finds the Pattern</h3>
         <p>LIKHA clusters similar reports, scores severity and confidence, then generates a ranked list of actionable capstone project ideas.</p>
       </div>
       <div class="step">
@@ -276,7 +279,7 @@
 
       <div class="feature">
         <div class="feature-icon"><i data-lucide="brain" style="width:22px;height:22px;color:#fbb034;"></i></div>
-        <h3>AI Idea Generation</h3>
+        <h3>Rule-Based Idea Generation</h3>
         <p>Problems are grouped by keyword clusters and scored across four dimensions — frequency, impact, severity, and confidence — to surface the most relevant capstone ideas automatically.</p>
         <span class="feature-badge">Powered by custom scoring</span>
       </div>
@@ -363,6 +366,93 @@
   </div>
 </div>
 
+<!-- ══ FAQ ══ -->
+<div id="faq" class="section">
+  <div class="reveal">
+    <p class="section-label">Common Questions</p>
+    <h2 class="section-title">Frequently asked<br>questions.</h2>
+    <p class="section-sub">Find quick answers about using LIKHA, submitting feedback, and exploring recommendations.</p>
+  </div>
+
+  <div class="faq-categories reveal reveal-delay-1" role="tablist" aria-label="FAQ categories">
+    <button class="faq-category active" type="button" role="tab" aria-selected="true" data-category="getting-started">Getting started</button>
+    <button class="faq-category" type="button" role="tab" aria-selected="false" data-category="feedback">Feedback</button>
+    <button class="faq-category" type="button" role="tab" aria-selected="false" data-category="recommendations">Recommendations</button>
+    <button class="faq-category" type="button" role="tab" aria-selected="false" data-category="roles">Roles &amp; notifications</button>
+    <button class="faq-category" type="button" role="tab" aria-selected="false" data-category="account">Account &amp; access</button>
+  </div>
+
+  <div class="faq-list reveal reveal-delay-1">
+
+    <div class="faq-item" data-category="getting-started"><button class="faq-question" type="button"><span>What is LIKHA?</span><i data-lucide="chevron-down" class="faq-chevron"></i></button>
+      <div class="faq-answer"><p>LIKHA is a web-based Decision Support System that assists students in discovering capstone project ideas based on recurring institutional problems.</p></div></div>
+
+    <div class="faq-item" data-category="getting-started"><button class="faq-question" type="button"><span>Who can use LIKHA?</span><i data-lucide="chevron-down" class="faq-chevron"></i></button>
+      <div class="faq-answer"><p>Students, faculty, staff, advisers, and administrators may all use LIKHA, each according to their assigned role and permissions.</p></div></div>
+
+    <div class="faq-item" data-category="getting-started"><button class="faq-question" type="button"><span>Do I need to install any software to use LIKHA?</span><i data-lucide="chevron-down" class="faq-chevron"></i></button>
+      <div class="faq-answer"><p>No. LIKHA is fully web-based and only requires a supported browser and an internet connection.</p></div></div>
+
+    <div class="faq-item" data-category="getting-started"><button class="faq-question" type="button"><span>How do I create an account?</span><i data-lucide="chevron-down" class="faq-chevron"></i></button>
+      <div class="faq-answer"><p>An account may be created through the Registration page, or by using the Google Login option.</p></div></div>
+
+    <div class="faq-item" data-category="getting-started"><button class="faq-question" type="button"><span>Is email verification required?</span><i data-lucide="chevron-down" class="faq-chevron"></i></button>
+      <div class="faq-answer"><p>Yes. Newly registered accounts must be verified through the link sent to the registered email address before full access is granted.</p></div></div>
+
+    <div class="faq-item" data-category="feedback"><button class="faq-question" type="button"><span>What happens after I submit feedback?</span><i data-lucide="chevron-down" class="faq-chevron"></i></button>
+      <div class="faq-answer"><p>Submitted feedback is placed under Pending Review and evaluated by an administrator, who may approve or reject the submission.</p></div></div>
+
+    <div class="faq-item" data-category="feedback"><button class="faq-question" type="button"><span>Why was my feedback rejected?</span><i data-lucide="chevron-down" class="faq-chevron"></i></button>
+      <div class="faq-answer"><p>Feedback may be rejected if it lacks sufficient detail, supporting evidence, or does not meet the system's validity criteria.</p></div></div>
+
+    <div class="faq-item" data-category="feedback"><button class="faq-question" type="button"><span>Can I edit feedback after submitting it?</span><i data-lucide="chevron-down" class="faq-chevron"></i></button>
+      <div class="faq-answer"><p>Once submitted, feedback is generally not editable; users should ensure accuracy before submission.</p></div></div>
+
+    <div class="faq-item" data-category="feedback"><button class="faq-question" type="button"><span>What is the purpose of supporting evidence?</span><i data-lucide="chevron-down" class="faq-chevron"></i></button>
+      <div class="faq-answer"><p>Supporting evidence substantiates a feedback submission and assists the administrator in the validation process.</p></div></div>
+
+    <div class="faq-item" data-category="feedback"><button class="faq-question" type="button"><span>What does Duplicate Detection do?</span><i data-lucide="chevron-down" class="faq-chevron"></i></button>
+      <div class="faq-answer"><p>It automatically identifies feedback entries that closely resemble existing reports, reducing redundant submissions.</p></div></div>
+
+    <div class="faq-item" data-category="recommendations"><button class="faq-question" type="button"><span>How are recommendations generated?</span><i data-lucide="chevron-down" class="faq-chevron"></i></button>
+      <div class="faq-answer"><p>Recommendations are generated by the Decision Support System through problem clustering, severity analysis, confidence analysis, and rule-based generation.</p></div></div>
+
+    <div class="faq-item" data-category="recommendations"><button class="faq-question" type="button"><span>Does Artificial Intelligence generate the recommendations?</span><i data-lucide="chevron-down" class="faq-chevron"></i></button>
+      <div class="faq-answer"><p>No. The AI component, Ollama Llama 3.2, only enhances the wording of the title, description, and objectives. All decisions originate from the rule-based DSS.</p></div></div>
+
+    <div class="faq-item" data-category="recommendations"><button class="faq-question" type="button"><span>How many approved feedback entries are needed to generate a recommendation?</span><i data-lucide="chevron-down" class="faq-chevron"></i></button>
+      <div class="faq-answer"><p>A minimum threshold of validated feedback entries within a problem cluster is required; the exact number is defined by the system's configuration.</p></div></div>
+
+    <div class="faq-item" data-category="recommendations"><button class="faq-question" type="button"><span>What is the difference between Severity and Confidence?</span><i data-lucide="chevron-down" class="faq-chevron"></i></button>
+      <div class="faq-answer"><p>Severity reflects how urgent or significant a problem is, while Confidence reflects how reliable the supporting data for that problem is.</p></div></div>
+
+    <div class="faq-item" data-category="recommendations"><button class="faq-question" type="button"><span>Can I save a recommendation for later?</span><i data-lucide="chevron-down" class="faq-chevron"></i></button>
+      <div class="faq-answer"><p>Yes. Users may use the Save Idea feature to bookmark recommendations of interest for future reference.</p></div></div>
+
+    <div class="faq-item" data-category="roles"><button class="faq-question" type="button"><span>How do I know if I have a new notification?</span><i data-lucide="chevron-down" class="faq-chevron"></i></button>
+      <div class="faq-answer"><p>A notification indicator will appear on the Notifications icon whenever a relevant system event occurs.</p></div></div>
+
+    <div class="faq-item" data-category="roles"><button class="faq-question" type="button"><span>What criteria do advisers use to evaluate recommendations?</span><i data-lucide="chevron-down" class="faq-chevron"></i></button>
+      <div class="faq-answer"><p>Advisers evaluate recommendations based on feasibility, innovation, complexity, and impact.</p></div></div>
+
+    <div class="faq-item" data-category="roles"><button class="faq-question" type="button"><span>Can advisers reject a recommendation?</span><i data-lucide="chevron-down" class="faq-chevron"></i></button>
+      <div class="faq-answer"><p>Advisers provide formal ratings and remarks through the evaluation process; the recommendation's evaluation record reflects this assessment.</p></div></div>
+
+    <div class="faq-item" data-category="account"><button class="faq-question" type="button"><span>Can I change my password?</span><i data-lucide="chevron-down" class="faq-chevron"></i></button>
+      <div class="faq-answer"><p>Yes. Users may update their password through the Change Password page under Profile settings.</p></div></div>
+
+    <div class="faq-item" data-category="account"><button class="faq-question" type="button"><span>Is Dark Mode available on all pages?</span><i data-lucide="chevron-down" class="faq-chevron"></i></button>
+      <div class="faq-answer"><p>Yes. Dark Mode applies to the entire system interface once enabled.</p></div></div>
+
+    <div class="faq-item" data-category="account"><button class="faq-question" type="button"><span>Who do I contact if I forget my password?</span><i data-lucide="chevron-down" class="faq-chevron"></i></button>
+      <div class="faq-answer"><p>Users may use the Forgot Password feature to reset their password without administrator assistance.</p></div></div>
+
+    <div class="faq-item" data-category="roles"><button class="faq-question" type="button"><span>Can an administrator delete a user account?</span><i data-lucide="chevron-down" class="faq-chevron"></i></button>
+      <div class="faq-answer"><p>Yes. Administrators may manage, deactivate, or remove user accounts through the Manage Users page.</p></div></div>
+
+  </div>
+</div>
+
 <!-- ══ CTA BAND ══ -->
 <div class="cta-band reveal">
   <h2>Your campus has problems.<br><span>LIKHA has ideas.</span></h2>
@@ -381,11 +471,11 @@
 <!-- ══ FOOTER ══ -->
 <footer>
   <a href="#" class="footer-logo">
-    <div class="nav-logo-icon" style="width:26px;height:26px;font-size:11px;border-radius:7px;">L</div>
+    <img src="{{ asset('images/likha.png') }}" alt="LIKHA" class="nav-logo-icon" style="width:26px;height:26px;">
     <span>LIKHA</span>
   </a>
   <p>A campus problem-to-capstone intelligence system.</p>
-  <p style="font-size:11px;color:var(--muted2);">Built with Laravel · Alpine.js · Chart.js</p>
+  
 </footer>
 
 <script>
@@ -434,6 +524,31 @@ document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
 // ── Lucide icons ──
 lucide.createIcons();
+
+// ── FAQ accordion ──
+document.querySelectorAll('.faq-question').forEach(btn => {
+  btn.addEventListener('click', () => {
+    btn.closest('.faq-item').classList.toggle('open');
+  });
+});
+
+document.querySelectorAll('.faq-category').forEach(categoryButton => {
+  categoryButton.addEventListener('click', () => {
+    const selectedCategory = categoryButton.dataset.category;
+
+    document.querySelectorAll('.faq-category').forEach(button => {
+      const isActive = button === categoryButton;
+      button.classList.toggle('active', isActive);
+      button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+
+    document.querySelectorAll('.faq-item').forEach(item => {
+      const isVisible = item.dataset.category === selectedCategory;
+      item.classList.toggle('is-hidden', !isVisible);
+      item.classList.remove('open');
+    });
+  });
+});
 
 // Tab switching
 document.querySelectorAll('.auth-tab').forEach(tab => {

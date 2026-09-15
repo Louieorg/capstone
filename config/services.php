@@ -45,5 +45,7 @@ return [
     'ollama' => [
         'url' => env('OLLAMA_URL', 'http://localhost:11434'),
         'model' => env('OLLAMA_MODEL', 'llama3.2'),
+        'timeout' => (int) env('OLLAMA_TIMEOUT', 20),
+        'connect_timeout' => (int) env('OLLAMA_CONNECT_TIMEOUT', 5),
     ],
 ];

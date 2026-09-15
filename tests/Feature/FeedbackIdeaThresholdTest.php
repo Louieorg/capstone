@@ -2,6 +2,7 @@
 
 use App\Models\Feedback;
 use App\Models\FeedbackVote;
+use App\Models\Setting;
 use App\Models\User;
 use App\Services\ClusteringService;
 use App\Services\IdeaGeneratorService;
@@ -97,7 +98,15 @@ test('category idea generation only processes problems with at least ten votes',
 
     $this->get(route('feedback.category', ['category' => 'Threshold Category']))
         ->assertOk()
-        ->assertSeeText('Validated Vote Threshold Idea');
+        ->assertSeeText('Validated Vote Threshold Idea')
+        ->assertSeeInOrder([
+            'Top Recommended Idea',
+            'Feasibility',
+            'Impact',
+            'Complexity',
+            'Innovation',
+            'Validated Vote Threshold Idea',
+        ]);
 
     expect($clusteringSpy->processedFeedbacks)->not->toBeNull()
         ->and($clusteringSpy->processedFeedbacks)->toHaveCount(3)
@@ -132,4 +141,17 @@ test('home candidate count only includes categories with three reports that each
     $this->get(route('home'))
         ->assertOk()
         ->assertSeeInOrder(['Capstone Candidates', '1', 'AI-scored & under review']);
+});
+
+test('category idea generation uses the thresholds configured by an administrator', function (): void {
+    Cache::flush();
+    Setting::set('minimum_votes_for_idea_generation', 1);
+    Setting::set('minimum_reports_for_idea_generation', 1);
+
+    $feedback = createApprovedFeedbackForIdeaThreshold();
+    addVotesForIdeaThreshold($feedback, 1);
+
+    $this->get(route('feedback.category', ['category' => 'Threshold Category']))
+        ->assertOk()
+        ->assertDontSeeText('Not Enough Data Yet');
 });

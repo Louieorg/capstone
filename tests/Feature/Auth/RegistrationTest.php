@@ -1,5 +1,8 @@
 <?php
 
+use Illuminate\Auth\Events\Registered;
+use Illuminate\Support\Facades\Event;
+
 test('registration screen can be rendered', function () {
     $response = $this->get('/register');
 
@@ -7,6 +10,8 @@ test('registration screen can be rendered', function () {
 });
 
 test('new users can register', function () {
+    Event::fake();
+
     $response = $this->post('/register', [
         'first_name' => 'Test',
         'last_name' => 'User',
@@ -16,8 +21,8 @@ test('new users can register', function () {
     ]);
 
     $this->assertAuthenticated();
-    $response->assertRedirect(route('home', absolute: false));
-    $response->assertSessionHas('success', 'Account created successfully! Welcome to LIKHA.');
+    Event::assertDispatched(Registered::class);
+    $response->assertRedirect(route('verification.notice', absolute: false));
 });
 
 test('authenticated users are redirected away from registration with a notice', function () {

@@ -2,9 +2,9 @@
 
 namespace App\Providers;
 
+use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
-use GuzzleHttp\Client;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -28,6 +28,10 @@ class AppServiceProvider extends ServiceProvider
             return new Client([
                 'verify' => false,
             ]);
+        });
+
+        Gate::define('isOfficeReviewer', function ($user) {
+            return $user->isOfficeReviewer();
         });
     }
 }

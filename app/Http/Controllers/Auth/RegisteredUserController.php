@@ -39,10 +39,6 @@ class RegisteredUserController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        $user = Auth::user();
-
-        return redirect()
-            ->route($user->role === 'admin' ? 'admin.dashboard' : ($user->role === 'adviser' ? 'adviser.dashboard' : 'home'))
-            ->with('success', 'Account created successfully! Welcome to LIKHA.');
+        return redirect()->route('verification.notice');
     }
 }

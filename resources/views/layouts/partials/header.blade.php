@@ -6,10 +6,14 @@
   </button>
 
   {{-- Logo --}}
-  <a href="{{ route('landing') }}" class="h-logo">
-    <div class="h-logo-icon">L</div>
-    <span class="h-logo-text">LIKHA</span>
-  </a>
+<a href="{{ route('home') }}" class="h-logo">
+    <img
+        src="{{ asset('images/logolikha.png') }}"
+        alt="LIKHA Logo"
+        class="h-logo-image"
+    >
+  <span class="h-logo-text">LIKHA</span>
+</a>
 
   {{-- Search --}}
   <div class="h-search">
@@ -25,15 +29,53 @@
   <div class="h-right">
     @auth
       @php
-        $notifications = auth()->user()->notifications()->latest()->take(6)->get();
         $unreadNotificationCount = auth()->user()->unreadNotifications()->count();
       @endphp
-      <div x-data="{ open: false }" class="relative">
+      <div x-data="{
+        open: false,
+        loaded: false,
+        loading: false,
+        hasNotifications: false,
+        async loadNotifications() {
+          if (this.loaded || this.loading) {
+            return;
+          }
+
+          this.loading = true;
+
+          try {
+            const response = await fetch('{{ route('notifications.dropdown') }}', {
+              headers: { 'Accept': 'application/json' },
+            });
+
+            if (! response.ok) {
+              throw new Error('Unable to load notifications.');
+            }
+
+            const data = await response.json();
+            this.$refs.notificationList.innerHTML = data.html;
+            this.hasNotifications = data.has_notifications;
+            this.loaded = true;
+
+            if (window.lucide) {
+              window.lucide.createIcons();
+            }
+          } catch (error) {
+            this.$refs.notificationList.innerHTML = '';
+            const errorMessage = document.createElement('div');
+            errorMessage.className = 'notif-empty';
+            errorMessage.textContent = 'Unable to load notifications.';
+            this.$refs.notificationList.append(errorMessage);
+          } finally {
+            this.loading = false;
+          }
+        }
+      }" class="relative">
         <button
           type="button"
           class="h-icon-btn notif-trigger"
           :class="{ 'is-open': open }"
-          @click="open = !open"
+          @click="open = !open; if (open) loadNotifications()"
           :aria-expanded="open.toString()"
           aria-label="Toggle notifications">
           <i data-lucide="bell" style="width:16px;height:16px;"></i>
@@ -59,46 +101,11 @@
             @endif
           </div>
 
-          <div class="notif-dropdown-list">
-            @forelse($notifications as $notification)
-              @php
-                $category = $notification->data['category'] ?? null;
-                $ideaTitle = $notification->data['idea_title'] ?? null;
-                $hasGeneratedIdeaTarget = filled($category) && filled($ideaTitle);
-              @endphp
-              @if($hasGeneratedIdeaTarget)
-              <a href="{{ route('notifications.redirect', $notification) }}" class="notif-item">
-              @else
-              <div class="notif-item">
-              @endif
-                <div class="notif-item-icon" aria-hidden="true">
-                  <i data-lucide="bell-ring" style="width:15px;height:15px;"></i>
-                </div>
-                <div class="notif-item-body">
-                  <div class="notif-item-message">{{ $notification->data['message'] ?? 'New notification' }}</div>
-                  <div class="notif-item-meta">
-                    <span>{{ $notification->created_at->diffForHumans() }}</span>
-                    @if($hasGeneratedIdeaTarget)
-                      <span class="notif-item-chip">Open generated capstone</span>
-                    @endif
-                    @if(is_null($notification->read_at))
-                      <span>Unread</span>
-                    @endif
-                  </div>
-                </div>
-              @if($hasGeneratedIdeaTarget)
-              </a>
-              @else
-              </div>
-              @endif
-            @empty
-              <div class="notif-empty">No notifications yet.</div>
-            @endforelse
+          <div class="notif-dropdown-list" x-ref="notificationList">
+            <div class="notif-empty" x-show="loading">Loading notifications...</div>
           </div>
 
-          @if($notifications->isNotEmpty())
-            <a href="{{ route('notifications') }}" class="notif-view-all">View all notifications</a>
-          @endif
+          <a href="{{ route('notifications') }}" class="notif-view-all" x-show="hasNotifications" x-cloak>View all notifications</a>
         </div>
       </div>
 
@@ -106,7 +113,7 @@
         <div class="h-avatar" @click="open = !open">
           {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
         </div>
-        <div x-show="open" @click.outside="open = false" x-transition
+        <div x-show="open" @click.outside="open = false" x-transition x-cloak
           style="position:absolute;top:42px;right:0;width:180px;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.4)">
           <div style="padding:10px 14px;border-bottom:1px solid var(--border)">
             <div style="font-size:13px;font-weight:500;color:var(--text)">{{ auth()->user()->name }}</div>
@@ -114,10 +121,12 @@
           </div>
           <a href="{{ route('profile.edit') }}" class="sb-dd-item"><i data-lucide="user-round"></i> Profile</a>
           @if(auth()->user()->role === 'admin')
-            <a href="{{ route('admin.dashboard') }}" class="sb-dd-item"><i data-lucide="shield"></i> Admin Panel</a>
-          @elseif(auth()->user()->role === 'adviser')
-            <a href="{{ route('adviser.dashboard') }}" class="sb-dd-item"><i data-lucide="clipboard-check"></i> Adviser Panel</a>
-          @endif
+  <a href="{{ route('admin.dashboard') }}" class="sb-dd-item"><i data-lucide="shield"></i> Admin Panel</a>
+@elseif(auth()->user()->role === 'adviser')
+  <a href="{{ route('adviser.dashboard') }}" class="sb-dd-item"><i data-lucide="clipboard-check"></i> Adviser Panel</a>
+@elseif(auth()->user()->isOfficeReviewer())
+  <a href="{{ route('office.review.index') }}" class="sb-dd-item"><i data-lucide="clipboard-check"></i> {{ auth()->user()->officeLabel() }}</a>
+@endif
           <button class="sb-dd-item" onclick="
             const d=document.documentElement.classList.toggle('dark');
             localStorage.setItem('theme',d?'dark':'light')">

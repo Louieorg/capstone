@@ -134,6 +134,47 @@ html:not(.dark) {
 /* ── Stars ── */
 .stars { color: var(--amber); letter-spacing: .05em; }
 
+/* ── Top idea evaluation ── */
+.idea-evaluation {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0 0 18px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--border);
+}
+.idea-evaluation-score {
+  min-width: 0;
+  padding: 12px 14px;
+  background: var(--surface2);
+}
+.idea-evaluation-label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+.idea-evaluation-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--adim);
+  border: 1px solid var(--amid);
+}
+@media (max-width: 640px) {
+  .idea-evaluation { grid-template-columns: 1fr 1fr; }
+  .idea-evaluation-summary { align-items: flex-start; flex-direction: column; }
+}
+
 /* ── Form inputs ── */
 .lk-input {
   width: 100%; background: var(--surface2);
@@ -267,7 +308,7 @@ html.dark .btn-amber { background: #fbb034; }
   @php
     $isTopIdeaHighlighted = $highlightedIdeaTitle === ($topIdea['title'] ?? null);
   @endphp
-  <div x-data="{ detailsOpen:false, explainOpen:false, objOpen:false, evalOpen:false, confOpen:false }"
+  <div x-data="{ detailsOpen:false, explainOpen:false, objOpen:false, confOpen:false }"
        id="idea-{{ \Illuminate\Support\Str::slug($topIdea['title'] ?? 'top-idea') }}"
        class="lk-card anim-1 {{ $isTopIdeaHighlighted ? 'idea-highlight' : '' }}"
        style="border-color:var(--amid);overflow:hidden;{{ $isTopIdeaHighlighted ? 'box-shadow:0 0 0 4px var(--adim);' : '' }}">
@@ -287,6 +328,32 @@ html.dark .btn-amber { background: #fbb034; }
           Based on real reported problems and evaluation data.
         </span>
       </div>
+
+      {{-- Evaluation --}}
+      @if(isset($topIdea['evaluation']))
+        <section aria-label="Idea evaluation">
+          <div class="idea-evaluation">
+            @foreach(['feasibility' => 'Feasibility', 'impact' => 'Impact', 'complexity' => 'Complexity', 'innovation' => 'Innovation'] as $key => $label)
+              <div class="idea-evaluation-score">
+                <span class="idea-evaluation-label">{{ $label }}</span>
+                <span class="stars" style="font-size:13px" aria-label="{{ $topIdea['evaluation'][$key] ?? 0 }} out of 5">
+                  {{ str_repeat('★', $topIdea['evaluation'][$key] ?? 0) }}{{ str_repeat('☆', 5 - ($topIdea['evaluation'][$key] ?? 0)) }}
+                </span>
+              </div>
+            @endforeach
+          </div>
+          <div class="idea-evaluation-summary">
+            <span style="font-size:13.5px;font-weight:600;color:var(--text)">
+              Overall score: <span style="color:var(--amber)">{{ $topIdea['evaluation']['overall_score'] ?? '—' }}</span>
+            </span>
+            @php
+              $rec = $topIdea['evaluation']['recommendation'] ?? '';
+              $recClass = $rec === 'Highly Recommended' ? 'badge-green' : ($rec === 'Recommended' ? 'badge-blue' : 'badge-red');
+            @endphp
+            <span class="lk-badge {{ $recClass }}">{{ $rec ?: '—' }}</span>
+          </div>
+        </section>
+      @endif
 
       {{-- Title --}}
       <h2 style="font-family:'Sora',sans-serif;font-size:clamp(18px,2.5vw,24px);font-weight:800;line-height:1.15;color:var(--text);margin-bottom:16px">
@@ -425,38 +492,6 @@ html.dark .btn-amber { background: #fbb034; }
           </div>
         </div>
       </div>
-
-      {{-- Evaluation --}}
-      @if(isset($topIdea['evaluation']))
-      <div style="background:var(--surface)">
-        <button class="accordion-btn" @click="evalOpen=!evalOpen" :aria-expanded="evalOpen">
-          <span>Evaluation</span>
-          <svg class="accordion-icon" :class="evalOpen?'rotate-180':''" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
-        </button>
-        <div x-show="evalOpen" x-transition class="accordion-body">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px">
-            @foreach(['feasibility'=>'Feasibility','impact'=>'Impact','complexity'=>'Complexity','innovation'=>'Innovation'] as $key => $label)
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
-              <span style="font-size:13px;color:var(--text2)">{{ $label }}</span>
-              <span class="stars" style="font-size:13px">
-                {{ str_repeat('★',$topIdea['evaluation'][$key] ?? 0) }}{{ str_repeat('☆',5-($topIdea['evaluation'][$key] ?? 0)) }}
-              </span>
-            </div>
-            @endforeach
-          </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-            <span style="font-size:13.5px;font-weight:600;color:var(--text)">
-              Overall: <span style="color:var(--amber)">{{ $topIdea['evaluation']['overall_score'] ?? '—' }}</span>
-            </span>
-            @php
-              $rec = $topIdea['evaluation']['recommendation'] ?? '';
-              $recClass = $rec === 'Highly Recommended' ? 'badge-green' : ($rec === 'Recommended' ? 'badge-blue' : 'badge-red');
-            @endphp
-            <span class="lk-badge {{ $recClass }}">{{ $rec ?: '—' }}</span>
-          </div>
-        </div>
-      </div>
-      @endif
 
     </div>{{-- /expandable --}}
 
