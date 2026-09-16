@@ -61,9 +61,8 @@
     </h1>
 
     <p class="hero-sub">
-      LIKHA collects real campus problems, clusters them by pattern,
-      and generates AI-scored capstone project ideas — so students
-      spend less time searching and more time building.
+      LIKHA connects your school's offices directly to students — real institutional
+problems, confirmed as worth building, waiting for a capstone team to take on.
     </p>
 
     <div class="hero-actions">
@@ -247,20 +246,20 @@
       <div class="step">
         <div class="step-num">01</div>
         <div class="step-icon"><i data-lucide="file-plus" style="width:20px;height:20px;"></i></div>
-        <h3>Report a Problem</h3>
-        <p>Students and staff submit real issues they face on campus — from enrollment bottlenecks to broken facilities. Takes under 2 minutes.</p>
+        <h3>Offices identify what needs solving</h3>
+        <p>an office reports a real institutional problem and confirms it's suitable capstone material.</p>
       </div>
       <div class="step">
         <div class="step-num">02</div>
         <div class="step-icon"><i data-lucide="cpu" style="width:20px;height:20px;"></i></div>
-        <h3>The System Finds the Pattern</h3>
-        <p>LIKHA clusters similar reports, scores severity and confidence, then generates a ranked list of actionable capstone project ideas.</p>
+        <h3>Students pick it up</h3>
+        <p>browse confirmed capstone ideas, see exactly which office to talk to, and start building.</p>
       </div>
       <div class="step">
         <div class="step-num">03</div>
         <div class="step-icon"><i data-lucide="graduation-cap" style="width:20px;height:20px;"></i></div>
-        <h3>Build What Matters</h3>
-        <p>Students browse validated ideas, advisers review and score them, and the best ideas get adopted into real capstone projects.</p>
+        <h3>Or, discover an emerging pattern</h3>
+        <p>for problems no office has raised yet, LIKHA can still detect a recurring issue across independent reports and generate a rule-based recommendation once enough evidence accumulates.</p>
       </div>
     </div>
   </div>
