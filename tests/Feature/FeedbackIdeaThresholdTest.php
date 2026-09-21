@@ -51,6 +51,16 @@ test('category idea generation only processes problems with at least ten votes',
 
             return collect(['validated campus issues' => $feedbacks]);
         }
+
+        public function label(string $clusterKey): string
+        {
+            return 'Validated Campus Issues';
+        }
+
+        public function explanation(string $clusterKey): string
+        {
+            return 'Validated reports share the same institutional problem.';
+        }
     };
 
     $this->app->instance(ClusteringService::class, $clusteringSpy);
@@ -75,7 +85,7 @@ test('category idea generation only processes problems with at least ten votes',
                     'reasoning' => [],
                 ],
                 'top_group' => 'Students',
-                'impact_simulation' => ['message' => 'Expected impact for validated issues.'],
+
             ];
         }
     });
@@ -100,7 +110,7 @@ test('category idea generation only processes problems with at least ten votes',
         ->assertOk()
         ->assertSeeText('Validated Vote Threshold Idea')
         ->assertSeeInOrder([
-            'Top Recommended Idea',
+            'Top Recommended Capstone Opportunity',
             'Feasibility',
             'Impact',
             'Complexity',
@@ -154,4 +164,74 @@ test('category idea generation uses the thresholds configured by an administrato
     $this->get(route('feedback.category', ['category' => 'Threshold Category']))
         ->assertOk()
         ->assertDontSeeText('Not Enough Data Yet');
+});
+
+test('capstone-worthy feedback bypasses the vote and report thresholds for idea generation', function (): void {
+    Cache::flush();
+
+    $clusteringSpy = new class
+    {
+        public ?Collection $processedFeedbacks = null;
+
+        public function group($feedbacks): Collection
+        {
+            $this->processedFeedbacks = $feedbacks;
+
+            return collect(['institutionally validated' => $feedbacks]);
+        }
+
+        public function label(string $clusterKey): string
+        {
+            return 'Institutionally Validated';
+        }
+
+        public function explanation(string $clusterKey): string
+        {
+            return 'This report was institutionally validated by an office head.';
+        }
+    };
+
+    $this->app->instance(ClusteringService::class, $clusteringSpy);
+    $this->app->instance(IdeaGeneratorService::class, new class
+    {
+        public function generate($groupName, $category, $groupFeedbacks, $reports, $votes, $frequencyScore, $impactScore): array
+        {
+            return [
+                'title' => 'Capstone-Worthy Bypass Idea',
+                'description' => 'Generated from an institutionally validated capstone-worthy problem.',
+                'general_objective' => 'To demonstrate the capstone-worthy pathway.',
+                'specific_objectives' => ['To process a single validated report.'],
+                'explanation' => [
+                    'summary' => 'Only one institutionally validated problem was processed.',
+                    'factors' => [
+                        'reports' => $reports,
+                        'votes' => $votes,
+                        'frequency_score' => $frequencyScore,
+                        'impact_score' => $impactScore,
+                        'top_affected_group' => 'Students',
+                    ],
+                    'reasoning' => [],
+                ],
+                'top_group' => 'Students',
+            ];
+        }
+    });
+
+    $capstoneFeedback = createApprovedFeedbackForIdeaThreshold([
+        'category' => 'Capstone Validation Category',
+        'title' => 'Office-identified campus issue',
+        'description' => 'Reported by an office head as a verified institutional problem.',
+        'is_capstone_worthy' => true,
+    ]);
+
+    $this->get(route('feedback.category', ['category' => 'Capstone Validation Category']))
+        ->assertOk()
+        ->assertSeeText('Capstone-Worthy Bypass Idea')
+        ->assertDontSeeText('Not Enough Data Yet');
+
+    expect($clusteringSpy->processedFeedbacks)->not->toBeNull()
+        ->and($clusteringSpy->processedFeedbacks)->toHaveCount(1)
+        ->and($clusteringSpy->processedFeedbacks->first()->id)->toBe($capstoneFeedback->id)
+        ->and($clusteringSpy->processedFeedbacks->first()->votes_count)->toBe(0)
+        ->and($clusteringSpy->processedFeedbacks->first()->is_capstone_worthy)->toBeTrue();
 });

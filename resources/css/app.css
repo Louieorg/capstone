@@ -657,6 +657,31 @@ body.welcome-page .faq-list {
   flex-direction: column;
   gap: 10px;
 }
+body.welcome-page .faq-categories {
+  max-width: 780px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+body.welcome-page .faq-category {
+  padding: 9px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  transition: color .2s, background .2s, border-color .2s;
+}
+body.welcome-page .faq-category:hover,
+body.welcome-page .faq-category.active {
+  border-color: var(--amber-mid);
+  background: var(--amber-dim);
+  color: var(--amber);
+}
 body.welcome-page .faq-item {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -686,6 +711,7 @@ body.welcome-page .faq-answer p {
   padding: 0 22px 20px;
   font-size: 13.5px; line-height: 1.7; color: var(--muted);
 }
+body.welcome-page .faq-item.is-hidden { display: none; }
 
 /* ---------------------------------------
    CTA BAND
@@ -757,6 +783,7 @@ body.welcome-page .reveal-delay-3 { transition-delay: .3s; }
   body.welcome-page footer { padding: 32px 20px; flex-direction: column; align-items: flex-start; }
   body.welcome-page .hero-stats { gap: 24px; }
   body.welcome-page .stat-divider { display: none; }
+  body.welcome-page .faq-categories { margin-bottom: 14px; }
   body.welcome-page { cursor: auto; }
   body.welcome-page .cursor, body.welcome-page .cursor-ring { display: none; }
 }

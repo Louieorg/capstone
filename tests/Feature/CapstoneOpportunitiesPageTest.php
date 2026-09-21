@@ -1,0 +1,122 @@
+<?php
+
+use App\Models\Feedback;
+use App\Models\IdeaEvaluation;
+use App\Models\User;
+
+function createCapstoneOpportunityFeedback(array $attributes = []): Feedback
+{
+    return Feedback::query()->create(array_merge([
+        'title' => 'Identified campus issue',
+        'description' => 'Students experience recurring delays that need a coordinated solution.',
+        'impact' => 'This affects student transactions and creates repeated follow ups.',
+        'category' => 'Capstone Category',
+        'department' => 'Registrar',
+        'frequency' => 'Often',
+        'current_process' => 'Manual or paper-based process',
+        'affected_users' => '50-200',
+        'affected_group' => ['Students'],
+        'is_anonymous' => false,
+        'is_flagged' => false,
+        'status' => 'approved',
+        'is_capstone_worthy' => true,
+        'capstone_marked_at' => now(),
+    ], $attributes));
+}
+
+test('the capstone opportunities page lists institutionally identified problems', function (): void {
+    $marker = User::factory()->create(['name' => 'Office Head Dela Cruz']);
+
+    $opportunity = createCapstoneOpportunityFeedback([
+        'title' => 'Office-identified enrollment bottleneck',
+        'category' => 'Enrollment',
+        'department' => 'Registrar',
+        'capstone_marked_by' => $marker->id,
+    ]);
+
+    $this->get(route('capstone.opportunities'))
+        ->assertOk()
+        ->assertSeeText('Capstone Opportunities')
+        ->assertSeeText('Institutional problems already identified as potential capstone projects.')
+        ->assertSeeText('Capstone Opportunity')
+        ->assertSeeText('Office-identified enrollment bottleneck')
+        ->assertSeeText('Enrollment')
+        ->assertSeeText('Registrar')
+        ->assertSeeText('Office Head Dela Cruz')
+        ->assertSeeText('0 support')
+        ->assertSeeText('0 evidence')
+        ->assertSeeText('View Problem')
+        ->assertSeeText('Explore DSS Ideas')
+        ->assertSee(route('feedback.show', $opportunity))
+        ->assertSee(route('feedback.category', 'Enrollment'));
+});
+
+test('problems that were never identified as capstone opportunities are not listed', function (): void {
+    createCapstoneOpportunityFeedback([
+        'title' => 'Routine campus concern',
+        'is_capstone_worthy' => false,
+        'capstone_marked_at' => null,
+    ]);
+
+    $this->get(route('capstone.opportunities'))
+        ->assertOk()
+        ->assertDontSeeText('Routine campus concern')
+        ->assertSeeText('No capstone opportunities identified yet.');
+});
+
+test('capstone candidates that are not approved are not listed', function (): void {
+    createCapstoneOpportunityFeedback(['title' => 'Pending capstone candidate', 'status' => 'pending']);
+    createCapstoneOpportunityFeedback(['title' => 'Rejected capstone candidate', 'status' => 'rejected']);
+
+    $this->get(route('capstone.opportunities'))
+        ->assertOk()
+        ->assertDontSeeText('Pending capstone candidate')
+        ->assertDontSeeText('Rejected capstone candidate');
+});
+
+test('capstone opportunities flagged for review stay hidden from students', function (): void {
+    createCapstoneOpportunityFeedback([
+        'title' => 'Flagged capstone candidate',
+        'is_flagged' => true,
+    ]);
+
+    $this->get(route('capstone.opportunities'))
+        ->assertOk()
+        ->assertDontSeeText('Flagged capstone candidate');
+});
+
+test('the dss summary reads existing idea evaluations without generating new ones', function (): void {
+    createCapstoneOpportunityFeedback([
+        'title' => 'Facilities monitoring gap',
+        'category' => 'Facilities',
+    ]);
+
+    IdeaEvaluation::query()->create([
+        'idea_title' => 'Facilities Monitoring System',
+        'category' => 'Facilities',
+        'overall_score' => 4.2,
+        'recommendation' => 'Highly Recommended',
+    ]);
+
+    $this->get(route('capstone.opportunities'))
+        ->assertOk()
+        ->assertSeeText('DSS Ideas by Category')
+        ->assertSeeText('Facilities')
+        ->assertSeeText('1 idea')
+        ->assertSee(route('feedback.category', 'Facilities'));
+
+    expect(IdeaEvaluation::query()->count())->toBe(1)
+        ->and(IdeaEvaluation::query()->where('category', 'Facilities')->count())->toBe(1);
+});
+
+test('the discover destination still lists problems regardless of the capstone flag', function (): void {
+    createCapstoneOpportunityFeedback([
+        'title' => 'Discover visible routine concern',
+        'is_capstone_worthy' => false,
+        'capstone_marked_at' => null,
+    ]);
+
+    $this->get(route('discover'))
+        ->assertOk()
+        ->assertSeeText('Discover visible routine concern');
+});

@@ -15,9 +15,9 @@ use App\Notifications\IdeaGenerated;
 use App\Services\ClusteringService;
 use App\Services\ConfidenceService;
 use App\Services\IdeaGeneratorService;
+use App\Services\OllamaService;
 use App\Services\SeverityService;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -55,10 +55,25 @@ class FeedbackController extends Controller
         return view('welcome', $viewData);
     }
 
+    public function markCapstoneWorthy(int $id): RedirectResponse
+    {
+        $feedback = Feedback::findOrFail($id);
+
+        abort_unless($feedback->status === 'approved', 422, 'Only approved reports can be marked as capstone ideas.');
+
+        $feedback->update([
+            'is_capstone_worthy' => true,
+            'capstone_marked_by' => auth()->id(),
+            'capstone_marked_at' => now(),
+        ]);
+
+        return back()->with('success', 'Marked as a capstone idea.');
+    }
+
     private function buildHomeViewData(): array
     {
         $thresholds = $this->ideaGenerationThresholds();
-        $cacheKey = 'home-page-data:'.(Auth::id() ?? 'guest').":votes-{$thresholds['votes']}:reports-{$thresholds['reports']}";
+        $cacheKey = $this->homeCacheKey(Auth::id(), $thresholds);
 
         return Cache::remember($cacheKey, now()->addSeconds(30), fn (): array => $this->buildHomeViewDataUncached());
     }
@@ -104,6 +119,19 @@ class FeedbackController extends Controller
             'categories',
             'generatedIdeas'
         );
+    }
+
+    /**
+     * @param  array{votes: int, reports: int}  $thresholds
+     */
+    private function homeCacheKey(?int $userId, array $thresholds): string
+    {
+        return 'home-page-data:'.($userId ?? 'guest').":votes-{$thresholds['votes']}:reports-{$thresholds['reports']}";
+    }
+
+    private function forgetHomeCacheForCurrentUser(): void
+    {
+        Cache::forget($this->homeCacheKey(Auth::id(), $this->ideaGenerationThresholds()));
     }
 
     public function store(StoreFeedbackRequest $request): RedirectResponse
@@ -152,7 +180,7 @@ class FeedbackController extends Controller
             ? ($request->current_process_other ?? 'Other')
             : $request->current_process;
         $affectedGroups = collect($request->affected_group)
-            ->filter(fn (string $group): bool => $group !== '' && $group !== 'Other: ')
+            ->filter(fn ($group): bool => is_string($group) && $group !== '' && $group !== 'Other: ')
             ->values()
             ->toArray();
 
@@ -172,6 +200,10 @@ class FeedbackController extends Controller
             $attachmentType = in_array($extension, ['jpg', 'jpeg', 'png'], true) ? 'image' : 'pdf';
         }
 
+        $isAuthorizedOfficeSubmission =
+            auth()->user()->is_office_head &&
+            in_array($finalCategory, auth()->user()->reviewableCategories(), true);
+
         $created = Feedback::create([
             'user_id' => $request->has('is_anonymous') ? null : Auth::id(),
             'title' => $request->title,
@@ -189,6 +221,9 @@ class FeedbackController extends Controller
             'is_flagged' => $isFlagged,
             'attachment_path' => $attachmentPath,
             'attachment_type' => $attachmentType,
+            'is_capstone_worthy' => $isAuthorizedOfficeSubmission,
+            'capstone_marked_by' => $isAuthorizedOfficeSubmission ? auth()->id() : null,
+            'capstone_marked_at' => $isAuthorizedOfficeSubmission ? now() : null,
         ]);
 
         // Persist supporting evidence files after feedback is created.
@@ -315,10 +350,38 @@ class FeedbackController extends Controller
         ]);
     }
 
+    /**
+     * Student-facing index of problems already identified as capstone opportunities.
+     *
+     * Reads existing DSS output only; it never runs clustering, idea generation,
+     * or evaluation persistence.
+     */
+    public function capstoneOpportunities(): View
+    {
+        $opportunities = $this->approvedFeedbackQuery()
+            ->where('is_capstone_worthy', true)
+            ->with('capstoneMarkedBy')
+            ->orderByDesc('capstone_marked_at')
+            ->orderByDesc('id')
+            ->paginate(9);
+
+        $dssIdeasByCategory = IdeaEvaluation::query()
+            ->select('category')
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw('MAX(overall_score) as top_score')
+            ->groupBy('category')
+            ->orderByDesc('total')
+            ->orderBy('category')
+            ->get();
+
+        return view('capstone-opportunities.index', compact('opportunities', 'dssIdeasByCategory'));
+    }
+
     public function priorityIndex(Request $request): View
     {
         $query = $this->approvedFeedbackQuery()
             ->where('is_priority', true)
+            ->where('is_capstone_worthy', true)
             ->with('takenBy');
 
         if ($request->filled('search')) {
@@ -340,6 +403,7 @@ class FeedbackController extends Controller
             ->where('status', 'approved')
             ->notFlagged()
             ->where('is_priority', true)
+            ->where('is_capstone_worthy', true)
             ->select('category')
             ->distinct()
             ->orderBy('category')
@@ -425,26 +489,38 @@ class FeedbackController extends Controller
             ->withCount(['votes', 'comments', 'evidence'])
             ->latest()
             ->get()
-            ->filter(fn (Feedback $feedback): bool => $feedback->votes_count >= $thresholds['votes'])
+            ->filter(fn (Feedback $feedback): bool => $feedback->is_capstone_worthy || $feedback->votes_count >= $thresholds['votes'])
             ->values();
 
-        if ($feedbacks->count() < $thresholds['reports']) {
+        $clustering = app(ClusteringService::class);
+        $qualifyingGroups = $clustering->group($feedbacks)
+            ->filter(fn (Collection $groupFeedbacks): bool => ($groupFeedbacks->count() >= $thresholds['reports']
+                && $groupFeedbacks->sum('votes_count') >= $thresholds['votes'])
+                || $groupFeedbacks->contains(fn (Feedback $feedback): bool => $feedback->is_capstone_worthy));
+
+        if ($qualifyingGroups->isEmpty()) {
             return view('low-data', [
                 'minimumReports' => $thresholds['reports'],
                 'minimumVotes' => $thresholds['votes'],
             ]);
         }
 
+        $feedbacks = $qualifyingGroups->flatten()->values();
+
         $voteSignature = md5($feedbacks
             ->map(fn (Feedback $feedback): string => "{$feedback->id}:{$feedback->votes_count}")
             ->implode('|'));
-        $cacheKey = "ideas_{$category}_{$feedbacks->count()}_{$feedbacks->max('id')}_{$voteSignature}_votes-{$thresholds['votes']}_reports-{$thresholds['reports']}";
+        $capstoneSignature = md5($feedbacks
+            ->filter(fn (Feedback $feedback): bool => $feedback->is_capstone_worthy)
+            ->pluck('id')
+            ->sort()
+            ->implode(','));
+        $cacheKey = "ideas_v2_{$category}_{$feedbacks->count()}_{$feedbacks->max('id')}_{$voteSignature}_cw-{$capstoneSignature}_votes-{$thresholds['votes']}_reports-{$thresholds['reports']}";
 
-        $suggestedIdeas = Cache::remember($cacheKey, now()->addMinutes(30), function () use ($feedbacks, $category): array {
-            $groups = app(ClusteringService::class)->group($feedbacks);
+        $suggestedIdeas = Cache::remember($cacheKey, now()->addMinutes(30), function () use ($category, $clustering, $qualifyingGroups): array {
             $ideas = [];
 
-            foreach ($groups as $groupName => $groupFeedbacks) {
+            foreach ($qualifyingGroups as $groupName => $groupFeedbacks) {
                 $reports = $groupFeedbacks->count();
                 $votes = $groupFeedbacks->sum('votes_count');
                 $frequencyScore = $this->averageFrequencyScore($groupFeedbacks);
@@ -461,8 +537,10 @@ class FeedbackController extends Controller
                 $severity = app(SeverityService::class)->compute($reports, $votes, $frequencyScore, $impactScore, $dominantProcess);
                 $confidence = app(ConfidenceService::class)->compute($reports, $votes, $frequencyScore, $impactScore, $groupFeedbacks);
                 $evaluation = $this->evaluateIdea($reports, $votes, $frequencyScore, $impactScore, $dominantProcess);
+                $clusterLabel = $clustering->label($groupName);
+
                 $ideaData = app(IdeaGeneratorService::class)->generate(
-                    $groupName,
+                    $clusterLabel,
                     $category,
                     $groupFeedbacks,
                     $reports,
@@ -470,6 +548,10 @@ class FeedbackController extends Controller
                     $frequencyScore,
                     $impactScore
                 );
+
+                if ($this->matchesGeneratedIdea($ideaData['title'], $ideas)) {
+                    continue;
+                }
 
                 $isNew = ! IdeaEvaluation::query()
                     ->where('idea_title', $ideaData['title'])
@@ -526,6 +608,8 @@ class FeedbackController extends Controller
 
                 $ideas[] = [
                     'group' => $groupName,
+                    'cluster_label' => $clusterLabel,
+                    'cluster_explanation' => $clustering->explanation($groupName),
                     'title' => $ideaData['title'],
                     'description' => $ideaData['description'],
                     'score' => $ideaScore,
@@ -553,7 +637,7 @@ class FeedbackController extends Controller
                         'sample_size' => $confidence['sample_score'] ?? 0,
                         'community_validation' => $confidence['validation_score'] ?? 0,
                     ],
-                    'impact_simulation' => $ideaData['impact_simulation'],
+
                     'comparison' => [
                         'score' => $ideaScore,
                         'feasibility' => $evaluation['feasibility'],
@@ -571,7 +655,7 @@ class FeedbackController extends Controller
 
             usort($ideas, fn (array $left, array $right): int => $right['score'] <=> $left['score']);
 
-            return $ideas;
+            return $this->distinctGeneratedIdeas($ideas);
         });
 
         $topIdea = $suggestedIdeas[0] ?? null;
@@ -584,7 +668,75 @@ class FeedbackController extends Controller
                 ->first()
             : null;
 
+        $suggestedIdeas = $this->attachAiEnhancements($suggestedIdeas, $category);
+        $topIdea = $suggestedIdeas[0] ?? null;
+        $otherIdeas = array_slice($suggestedIdeas, 1);
+
         return view('problems.category', compact('feedbacks', 'category', 'topIdea', 'otherIdeas', 'topReview'));
+    }
+
+    public function enhanceIdea(Request $request, string $category): RedirectResponse
+    {
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'description' => ['required', 'string'],
+            'general_objective' => ['required', 'string'],
+            'specific_objectives' => ['required', 'array'],
+            'specific_objectives.*' => ['required', 'string'],
+        ]);
+
+        $evaluation = IdeaEvaluation::query()
+            ->where('idea_title', $validated['title'])
+            ->where('category', $category)
+            ->firstOrFail();
+
+        $enhanced = app(OllamaService::class)->enhance([
+            'title' => $validated['title'],
+            'description' => $validated['description'],
+            'general_objective' => $validated['general_objective'],
+            'specific_objectives' => $validated['specific_objectives'],
+        ]);
+
+        $evaluation->update([
+            'ai_title' => $enhanced['title'],
+            'ai_description' => $enhanced['description'],
+            'ai_general_objective' => $enhanced['general_objective'],
+            'ai_specific_objectives' => $enhanced['specific_objectives'],
+            'ai_enhanced_at' => now(),
+        ]);
+
+        return redirect()->to(
+            route('feedback.category', ['category' => $category, 'idea' => $validated['title']])
+                .'#idea-'.Str::slug($validated['title'])
+        )->with('info', 'Enhancing wording with AI — refresh in a few seconds to see the result.');
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $ideas
+     * @return array<int, array<string, mixed>>
+     */
+    private function attachAiEnhancements(array $ideas, string $category): array
+    {
+        $evaluations = IdeaEvaluation::query()
+            ->where('category', $category)
+            ->whereIn('idea_title', collect($ideas)->pluck('title'))
+            ->get()
+            ->keyBy('idea_title');
+
+        return collect($ideas)->map(function (array $idea) use ($evaluations): array {
+            $evaluation = $evaluations->get($idea['title']);
+
+            if ($evaluation?->ai_enhanced_at !== null) {
+                $idea['ai'] = [
+                    'title' => $evaluation->ai_title,
+                    'description' => $evaluation->ai_description,
+                    'general_objective' => $evaluation->ai_general_objective,
+                    'specific_objectives' => $evaluation->ai_specific_objectives ?? [],
+                ];
+            }
+
+            return $idea;
+        })->all();
     }
 
     public function admin(): View
@@ -748,6 +900,7 @@ class FeedbackController extends Controller
 
         if ($existingVote) {
             $existingVote->delete();
+            $this->forgetHomeCacheForCurrentUser();
 
             return back()->with('success', 'Support removed.');
         }
@@ -756,6 +909,7 @@ class FeedbackController extends Controller
             'feedback_id' => $feedback->id,
             'user_id' => Auth::id(),
         ]);
+        $this->forgetHomeCacheForCurrentUser();
 
         return back()->with('success', 'Problem supported.');
     }
@@ -1065,20 +1219,26 @@ class FeedbackController extends Controller
         ];
     }
 
-    private function ideaCandidateCategories(): EloquentCollection
+    private function ideaCandidateCategories(): Collection
     {
         $thresholds = $this->ideaGenerationThresholds();
+        $clustering = app(ClusteringService::class);
 
         return Feedback::query()
             ->where('status', 'approved')
             ->notFlagged()
             ->has('votes', '>=', $thresholds['votes'])
-            ->select('category')
-            ->selectRaw('COUNT(*) as total')
+            ->withCount('votes')
+            ->get()
             ->groupBy('category')
-            ->having('total', '>=', $thresholds['reports'])
-            ->orderByDesc('total')
-            ->get();
+            ->filter(function (Collection $categoryFeedbacks) use ($clustering, $thresholds): bool {
+                return $clustering->group($categoryFeedbacks)
+                    ->contains(fn (Collection $clusterFeedbacks): bool => $clusterFeedbacks->count() >= $thresholds['reports']
+                        && $clusterFeedbacks->sum('votes_count') >= $thresholds['votes']);
+            })
+            ->map(fn (Collection $categoryFeedbacks): Feedback => $categoryFeedbacks->first())
+            ->sortByDesc('created_at')
+            ->values();
     }
 
     /**
@@ -1090,6 +1250,46 @@ class FeedbackController extends Controller
             'votes' => (int) Setting::get('minimum_votes_for_idea_generation', self::MINIMUM_VOTES_FOR_IDEA_GENERATION),
             'reports' => (int) Setting::get('minimum_reports_for_idea_generation', self::MINIMUM_REPORTS_FOR_IDEA_GENERATION),
         ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $ideas
+     * @return array<int, array<string, mixed>>
+     */
+    private function distinctGeneratedIdeas(array $ideas): array
+    {
+        $distinctIdeas = [];
+
+        foreach ($ideas as $idea) {
+            $title = $this->normalizedText((string) ($idea['title'] ?? ''));
+            $isDuplicate = collect($distinctIdeas)->contains(
+                fn (array $existingIdea): bool => $this->similarityScore(
+                    $title,
+                    $this->normalizedText((string) ($existingIdea['title'] ?? ''))
+                ) >= 85.0
+            );
+
+            if (! $isDuplicate) {
+                $distinctIdeas[] = $idea;
+            }
+        }
+
+        return $distinctIdeas;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $ideas
+     */
+    private function matchesGeneratedIdea(string $title, array $ideas): bool
+    {
+        $normalizedTitle = $this->normalizedText($title);
+
+        return collect($ideas)->contains(
+            fn (array $idea): bool => $this->similarityScore(
+                $normalizedTitle,
+                $this->normalizedText((string) ($idea['title'] ?? ''))
+            ) >= 85.0
+        );
     }
 
     private function isDuplicateSubmission(StoreFeedbackRequest $request, string $category): bool

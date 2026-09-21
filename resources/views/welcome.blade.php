@@ -470,7 +470,7 @@ problems, confirmed as worth building, waiting for a capstone team to take on.
 <!-- ══ FOOTER ══ -->
 <footer>
   <a href="#" class="footer-logo">
-    <img src="{{ asset('images/likha.png') }}" alt="LIKHA" class="nav-logo-icon" style="width:26px;height:26px;">
+    <img src="{{ asset('images/logolikha.png') }}" alt="LIKHA" class="nav-logo-icon" style="width:26px;height:26px;">
     <span>LIKHA</span>
   </a>
   <p>A campus problem-to-capstone intelligence system.</p>

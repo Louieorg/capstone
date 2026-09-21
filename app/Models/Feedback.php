@@ -42,7 +42,15 @@ class Feedback extends Model
         'description_en',
         'impact_en',
         'translated_at',
+        'is_capstone_worthy',
+        'capstone_marked_by',
+        'capstone_marked_at',
     ];
+
+    public function capstoneMarkedBy(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'capstone_marked_by');
+    }
 
     public function getTranslatedTitleAttribute(): string
     {

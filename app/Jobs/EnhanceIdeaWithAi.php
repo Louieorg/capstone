@@ -15,7 +15,7 @@ class EnhanceIdeaWithAi implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $timeout = 30;
+    public int $timeout = 120;
 
     public function __construct(
         public string $ideaTitle,

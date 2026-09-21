@@ -3,121 +3,106 @@
 @section('title','My Saved Ideas')
 
 @section('content')
+@include('layouts.partials.design-system')
 
-<div class="max-w-5xl mx-auto px-4 sm:px-6">
+<div class="mx-auto max-w-5xl px-4 sm:px-6 space-y-6">
 
-{{-- HEADER --}}
-<div class="mb-6 opacity-0 translate-y-4 
-animate-[fadeInUp_0.6s_ease-out_forwards]">
-    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">
-        My Saved Ideas
-    </h2>
-    <p class="text-sm text-gray-500 dark:text-gray-400">
-        Review and compare your saved capstone ideas
-    </p>
-</div>
+    {{-- HEADER --}}
+    <header class="anim-1">
+        <h2 class="font-['Sora'] text-2xl font-bold text-slate-900 dark:text-white">
+            My Saved Ideas
+        </h2>
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Review and compare your saved capstone ideas
+        </p>
+    </header>
 
-@forelse($ideas as $idea)
+    @forelse($ideas as $idea)
 
-<div class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-5 sm:p-6 mb-5 hover:shadow-md transition">
-
-    {{-- TOP --}}
-    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3">
-
-        <h3 class="font-semibold text-gray-900 dark:text-white text-lg">
-            {{ $idea->title }}
-        </h3>
-
-        <span class="text-xs bg-amber-100 dark:bg-amber-700 text-amber-700 dark:text-white px-3 py-1 rounded-full w-fit">
-            {{ $idea->category }}
-        </span>
-
-        <form method="POST" action="{{ route('idea.updateStatus', $idea->id) }}">
-    @csrf @method('PATCH')
-    <select name="status" onchange="this.form.submit()"
-        class="text-xs border border-gray-200 dark:border-slate-700 rounded-lg px-2 py-1
-               bg-transparent focus:ring-amber-400 focus:border-amber-400 cursor-pointer">
-        @foreach(['Exploring', 'Adopted', 'In Progress', 'Completed'] as $s)
-        <option value="{{ $s }}" {{ $idea->status === $s ? 'selected' : '' }}>
-            {{ $s }}
-        </option>
-        @endforeach
-    </select>
-</form>
-
-    </div>
-
-    {{-- DESCRIPTION --}}
-    <p class="text-sm text-gray-600 dark:text-gray-300 mb-4 leading-relaxed">
-        {{ $idea->description }}
-    </p>
-
-    {{-- ========================= --}}
-    {{-- 🎯 OBJECTIVES --}}
-    {{-- ========================= --}}
     @php
-        $specificObjectives = [];
-
-        if (!empty($idea->specific_objectives)) {
-            $decoded = json_decode($idea->specific_objectives, true);
-            if (is_array($decoded)) {
-                $specificObjectives = $decoded;
-            }
-        }
+        $responsibleOffice = isset($responsibleOffices) ? $responsibleOffices->get($idea->category) : null;
+        $opportunityUrl = route('feedback.category', ['category' => $idea->category, 'idea' => $idea->title]).'#idea-'.Str::slug($idea->title);
+        $evaluation = $idea->ideaEvaluation;
     @endphp
 
-    @if(!empty($idea->general_objective) || count($specificObjectives))
+    <article class="lk-card p-5 sm:p-6">
+        {{-- TOP: Title + Category + Status --}}
+        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+            <div class="flex-1 min-w-0">
+                <h3 class="font-['Sora'] text-lg font-semibold text-slate-900 dark:text-white truncate">
+                    {{ $idea->title }}
+                </h3>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 shrink-0">
+                <span class="lk-badge badge-amber">{{ $idea->category }}</span>
 
-    <div class="bg-gray-50 dark:bg-gray-900/40 border dark:border-gray-700 rounded-lg p-4 mb-4">
+                <form method="POST" action="{{ route('idea.updateStatus', $idea->id) }}" class="shrink-0">
+                    @csrf @method('PATCH')
+                    <select name="status" onchange="this.form.submit()"
+                        class="lk-input text-sm py-1.5 px-3 cursor-pointer"
+                        aria-label="Update idea status">
+                        @foreach(['Exploring', 'Adopted', 'In Progress', 'Completed'] as $s)
+                            <option value="{{ $s }}" {{ $idea->status === $s ? 'selected' : '' }}>
+                                {{ $s }}
+                            </option>
+                        @endforeach
+                    </select>
+                </form>
+            </div>
+        </div>
 
-        {{-- GENERAL OBJECTIVE --}}
-        @if(!empty($idea->general_objective))
-        <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-            General Objective
+        {{-- DESCRIPTION --}}
+        <p class="text-sm text-slate-600 dark:text-slate-300 mb-4 leading-relaxed">
+            {{ $idea->description }}
         </p>
 
-        <p class="text-sm text-gray-700 dark:text-gray-300 mb-3">
-            {{ $idea->general_objective }}
-        </p>
-        @endif
+        {{-- CONTEXT METADATA --}}
+        <div class="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mb-4">
+            @if($responsibleOffice)
+                <span class="flex items-center gap-1.5">
+                    <i data-lucide="building-2" class="h-3 w-3"></i>
+                    <span>Responsible office:</span>
+                    <span class="font-semibold text-slate-700 dark:text-slate-300">{{ $responsibleOffice }}</span>
+                </span>
+            @endif
 
-        {{-- SPECIFIC OBJECTIVES --}}
-        @if(count($specificObjectives))
-        <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-            Specific Objectives
-        </p>
+            @if($evaluation)
+                <span class="flex items-center gap-1.5">
+                    <i data-lucide="bar-chart-2" class="h-3 w-3"></i>
+                    <span>DSS evaluation:</span>
+                    <span class="font-semibold text-slate-700 dark:text-slate-300">{{ number_format((float) $evaluation->overall_score, 2) }}</span>
+                    @if($evaluation->recommendation)
+                        <span class="lk-badge badge-blue">{{ $evaluation->recommendation }}</span>
+                    @endif
+                </span>
+            @endif
 
-        <ul class="list-disc ml-5 text-sm text-gray-700 dark:text-gray-300 space-y-1">
-            @foreach($specificObjectives as $obj)
-                <li>{{ $obj }}</li>
-            @endforeach
-        </ul>
-        @endif
+            <span class="flex items-center gap-1.5">
+                <i data-lucide="calendar" class="h-3 w-3"></i>
+                <span>Saved {{ $idea->created_at->diffForHumans() }}</span>
+            </span>
+        </div>
 
+        {{-- ACTIONS --}}
+        <div class="flex items-center justify-between gap-3 pt-3 border-t border-slate-200/50 dark:border-white/10">
+            <a href="{{ $opportunityUrl }}"
+               class="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700 dark:text-amber-300 hover:underline">
+                <i data-lucide="external-link" class="h-4 w-4"></i>
+                View original opportunity
+            </a>
+        </div>
+    </article>
 
+    @empty
+
+    <div class="lk-card p-8 text-center empty-state">
+        <div class="empty-ico"><i data-lucide="bookmark" class="h-6 w-6"></i></div>
+        <p class="empty-text">No saved ideas yet.</p>
+        <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Save ideas from capstone opportunities to track them here.</p>
+        <a href="{{ route('capstone.opportunities') }}" class="mt-4 inline-flex btn-amber">Explore Opportunities</a>
     </div>
 
-    @endif
-
-    {{-- FOOTER --}}
-    <div class="flex items-center justify-between text-xs text-gray-400 dark:text-gray-500">
-        <span>
-            Saved {{ $idea->created_at->diffForHumans() }}
-        </span>
-    </div>
+    @endforelse
 
 </div>
-
-@empty
-
-<div class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-8 text-center">
-    <p class="text-gray-500 dark:text-gray-400">
-        No saved ideas yet.
-    </p>
-</div>
-
-@endforelse
-
-</div>
-
 @endsection

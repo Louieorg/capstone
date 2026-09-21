@@ -19,6 +19,7 @@ use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('can:isOfficeReviewer')->group(function () {
+
     Route::get('/office/review', [OfficeReviewController::class, 'index'])
         ->name('office.review.index');
 
@@ -27,6 +28,9 @@ Route::middleware('can:isOfficeReviewer')->group(function () {
 
     Route::patch('/office/review/{id}/reject', [OfficeReviewController::class, 'reject'])
         ->name('office.review.reject');
+
+    Route::patch('/office/review/{id}/mark-capstone', [OfficeReviewController::class, 'markCapstoneWorthy'])
+        ->name('office.review.mark-capstone'); // inside your can:isOfficeReviewer group
 });
 
 /*
@@ -43,6 +47,9 @@ Route::get('/home', [FeedbackController::class, 'home'])->name('home');
 
 Route::get('/discover', [FeedbackController::class, 'index'])
     ->name('discover');
+
+Route::get('/capstone-opportunities', [FeedbackController::class, 'capstoneOpportunities'])
+    ->name('capstone.opportunities');
 
 Route::get('/submit', [FeedbackController::class, 'create'])
     ->name('feedback.create');
@@ -117,6 +124,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/idea/save', [IdeaController::class, 'save'])
         ->name('idea.save');
 
+    Route::post('/category/{category}/enhance-idea', [FeedbackController::class, 'enhanceIdea'])
+        ->name('idea.enhance');
+
     Route::patch('/my-ideas/{id}/status', [IdeaController::class, 'updateStatus'])
         ->name('idea.updateStatus')
         ->middleware('auth');
@@ -124,10 +134,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // View saved ideas
     Route::get('/my-ideas', function () {
         $ideas = \App\Models\SavedIdea::where('user_id', auth()->id())
+            ->with('ideaEvaluation')
             ->latest()
             ->get();
 
-        return view('user.ideas', compact('ideas'));
+        $responsibleOffices = \App\Models\CategoryAssignment::query()
+            ->pluck('office', 'category')
+            ->map(fn (string $office): ?string => \App\Models\CategoryAssignment::labelFor($office));
+
+        return view('user.ideas', compact('ideas', 'responsibleOffices'));
     })->name('user.ideas');
 
     // Notifications
@@ -251,6 +266,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::post('/admin/category-assignments', [CategoryAssignmentController::class, 'update'])
             ->name('admin.category-assignments.update');
+        Route::patch('/admin/priority/{id}/mark-capstone', [FeedbackController::class, 'markCapstoneWorthy'])
+            ->name('admin.priority.mark-capstone'); // inside your can:isAdmin group
 
     });
 

@@ -15,4 +15,13 @@ class CategoryAssignment extends Model
             ->pluck('category')
             ->all();
     }
+
+    public static function labelFor(?string $office): ?string
+    {
+        return match ($office) {
+            'office_academic' => 'Academic Affairs',
+            'office_chief' => 'Chief Administrative Office',
+            default => $office,
+        };
+    }
 }

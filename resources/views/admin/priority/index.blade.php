@@ -95,6 +95,7 @@
       Resolved <span class="pp-tab-count">{{ $counts['resolved'] }}</span>
     </a>
   </div>
+  
 
   {{-- ══ FILTERS ══ --}}
   <form method="GET" action="{{ route('admin.priority.index') }}" class="pp-toolbar">
@@ -147,6 +148,18 @@
             @endif
             <span class="lk-badge b-amber" style="margin-left:6px">Feedback status: {{ ucfirst($item->status) }}</span>
           </div>
+            @if($item->status === 'approved')
+    <div style="margin-left:10px">
+      @if($item->is_capstone_worthy)
+        <span class="lk-badge b-green">Marked as Capstone Idea</span>
+      @else
+        <form method="POST" action="{{ route('admin.priority.mark-capstone', $item->id) }}">
+          @csrf @method('PATCH')
+          <button type="submit" class="btn-approve">Mark as Capstone Idea</button>
+        </form>
+      @endif
+    </div>
+  @endif
           <div class="pp-actions">
             @if($item->priority_status === 'pending')
               <form method="POST" action="{{ route('admin.priority.take', $item->id) }}">

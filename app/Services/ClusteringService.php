@@ -2,178 +2,141 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
+
 class ClusteringService
 {
-    // ══════════════════════════════════════════════
-    // Keyword map — aligned to your actual categories
-    // Each group has primary keywords (weight 2) and
-    // secondary/contextual keywords (weight 1)
-    // ══════════════════════════════════════════════
-    private array $groups = [
-
-        'enrollment' => [
-            'primary' => ['enroll', 'enrollment', 'registration', 'register', 'subject', 'subjects', 'grade', 'grades', 'transcript', 'clearance', 'credential', 'pre-enrollment', 'pre enrollment', 'sectioning', 'slot', 'units'],
-            'secondary' => ['form', 'submit', 'requirement', 'deadline', 'online', 'portal', 'queue', 'long line', 'waiting'],
-        ],
-
-        'academic process' => [
-            'primary' => ['grade', 'grading', 'thesis', 'research', 'capstone', 'defense', 'adviser', 'curriculum', 'syllabus', 'academic', 'professor', 'faculty', 'exam', 'examination', 'cheating', 'plagiarism', 'evaluation', 'feedback', 'submission'],
-            'secondary' => ['class', 'student', 'lecture', 'attendance', 'requirement', 'assignment', 'project', 'late'],
-        ],
-
+    /**
+     * Second-level, rule-based problem profiles. Generic terms such as
+     * "system" and "manual" are deliberately excluded: they do not identify
+     * an institutional problem on their own.
+     *
+     * @var array<string, array<string, array{label: string, signals: array<int, string>}>>
+     */
+    private array $profiles = [
         'facilities' => [
-            'primary' => ['facility', 'facilities', 'toilet', 'comfort room', 'cr', 'bathroom', 'restroom', 'building', 'room', 'classroom', 'laboratory', 'lab', 'equipment', 'air conditioning', 'aircon', 'electricity', 'lighting', 'chair', 'table', 'maintenance', 'repair', 'broken', 'leaking', 'flooding'],
-            'secondary' => ['dirty', 'unsafe', 'damaged', 'old', 'crowded', 'space', 'area', 'parking'],
+            'facility_inspection_records' => [
+                'label' => 'Facility Inspection & Records',
+                'signals' => ['inspection', 'inspect', 'inspection result', 'checklist', 'maintenance record', 'maintenance history', 'historical record', 'facility record'],
+            ],
+            'facility_request_tracking' => [
+                'label' => 'Facility Request Tracking',
+                'signals' => ['facility request', 'maintenance request', 'service request', 'concern', 'request status', 'status update', 'request tracking', 'received', 'assigned', 'resolved'],
+            ],
+            'laboratory_equipment_monitoring' => [
+                'label' => 'Laboratory Equipment Monitoring',
+                'signals' => ['laboratory', 'lab', 'computer', 'workstation', 'equipment status', 'computer usage', 'occupancy', 'availability', 'under maintenance'],
+            ],
         ],
-
-        'library' => [
-            'primary' => ['library', 'librarian', 'book', 'books', 'reference', 'borrow', 'return', 'fine', 'fines', 'reading', 'resource', 'e-library', 'digital library', 'catalog', 'archive'],
-            'secondary' => ['quiet', 'seat', 'available', 'access', 'wifi', 'internet', 'study', 'materials'],
-        ],
-
-        'scheduling' => [
-            'primary' => ['schedule', 'scheduling', 'timetable', 'conflict', 'clash', 'overlap', 'time slot', 'booking', 'reservation', 'event', 'calendar', 'class schedule', 'room assignment'],
-            'secondary' => ['double booking', 'unavailable', 'cancel', 'reschedule', 'venue', 'available'],
-        ],
-
         'network and connectivity' => [
-            'primary' => ['wifi', 'wi-fi', 'internet', 'network', 'connectivity', 'connection', 'signal', 'bandwidth', 'slow internet', 'no internet', 'disconnected'],
-            'secondary' => ['access point', 'router', 'online', 'streaming', 'upload', 'download', 'lag'],
+            'campus_network_connectivity' => [
+                'label' => 'Campus Network Connectivity',
+                'signals' => ['internet', 'wifi', 'wi-fi', 'network', 'connectivity', 'no internet', 'slow internet', 'disconnected', 'signal'],
+            ],
         ],
-
-        'student services' => [
-            'primary' => ['scholarship', 'allowance', 'financial aid', 'lost and found', 'id', 'student id', 'school id', 'guidance', 'clinic', 'health', 'cafeteria', 'canteen', 'food', 'shuttle', 'transport', 'dormitory', 'dorm', 'organization', 'org'],
-            'secondary' => ['student', 'service', 'support', 'benefit', 'complaint', 'concern'],
-        ],
-
-        'administration' => [
-            'primary' => ['registrar', 'cashier', 'payment', 'billing', 'tuition', 'fee', 'account', 'login', 'password', 'portal', 'system access', 'document', 'request', 'certificate', 'records', 'office'],
-            'secondary' => ['process', 'manual', 'paper', 'form', 'slow', 'queue', 'staff', 'personnel'],
+        'default' => [
+            'request_tracking' => [
+                'label' => 'Request Tracking',
+                'signals' => ['request status', 'status update', 'request tracking', 'received', 'assigned', 'resolved', 'follow up'],
+            ],
+            'records_management' => [
+                'label' => 'Records Management',
+                'signals' => ['record', 'records', 'archive', 'historical', 'retrieval', 'document'],
+            ],
+            'scheduling_coordination' => [
+                'label' => 'Scheduling & Coordination',
+                'signals' => ['schedule', 'scheduling', 'timetable', 'conflict', 'overlap', 'time slot'],
+            ],
         ],
     ];
 
-    // ══════════════════════════════════════════════
-    // PUBLIC: group feedbacks by detected topic
-    // ══════════════════════════════════════════════
-    public function group($feedbacks)
+    /**
+     * @param  Collection<int, object>  $feedbacks
+     * @return Collection<string, Collection<int, object>>
+     */
+    public function group(Collection $feedbacks): Collection
     {
-        return $feedbacks->groupBy(function ($feedback) {
-            return $this->classify($feedback);
-        });
+        return $feedbacks->groupBy(fn (object $feedback): string => $this->clusterKeyFor($feedback));
     }
 
-    // ══════════════════════════════════════════════
-    // CLASSIFY a single feedback item
-    // ══════════════════════════════════════════════
-    private function classify($feedback): string
+    public function label(string $clusterKey): string
     {
-        // Build a weighted text corpus — title matters more than description
-        $text = strtolower(
-            $feedback->translated_title.' '.$feedback->translated_title.' '.
-            $feedback->translated_description.' '.
-            ($feedback->translated_impact ?? '')
-        );
-
-        $scores = [];
-
-        foreach ($this->groups as $groupName => $keywords) {
-            $score = 0;
-
-            // Primary keywords — worth 2 points each
-            foreach ($keywords['primary'] as $word) {
-                if (str_contains($text, $word)) {
-                    $score += 2;
-                }
-            }
-
-            // Secondary keywords — worth 1 point each
-            foreach ($keywords['secondary'] as $word) {
-                if (str_contains($text, $word)) {
-                    $score += 1;
-                }
-            }
-
-            $scores[$groupName] = $score;
-        }
-
-        // Category hint — if the feedback's category column matches a group,
-        // give that group a bonus to break ties meaningfully
-        $categoryHint = strtolower($feedback->category ?? '');
-        foreach (array_keys($this->groups) as $groupName) {
-            if (str_contains($categoryHint, $groupName) || str_contains($groupName, $categoryHint)) {
-                $scores[$groupName] = ($scores[$groupName] ?? 0) + 3;
+        foreach ($this->profiles as $categoryProfiles) {
+            if (isset($categoryProfiles[$clusterKey])) {
+                return $categoryProfiles[$clusterKey]['label'];
             }
         }
 
-        $maxScore = max($scores);
+        if (str_contains($clusterKey, '_unclassified_')) {
+            $category = Str::before($clusterKey, '_unclassified_');
 
-        // Nothing matched — fall back to the feedback's own category
-        // so it at least groups with similar category problems
-        if ($maxScore === 0) {
-            return $this->fallback($feedback);
+            return Str::headline($category);
         }
 
-        // Handle ties — pick the group whose primary keywords scored highest
-        $topGroups = array_keys(array_filter($scores, fn ($s) => $s === $maxScore));
-
-        if (count($topGroups) === 1) {
-            return $topGroups[0];
-        }
-
-        return $this->resolveTie($topGroups, $text);
+        return Str::headline($clusterKey);
     }
 
-    // ══════════════════════════════════════════════
-    // RESOLVE TIES by primary-keyword count only
-    // ══════════════════════════════════════════════
-    private function resolveTie(array $tiedGroups, string $text): string
+    public function explanation(string $clusterKey): string
     {
-        $primaryScores = [];
-
-        foreach ($tiedGroups as $groupName) {
-            $score = 0;
-            foreach ($this->groups[$groupName]['primary'] as $word) {
-                if (str_contains($text, $word)) {
-                    $score++;
-                }
-            }
-            $primaryScores[$groupName] = $score;
-        }
-
-        arsort($primaryScores);
-
-        return array_key_first($primaryScores);
-    }
-
-    // ══════════════════════════════════════════════
-    // FALLBACK — use the feedback's own category field
-    // so unrecognized problems still group sensibly
-    // ══════════════════════════════════════════════
-    private function fallback($feedback): string
-    {
-        $cat = strtolower($feedback->category ?? '');
-
-        if (! $cat || $cat === 'other') {
-            return 'general';
-        }
-
-        // Try to match category to a known group
-        foreach (array_keys($this->groups) as $groupName) {
-            if (str_contains($cat, $groupName) || str_contains($groupName, $cat)) {
-                return $groupName;
+        foreach ($this->profiles as $categoryProfiles) {
+            if (isset($categoryProfiles[$clusterKey])) {
+                return 'Reports share the problem-specific signals: '.implode(', ', $categoryProfiles[$clusterKey]['signals']).'.';
             }
         }
 
-        // Return the raw category so at least same-category problems cluster
-        return $cat;
+        if (str_contains($clusterKey, '_unclassified_')) {
+            return 'The report has no sufficiently specific problem signals, so it is not merged with other generic reports.';
+        }
+
+        return 'Reports share the same institutional category and no more specific problem profile was detected.';
     }
 
-    // ══════════════════════════════════════════════
-    // PUBLIC: expose group definitions so other
-    // services can reference them if needed
-    // ══════════════════════════════════════════════
-    public function getGroups(): array
+    private function clusterKeyFor(object $feedback): string
     {
-        return array_keys($this->groups);
+        $category = $this->normalizeCategory((string) ($feedback->category ?? ''));
+        $categoryProfiles = $this->profiles[$category] ?? $this->profiles['default'];
+
+        $text = $this->feedbackText($feedback);
+        $scores = collect($categoryProfiles)
+            ->map(fn (array $profile): int => $this->signalScore($text, $profile['signals']));
+
+        $bestKey = $scores->sortDesc()->keys()->first();
+        $bestScore = $scores->get($bestKey, 0);
+
+        if ($category === 'network and connectivity' && $bestScore >= 1) {
+            return $bestKey;
+        }
+
+        if ($bestScore >= 2) {
+            return $bestKey;
+        }
+
+        return Str::slug($category, '_').'_unclassified_'.substr(md5($text), 0, 12);
+    }
+
+    /**
+     * @param  array<int, string>  $signals
+     */
+    private function signalScore(string $text, array $signals): int
+    {
+        return collect($signals)
+            ->filter(fn (string $signal): bool => str_contains($text, $signal))
+            ->count();
+    }
+
+    private function feedbackText(object $feedback): string
+    {
+        return Str::lower(implode(' ', [
+            (string) ($feedback->translated_title ?? $feedback->title ?? ''),
+            (string) ($feedback->translated_title ?? $feedback->title ?? ''),
+            (string) ($feedback->translated_description ?? $feedback->description ?? ''),
+            (string) ($feedback->translated_impact ?? $feedback->impact ?? ''),
+        ]));
+    }
+
+    private function normalizeCategory(string $category): string
+    {
+        return Str::of($category)->lower()->trim()->replace('&', 'and')->squish()->value();
     }
 }

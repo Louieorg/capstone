@@ -79,4 +79,20 @@ class OfficeReviewController extends Controller
             'This report does not belong to your office.'
         );
     }
+
+    public function markCapstoneWorthy(int $id): RedirectResponse
+    {
+        $feedback = Feedback::findOrFail($id);
+        $this->authorizeCategory($feedback->category);
+
+        abort_unless($feedback->status === 'approved', 422, 'Only approved reports can be marked as capstone ideas.');
+
+        $feedback->update([
+            'is_capstone_worthy' => true,
+            'capstone_marked_by' => auth()->id(),
+            'capstone_marked_at' => now(),
+        ]);
+
+        return back()->with('success', 'Marked as a capstone idea.');
+    }
 }

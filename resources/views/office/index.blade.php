@@ -55,7 +55,7 @@
 <div class="max-w-6xl mx-auto">
 
   <div class="or-scope">
-    Showing reports for: <strong>{{ $categories->count() ? implode(', ', $categories) : 'No categories assigned yet' }}</strong>
+    Showing reports for: <strong>{{ count($categories) ? implode(', ', $categories) : 'No categories assigned yet' }}</strong>
   </div>
 
   <div class="or-tabs">
@@ -107,13 +107,22 @@
               <button type="submit" class="btn-reject">Reject</button>
             </form>
           </div>
+        @elseif($item->status === 'approved')
+          @if($item->is_capstone_worthy)
+            <span class="lk-badge b-green">Marked as Capstone Idea</span>
+          @else
+            <form method="POST" action="{{ route('office.review.mark-capstone', $item->id) }}">
+              @csrf @method('PATCH')
+              <button type="submit" class="btn-approve">Mark as Capstone Idea</button>
+            </form>
+          @endif
         @endif
       </div>
     </div>
   @empty
     <div class="empty-state">
       <p class="empty-text">
-        @if($categories->isEmpty())
+        @if(empty($categories))
           No categories have been assigned to your office yet. Contact the RDE Office.
         @else
           No reports in this status right now.

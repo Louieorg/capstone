@@ -60,3 +60,29 @@ test('idea generation falls back to a multiple departments phrase on department 
     expect($idea['description'])->toContain('across multiple departments');
     expect($idea['general_objective'])->toContain('across multiple departments');
 });
+
+test('idea generation formats internal cluster keys for people', function (): void {
+    $feedbacks = new Collection([
+        (object) [
+            'title' => 'Laboratory computer availability',
+            'description' => 'Personnel manually check workstation and equipment availability.',
+            'impact' => 'Students cannot identify available computers.',
+            'department' => 'CICS',
+            'affected_group' => ['Students'],
+            'current_process' => 'Manual or paper-based process',
+        ],
+    ]);
+
+    $idea = (new IdeaGeneratorService)->generate(
+        'laboratory_equipment_monitoring',
+        'Facilities',
+        $feedbacks,
+        1,
+        10,
+        3,
+        3
+    );
+
+    expect($idea['title'])->toContain('Laboratory Equipment Monitoring')
+        ->and($idea['title'])->not->toContain('_');
+});

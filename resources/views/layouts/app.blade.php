@@ -53,6 +53,12 @@
           <span class="nav-label">Discover</span>
         </a>
 
+        <a href="{{ route('capstone.opportunities') }}"
+           class="nav-item {{ request()->routeIs('capstone.opportunities') ? 'nav-active' : '' }}">
+          <i data-lucide="lightbulb"></i>
+          <span class="nav-label">Capstone Opportunities</span>
+        </a>
+
         <a href="{{ route('priority.index') }}"
    class="nav-item {{ request()->routeIs('priority.index') ? 'nav-active' : '' }}">
   <i data-lucide="alert-triangle"></i>

@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Str;
+
 class IdeaGeneratorService
 {
     public function generate($groupName, $category, $groupFeedbacks, $reports, $votes, $frequencyScore, $impactScore)
@@ -12,6 +14,7 @@ class IdeaGeneratorService
         $allImpacts = $groupFeedbacks->pluck('translated_impact')->filter()->implode(' ');
 
         $text = strtolower($groupName.' '.$allTitles.' '.$allDescriptions.' '.$allImpacts);
+        $displayGroupName = Str::headline($groupName);
 
         // Dominant affected group
         $topGroup = $this->resolveTopGroup($groupFeedbacks);
@@ -26,11 +29,10 @@ class IdeaGeneratorService
         $signals = $this->detectSignals($text);
 
         // Build all parts
-        $title = $this->generateTitle($groupName, $category, $signals, $frequencyScore, $impactScore, $groupFeedbacks, $dominantDepartment);
-        $description = $this->generateDescription($groupName, $category, $signals, $reports, $votes, $topGroup, $currentProcess, $frequencyScore, $impactScore, $dominantDepartment);
-        $objectives = $this->generateObjectives($signals, $category, $groupName, $topGroup, $groupFeedbacks, $dominantDepartment);
-        $explanation = $this->generateExplanation($groupName, $topGroup, $reports, $votes, $frequencyScore, $impactScore);
-        $impact = $this->simulateImpact($reports, $frequencyScore, $impactScore, $signals);
+        $title = $this->generateTitle($displayGroupName, $category, $signals, $frequencyScore, $impactScore, $groupFeedbacks, $dominantDepartment);
+        $description = $this->generateDescription($displayGroupName, $category, $signals, $reports, $votes, $topGroup, $currentProcess, $frequencyScore, $impactScore, $dominantDepartment);
+        $objectives = $this->generateObjectives($signals, $category, $displayGroupName, $topGroup, $groupFeedbacks, $dominantDepartment);
+        $explanation = $this->generateExplanation($displayGroupName, $topGroup, $reports, $votes, $frequencyScore, $impactScore);
 
         return [
             'title' => $title,
@@ -39,7 +41,6 @@ class IdeaGeneratorService
             'specific_objectives' => $objectives['specific'],
             'explanation' => $explanation,
             'top_group' => $topGroup,
-            'impact_simulation' => $impact,
         ];
     }
 
@@ -320,35 +321,7 @@ class IdeaGeneratorService
     // ══════════════════════════════════════════════
     // IMPACT SIMULATION
     // ══════════════════════════════════════════════
-    private function simulateImpact($reports, $frequencyScore, $impactScore, array $signals): array
-    {
-        $base = ($frequencyScore * 10) + ($impactScore * 10);
-        $reportFactor = min(20, $reports * 2);
 
-        // Boost if digital transformation signals are strong
-        $digitalBoost = ($signals['is_manual'] || $signals['is_no_system']) ? 10 : 0;
-
-        $improvement = min(90, round($base + $reportFactor + $digitalBoost));
-
-        // Generate a message that sounds meaningful, not templated
-        $qualifier = match (true) {
-            $improvement >= 70 => 'significantly reduce',
-            $improvement >= 50 => 'substantially reduce',
-            $improvement >= 30 => 'measurably reduce',
-            default => 'help reduce',
-        };
-
-        $scope = $impactScore >= 3 ? 'campus-wide impact' : 'impact on affected users';
-
-        return [
-            'percentage' => $improvement,
-            'message' => "A targeted solution could {$qualifier} the {$scope} of this problem by an estimated {$improvement}%, based on report volume, frequency, and severity data.",
-        ];
-    }
-
-    // ══════════════════════════════════════════════
-    // HELPERS
-    // ══════════════════════════════════════════════
     private function resolveTopGroup($groupFeedbacks): ?string
     {
         $groups = $groupFeedbacks->map(function ($f) {
