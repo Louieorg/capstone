@@ -3,7 +3,7 @@
 use App\Services\IdeaGeneratorService;
 use Illuminate\Support\Collection;
 
-test('idea generation includes the dominant department in generated output', function () {
+test('idea generation keeps the department out of the title but in the description', function () {
     $service = new IdeaGeneratorService;
 
     $feedbacks = new Collection([
@@ -27,12 +27,14 @@ test('idea generation includes the dominant department in generated output', fun
 
     $idea = $service->generate('network monitoring', 'Facilities', $feedbacks, 2, 8, 3, 3);
 
-    expect($idea['title'])->toContain('for CICS');
+    expect($idea['title'])->not->toContain('CICS')
+        ->and($idea['title'])->not->toContain('for CICS');
+
     expect($idea['description'])->toContain('in the CICS');
     expect($idea['general_objective'])->toContain('in the CICS');
 });
 
-test('idea generation falls back to a multiple departments phrase on department ties', function () {
+test('idea generation never appends a multiple departments phrase to the title', function () {
     $service = new IdeaGeneratorService;
 
     $feedbacks = new Collection([
@@ -56,7 +58,9 @@ test('idea generation falls back to a multiple departments phrase on department 
 
     $idea = $service->generate('request tracking', 'Academic Process', $feedbacks, 2, 5, 2, 2);
 
-    expect($idea['title'])->toContain('across Multiple Departments');
+    expect($idea['title'])->not->toContain('across Multiple Departments')
+        ->and($idea['title'])->not->toContain('across multiple departments');
+
     expect($idea['description'])->toContain('across multiple departments');
     expect($idea['general_objective'])->toContain('across multiple departments');
 });
@@ -83,6 +87,8 @@ test('idea generation formats internal cluster keys for people', function (): vo
         3
     );
 
-    expect($idea['title'])->toContain('Laboratory Equipment Monitoring')
-        ->and($idea['title'])->not->toContain('_');
+    expect($idea['title'])->not->toContain('_')
+        ->and($idea['title'])->not->toContain('unclassified')
+        ->and($idea['title'])->not->toBe('')
+        ->and($idea['cluster_key'])->toBe('laboratory_equipment_monitoring');
 });

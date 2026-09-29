@@ -1,106 +1,191 @@
 @extends('layouts.app')
 
-@section('title','My Saved Ideas')
+@section('title', 'My Saved Ideas')
+@section('subtitle', 'The capstone opportunities you saved from the DSS, with the problem behind each one still one click away.')
 
 @section('content')
 @include('layouts.partials.design-system')
 
-<div class="mx-auto max-w-5xl px-4 sm:px-6 space-y-6">
+<style>
+    /* ── My Saved Ideas — view-scoped refinements (LIKHA tokens only) ──
+       Colors, font and type sizes come from the shared tokens so this page
+       tracks the DSS surfaces instead of relying on one-off literals. */
 
-    {{-- HEADER --}}
-    <header class="anim-1">
-        <h2 class="font-['Sora'] text-2xl font-bold text-slate-900 dark:text-white">
-            My Saved Ideas
-        </h2>
-        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Review and compare your saved capstone ideas
-        </p>
-    </header>
+    .lk-si-text { color: var(--text); }
+    .lk-si-text2 { color: var(--text2); }
+    .lk-si-text3 { color: var(--text3); }
+    .lk-si-amber { color: var(--amber); }
+    .lk-si-border { border-color: var(--border); }
 
-    @forelse($ideas as $idea)
+    .lk-si-sora { font-family: 'Sora', sans-serif; }
+    .lk-si-h { font-size: 15px; }
+    .lk-si-copy { font-size: 13.5px; }
+    .lk-si-meta { font-size: 11.5px; }
 
-    @php
-        $responsibleOffice = isset($responsibleOffices) ? $responsibleOffices->get($idea->category) : null;
-        $opportunityUrl = route('feedback.category', ['category' => $idea->category, 'idea' => $idea->title]).'#idea-'.Str::slug($idea->title);
-        $evaluation = $idea->ideaEvaluation;
-    @endphp
+    .lk-si-clamp {
+        display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+</style>
 
-    <article class="lk-card p-5 sm:p-6">
-        {{-- TOP: Title + Category + Status --}}
-        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
-            <div class="flex-1 min-w-0">
-                <h3 class="font-['Sora'] text-lg font-semibold text-slate-900 dark:text-white truncate">
-                    {{ $idea->title }}
-                </h3>
-            </div>
-            <div class="flex flex-wrap items-center gap-2 shrink-0">
-                <span class="lk-badge badge-amber">{{ $idea->category }}</span>
+@php
+    $statuses = ['Exploring', 'Adopted', 'In Progress', 'Completed'];
+
+    $statusBadges = [
+        'Exploring' => 'badge-muted',
+        'Adopted' => 'badge-blue',
+        'In Progress' => 'badge-amber',
+        'Completed' => 'badge-green',
+    ];
+@endphp
+
+@if ($ideas->isNotEmpty())
+    @section('page-action')
+        <a href="{{ route('discover') }}" class="btn-ghost text-sm">
+            <i data-lucide="compass" class="h-4 w-4" aria-hidden="true"></i>
+            Discover more problems
+        </a>
+    @endsection
+@endif
+
+<div class="mx-auto max-w-5xl space-y-4">
+
+    @forelse ($ideas as $idea)
+        @php
+            $evaluation = $idea->ideaEvaluation;
+            $canonicalTitle = $evaluation?->idea_title ?: $idea->title;
+            $aiTitle = ($evaluation?->ai_title && $evaluation->ai_title !== $canonicalTitle) ? $evaluation->ai_title : null;
+            $overallScore = $evaluation?->overall_score;
+            $finalScore = $evaluation?->final_score;
+            $adjustedScore = ($finalScore !== null && (float) $finalScore !== (float) $overallScore) ? $finalScore : null;
+            $rec = $evaluation?->recommendation;
+            $recClass = $rec === 'Highly Recommended' ? 'badge-green' : ($rec === 'Recommended' ? 'badge-blue' : 'badge-red');
+            $responsibleOffice = isset($responsibleOffices) ? $responsibleOffices->get($idea->category) : null;
+            $opportunityUrl = route('feedback.category', ['category' => $idea->category, 'idea' => $idea->title]).'#idea-'.Str::slug($idea->title);
+            $statusBadge = $statusBadges[$idea->status] ?? 'badge-muted';
+        @endphp
+
+        <article class="lk-card anim-{{ min($loop->iteration, 5) }} p-5">
+
+            {{-- CATEGORY + STATUS BADGE, STATUS CONTROL --}}
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="lk-badge badge-amber">{{ $idea->category }}</span>
+                    <span class="lk-badge {{ $statusBadge }}">{{ $idea->status }}</span>
+                </div>
 
                 <form method="POST" action="{{ route('idea.updateStatus', $idea->id) }}" class="shrink-0">
-                    @csrf @method('PATCH')
-                    <select name="status" onchange="this.form.submit()"
-                        class="lk-input text-sm py-1.5 px-3 cursor-pointer"
-                        aria-label="Update idea status">
-                        @foreach(['Exploring', 'Adopted', 'In Progress', 'Completed'] as $s)
-                            <option value="{{ $s }}" {{ $idea->status === $s ? 'selected' : '' }}>
-                                {{ $s }}
-                            </option>
+                    @csrf
+                    @method('PATCH')
+                    <label class="sr-only" for="status-{{ $idea->id }}">
+                        Status for {{ $canonicalTitle }}
+                    </label>
+                    <select id="status-{{ $idea->id }}" name="status" onchange="this.form.submit()"
+                            class="lk-input w-auto cursor-pointer py-1.5 text-xs">
+                        @foreach ($statuses as $option)
+                            <option value="{{ $option }}" @selected($idea->status === $option)>{{ $option }}</option>
                         @endforeach
                     </select>
+                    <noscript>
+                        <button type="submit" class="btn-ghost mt-2" style="padding:6px 12px;font-size:11.5px">
+                            Update
+                        </button>
+                    </noscript>
                 </form>
             </div>
-        </div>
 
-        {{-- DESCRIPTION --}}
-        <p class="text-sm text-slate-600 dark:text-slate-300 mb-4 leading-relaxed">
-            {{ $idea->description }}
-        </p>
+            {{-- CANONICAL DSS TITLE --}}
+            <div class="mt-3">
+                <h3 class="lk-si-sora lk-si-h font-bold leading-snug lk-si-text">{{ $canonicalTitle }}</h3>
+            </div>
 
-        {{-- CONTEXT METADATA --}}
-        <div class="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mb-4">
-            @if($responsibleOffice)
-                <span class="flex items-center gap-1.5">
-                    <i data-lucide="building-2" class="h-3 w-3"></i>
-                    <span>Responsible office:</span>
-                    <span class="font-semibold text-slate-700 dark:text-slate-300">{{ $responsibleOffice }}</span>
-                </span>
+            {{-- AI WORDING ENHANCEMENT (optional, secondary to the DSS result) --}}
+            @if ($aiTitle)
+                <section class="co-ai" aria-label="AI-enhanced wording (optional)">
+                    <div class="co-ai-head">
+                        <span class="lk-badge badge-amber">
+                            <i data-lucide="sparkles" class="h-3 w-3" aria-hidden="true"></i>
+                            AI-ENHANCED
+                        </span>
+                    </div>
+                    <p class="co-ai-note">Optional wording enhancement &mdash; the DSS recommendation and scores above remain unchanged.</p>
+                    <p class="lk-si-sora lk-si-copy font-bold lk-si-text">{{ $aiTitle }}</p>
+                </section>
             @endif
 
-            @if($evaluation)
-                <span class="flex items-center gap-1.5">
-                    <i data-lucide="bar-chart-2" class="h-3 w-3"></i>
-                    <span>DSS evaluation:</span>
-                    <span class="font-semibold text-slate-700 dark:text-slate-300">{{ number_format((float) $evaluation->overall_score, 2) }}</span>
-                    @if($evaluation->recommendation)
-                        <span class="lk-badge badge-blue">{{ $evaluation->recommendation }}</span>
-                    @endif
-                </span>
-            @endif
+            {{-- DESCRIPTION --}}
+            <p class="mt-3 lk-si-clamp lk-si-copy leading-6 lk-si-text2">
+                {{ $idea->description }}
+            </p>
 
-            <span class="flex items-center gap-1.5">
-                <i data-lucide="calendar" class="h-3 w-3"></i>
-                <span>Saved {{ $idea->created_at->diffForHumans() }}</span>
-            </span>
-        </div>
+            {{-- DSS METADATA + RESPONSIBLE OFFICE --}}
+            <div class="mt-3 space-y-1 lk-si-meta lk-si-text3">
+                @if ($evaluation)
+                    <p class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span class="flex items-center gap-1.5">
+                            <i data-lucide="bar-chart-2" class="h-3 w-3" aria-hidden="true"></i>
+                            Overall evaluation:
+                            <span class="lk-si-sora lk-si-copy font-bold lk-si-amber">{{ is_numeric($overallScore) ? number_format((float) $overallScore, 2) : '—' }}</span>
+                        </span>
 
-        {{-- ACTIONS --}}
-        <div class="flex items-center justify-between gap-3 pt-3 border-t border-slate-200/50 dark:border-white/10">
-            <a href="{{ $opportunityUrl }}"
-               class="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700 dark:text-amber-300 hover:underline">
-                <i data-lucide="external-link" class="h-4 w-4"></i>
-                View original opportunity
-            </a>
-        </div>
-    </article>
+                        @if ($evaluation->recommendation)
+                            <span class="lk-badge {{ $recClass }}">{{ $evaluation->recommendation }}</span>
+                        @endif
+
+                        @if ($adjustedScore !== null)
+                            <span class="flex items-center gap-1.5">
+                                <i data-lucide="sliders-horizontal" class="h-3 w-3" aria-hidden="true"></i>
+                                Adviser-adjusted:
+                                <span class="font-semibold lk-si-text">{{ is_numeric($adjustedScore) ? number_format((float) $adjustedScore, 2) : $adjustedScore }}</span>
+                            </span>
+                        @endif
+                    </p>
+                @endif
+
+                @if ($responsibleOffice)
+                    <p class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span class="flex items-center gap-1.5">
+                            <i data-lucide="building-2" class="h-3 w-3" aria-hidden="true"></i>
+                            Responsible office:
+                            <span class="font-semibold lk-si-text">{{ $responsibleOffice }}</span>
+                        </span>
+                    </p>
+                @endif
+
+                <p class="flex items-center gap-1.5">
+                    <i data-lucide="calendar" class="h-3 w-3" aria-hidden="true"></i>
+                    Saved {{ $idea->created_at->diffForHumans() }}
+                    <span aria-hidden="true">&middot;</span>
+                    <time datetime="{{ $idea->created_at->toAtomString() }}">{{ $idea->created_at->format('M j, Y') }}</time>
+                </p>
+            </div>
+
+            {{-- ACTIONS --}}
+            <div class="mt-3 flex flex-wrap items-center gap-3 border-t lk-si-border pt-3">
+                <a href="{{ $opportunityUrl }}" class="btn-ghost text-sm">
+                    <i data-lucide="external-link" class="h-4 w-4" aria-hidden="true"></i>
+                    View original opportunity
+                </a>
+                <a href="{{ route('feedback.category', $idea->category) }}" class="btn-amber text-sm">
+                    <i data-lucide="sparkles" class="h-4 w-4" aria-hidden="true"></i>
+                    More {{ $idea->category }} ideas
+                </a>
+            </div>
+        </article>
 
     @empty
 
-    <div class="lk-card p-8 text-center empty-state">
-        <div class="empty-ico"><i data-lucide="bookmark" class="h-6 w-6"></i></div>
-        <p class="empty-text">No saved ideas yet.</p>
-        <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Save ideas from capstone opportunities to track them here.</p>
-        <a href="{{ route('capstone.opportunities') }}" class="mt-4 inline-flex btn-amber">Explore Opportunities</a>
-    </div>
+        <div class="lk-card empty-state p-8 sm:p-10">
+            <div class="empty-ico"><i data-lucide="bookmark" class="h-6 w-6" aria-hidden="true"></i></div>
+            <p class="mt-3 font-semibold lk-si-text">No saved ideas yet.</p>
+            <p class="mt-1 lk-si-copy lk-si-text3">
+                Save ideas from capstone opportunities to track them here.
+            </p>
+            <div class="mt-5 flex flex-wrap justify-center gap-2">
+                <a href="{{ route('capstone.opportunities') }}" class="btn-amber text-sm">Explore Opportunities</a>
+                <a href="{{ route('discover') }}" class="btn-ghost text-sm">Browse Discover</a>
+            </div>
+        </div>
 
     @endforelse
 

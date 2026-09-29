@@ -85,6 +85,14 @@ test('category idea generation only processes problems with at least ten votes',
                     'reasoning' => [],
                 ],
                 'top_group' => 'Students',
+                'project_name' => 'CampusFlow',
+                'concept' => [
+                    'primary' => 'Service coordination',
+                    'primary_key' => 'service_coordination',
+                    'score' => 3.0,
+                    'evidence' => [],
+                ],
+                'cluster_key' => 'validated_campus_issues',
 
             ];
         }
@@ -110,12 +118,12 @@ test('category idea generation only processes problems with at least ten votes',
         ->assertOk()
         ->assertSeeText('Validated Vote Threshold Idea')
         ->assertSeeInOrder([
-            'Top Recommended Capstone Opportunity',
+            'Top Capstone Opportunity',
+            'Validated Vote Threshold Idea',
             'Feasibility',
             'Impact',
             'Complexity',
             'Innovation',
-            'Validated Vote Threshold Idea',
         ]);
 
     expect($clusteringSpy->processedFeedbacks)->not->toBeNull()
@@ -150,7 +158,7 @@ test('home candidate count only includes categories with three reports that each
 
     $this->get(route('home'))
         ->assertOk()
-        ->assertSeeInOrder(['Capstone Candidates', '1', 'AI-scored & under review']);
+        ->assertSeeInOrder(['Idea-Ready Categories', '1', 'Already approaching recommendation thresholds.']);
 });
 
 test('category idea generation uses the thresholds configured by an administrator', function (): void {
@@ -213,6 +221,14 @@ test('capstone-worthy feedback bypasses the vote and report thresholds for idea 
                     'reasoning' => [],
                 ],
                 'top_group' => 'Students',
+                'project_name' => 'CampusVerify',
+                'concept' => [
+                    'primary' => 'Validation workflow',
+                    'primary_key' => 'validation_workflow',
+                    'score' => 3.0,
+                    'evidence' => [],
+                ],
+                'cluster_key' => 'institutionally_validated',
             ];
         }
     });
@@ -233,5 +249,6 @@ test('capstone-worthy feedback bypasses the vote and report thresholds for idea 
         ->and($clusteringSpy->processedFeedbacks)->toHaveCount(1)
         ->and($clusteringSpy->processedFeedbacks->first()->id)->toBe($capstoneFeedback->id)
         ->and($clusteringSpy->processedFeedbacks->first()->votes_count)->toBe(0)
-        ->and($clusteringSpy->processedFeedbacks->first()->is_capstone_worthy)->toBeTrue();
+        // is_capstone_worthy is uncast on Feedback, so the DB hands back an int.
+        ->and((bool) $clusteringSpy->processedFeedbacks->first()->is_capstone_worthy)->toBeTrue();
 });

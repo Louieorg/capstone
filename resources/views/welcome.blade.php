@@ -30,7 +30,7 @@
   </div>
   <div class="nav-cta">
     <a href="/login" class="btn-ghost-sm">Sign in</a>
-    <a href="/register" class="btn-amber">Get started</a>
+    <a href="{{ route('discover') }}" class="btn-amber">Try Browsing</a>
   </div>
 </nav>
 

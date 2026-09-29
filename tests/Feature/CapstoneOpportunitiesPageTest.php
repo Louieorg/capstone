@@ -38,7 +38,7 @@ test('the capstone opportunities page lists institutionally identified problems'
         ->assertOk()
         ->assertSeeText('Capstone Opportunities')
         ->assertSeeText('Institutional problems already identified as potential capstone projects.')
-        ->assertSeeText('Capstone Opportunity')
+        ->assertSeeText('Capstone Opportunities')
         ->assertSeeText('Office-identified enrollment bottleneck')
         ->assertSeeText('Enrollment')
         ->assertSeeText('Registrar')

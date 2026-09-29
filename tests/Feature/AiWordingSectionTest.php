@@ -80,6 +80,14 @@ test('the ai wording section is collapsible likha styling and leaves the dss res
                     'reasoning' => [],
                 ],
                 'top_group' => 'Students',
+                'project_name' => 'TrackHub',
+                'concept' => [
+                    'primary' => 'Request tracking',
+                    'primary_key' => 'request_tracking',
+                    'score' => 4.0,
+                    'evidence' => [],
+                ],
+                'cluster_key' => 'request_tracking_gaps',
             ];
         }
     });
@@ -106,15 +114,18 @@ test('the ai wording section is collapsible likha styling and leaves the dss res
     $response
         ->assertSeeText('DSS Request Tracking Idea')
         ->assertSeeText('DSS generated description for request tracking.')
-        ->assertSeeText('DSS Evaluation')
-        ->assertSeeText('Overall score:')
+        ->assertSeeText('Overall evaluation')
+        ->assertSeeText('3.35')
         ->assertSeeText('Optional wording enhancement — the DSS recommendation and scores above remain unchanged.')
         ->assertSeeText('AI-Enhanced Request Tracking System')
         ->assertSee('AI-ENHANCED')
         ->assertSee('class="co-ai"', false)
         ->assertSee('class="co-ai-toggle"', false)
         ->assertSee('x-show="aiOpen"', false)
+        ->assertSee('aiOpen:false', false)
+        ->assertDontSee('aiOpen:true', false)
         ->assertSee("x-text=\"aiOpen ? 'Hide' : 'Show'\"", false)
         ->assertSee('aria-controls="ai-wording"', false)
-        ->assertSee('aria-controls="ai-objectives"', false);
+        ->assertSeeText('To strengthen request tracking across offices.')
+        ->assertSeeText('To record and monitor every request.');
 });

@@ -270,6 +270,7 @@ html:not(.dark) {
 }
 .co-section-title {
   font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 700; color: var(--text);
+  margin: 0;
 }
 .co-section-sub { font-size: 12px; color: var(--text3); }
 
@@ -480,8 +481,13 @@ html.dark .btn-amber { background: #fbb034; }
   @if(isset($topIdea))
   @php
     $isTopIdeaHighlighted = $highlightedIdeaTitle === ($topIdea['title'] ?? null);
+    $topProjectName = $topIdea['project_name'] ?? null;
+    $topConcept = $topIdea['concept']['primary'] ?? null;
+    $topFactors = $topIdea['explanation']['factors'] ?? [];
+    $topAffectedGroup = $topFactors['top_affected_group'] ?? (($topIdea['affected_groups'] ?? [])[0] ?? null);
+    $topDominantProcess = $feedbacks->pluck('current_process')->filter()->countBy()->sortDesc()->keys()->first();
   @endphp
-  <div x-data="{ detailsOpen:false, explainOpen:false, objOpen:false, confOpen:false, aiOpen:true }"
+  <div x-data="{ detailsOpen:false, aiOpen:false }"
        id="idea-{{ \Illuminate\Support\Str::slug($topIdea['title'] ?? 'top-idea') }}"
        class="lk-card anim-1 {{ $isTopIdeaHighlighted ? 'idea-highlight' : '' }}"
        style="border-color:var(--amid);overflow:hidden;{{ $isTopIdeaHighlighted ? 'box-shadow:0 0 0 4px var(--adim);' : '' }}">
@@ -502,78 +508,67 @@ html.dark .btn-amber { background: #fbb034; }
         </span>
       </div>
 
-      {{-- Problem → DSS → Opportunity connection --}}
-      <div class="co-flow" style="margin-bottom:22px">
-        <div class="co-flow-step">
-          <div class="co-flow-kicker">Institutional Problem</div>
-          <div class="co-flow-title">{{ $topIdea['cluster_label'] ?? Str::headline($topIdea['group'] ?? '') }}</div>
-          <div class="co-flow-copy">
-            {{ $topIdea['reports_count'] ?? 0 }} {{ Str::plural('report', $topIdea['reports_count'] ?? 0) }}
-            and {{ $topIdea['support_count'] ?? 0 }} {{ Str::plural('support', $topIdea['support_count'] ?? 0) }}
-            point to the same recurring concern.
-          </div>
+      {{-- 1. THE PROBLEM --}}
+      <section aria-label="The problem" style="margin-bottom:26px">
+        <div class="co-section-head">
+          <span class="co-section-dot"></span>
+          <h2 class="co-section-title">The Problem</h2>
+          <span class="co-section-sub">{{ $topIdea['cluster_label'] ?? Str::headline($topIdea['group'] ?? '') }}</span>
         </div>
-        <div class="co-flow-arrow" aria-hidden="true">→</div>
-        <div class="co-flow-step is-accent">
-          <div class="co-flow-kicker">DSS Analysis</div>
-          <div class="co-flow-title">{{ $topIdea['severity_level'] ?? '—' }} severity · {{ $topIdea['confidence_level'] ?? '—' }} confidence</div>
-          <div class="co-flow-copy">
-            Severity and confidence are computed from reports, votes, frequency, and impact — not from AI.
-          </div>
-        </div>
-        <div class="co-flow-arrow" aria-hidden="true">→</div>
-        <div class="co-flow-step is-result">
-          <div class="co-flow-kicker">Capstone Opportunity</div>
-          <div class="co-flow-title">{{ $topIdea['title'] ?? 'No title available' }}</div>
-          <div class="co-flow-copy">
-            A capstone-worthy direction for students to explore, consult on, and refine.
-          </div>
-        </div>
-      </div>
 
-      {{-- DSS Evaluation --}}
+        <p style="font-size:13.5px;color:var(--text2);line-height:1.75;margin-bottom:16px">
+          {{ $topIdea['description'] ?? 'No description available' }}
+        </p>
+
+        <div class="co-evidence" style="margin-bottom:0">
+          <div class="co-evidence-item">
+            <div class="co-evidence-value">{{ $topIdea['reports_count'] ?? 0 }}</div>
+            <div class="co-evidence-label">{{ Str::plural('Report', $topIdea['reports_count'] ?? 0) }}</div>
+          </div>
+          <div class="co-evidence-item">
+            <div class="co-evidence-value">{{ $topIdea['support_count'] ?? 0 }}</div>
+            <div class="co-evidence-label">{{ Str::plural('Support', $topIdea['support_count'] ?? 0) }}</div>
+          </div>
+          @if($topAffectedGroup)
+            <div class="co-evidence-item">
+              <div class="co-evidence-value" style="font-size:13px">{{ $topAffectedGroup }}</div>
+              <div class="co-evidence-label">Affected group</div>
+            </div>
+          @endif
+          @if($topDominantProcess)
+            <div class="co-evidence-item">
+              <div class="co-evidence-value" style="font-size:13px">{{ $topDominantProcess }}</div>
+              <div class="co-evidence-label">Current process</div>
+            </div>
+          @endif
+        </div>
+      </section>
+
+      {{-- 2. WHAT YOU COULD BUILD --}}
+      <section aria-label="What you could build" style="margin-bottom:26px">
+        <div class="co-section-head">
+          <span class="co-section-dot"></span>
+          <h2 class="co-section-title">What You Could Build</h2>
+        </div>
+
+        <h2 style="font-family:'Sora',sans-serif;font-size:clamp(22px,3vw,30px);font-weight:800;line-height:1.15;color:var(--text);margin:0 0 8px">
+          {{ $topProjectName ?: ($topIdea['title'] ?? 'No title available') }}
+        </h2>
+
+        @if($topConcept)
+          <p style="font-size:15px;font-weight:600;color:var(--text2);line-height:1.5;margin:0 0 10px">
+            {{ $topConcept }}
+          </p>
+        @endif
+
+        <p style="font-size:12.5px;color:var(--text3);line-height:1.6;margin:0">
+          Capstone opportunity:
+          <strong style="font-weight:600;color:var(--text2)">{{ $topIdea['title'] ?? 'No title available' }}</strong>
+        </p>
+      </section>
+
+      {{-- 3. WHY LIKHA SUGGESTS THIS --}}
       @if(isset($topIdea['evaluation']))
-        <section aria-label="DSS Evaluation">
-          <div class="co-section-head">
-            <span class="co-section-dot"></span>
-            <span class="co-section-title">DSS Evaluation</span>
-            <span class="co-section-sub">Scored by the Decision Support System</span>
-          </div>
-          <div class="idea-evaluation">
-            @foreach(['feasibility' => 'Feasibility', 'impact' => 'Impact', 'complexity' => 'Complexity', 'innovation' => 'Innovation'] as $key => $label)
-              <div class="idea-evaluation-score">
-                <span class="idea-evaluation-label">{{ $label }}</span>
-                <span class="stars" style="font-size:13px" aria-label="{{ $topIdea['evaluation'][$key] ?? 0 }} out of 5">
-                  {{ str_repeat('★', $topIdea['evaluation'][$key] ?? 0) }}{{ str_repeat('☆', 5 - ($topIdea['evaluation'][$key] ?? 0)) }}
-                </span>
-              </div>
-            @endforeach
-          </div>
-          <div class="idea-evaluation-summary">
-            <span style="font-size:13.5px;font-weight:600;color:var(--text)">
-              Overall score: <span style="color:var(--amber)">{{ $topIdea['evaluation']['overall_score'] ?? '—' }}</span>
-            </span>
-            @php
-              $rec = $topIdea['evaluation']['recommendation'] ?? '';
-              $recClass = $rec === 'Highly Recommended' ? 'badge-green' : ($rec === 'Recommended' ? 'badge-blue' : 'badge-red');
-            @endphp
-            <span class="lk-badge {{ $recClass }}">{{ $rec ?: '—' }}</span>
-          </div>
-        </section>
-      @endif
-
-      {{-- Title --}}
-      <p style="font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Capstone Opportunity</p>
-      <h2 style="font-family:'Sora',sans-serif;font-size:clamp(18px,2.5vw,24px);font-weight:800;line-height:1.15;color:var(--text);margin-bottom:16px">
-        {{ $topIdea['title'] ?? 'No title available' }}
-      </h2>
-
-      <p style="font-size:12px;color:var(--text3);margin:-8px 0 16px">
-        Problem cluster: <strong style="color:var(--text2)">{{ $topIdea['cluster_label'] ?? Str::headline($topIdea['group'] ?? '') }}</strong>
-      </p>
-
-      {{-- Badges --}}
-      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
         @php
           $pri = $topIdea['priority'] ?? 'Low';
           $sev = $topIdea['severity_level'] ?? 'Low';
@@ -581,26 +576,50 @@ html.dark .btn-amber { background: #fbb034; }
           $priBadge = $pri === 'High' ? 'badge-red' : ($pri === 'Medium' ? 'badge-amber' : 'badge-muted');
           $sevBadge = $sev === 'High' ? 'badge-red' : ($sev === 'Medium' ? 'badge-amber' : 'badge-muted');
           $conBadge = $con === 'High' ? 'badge-green' : ($con === 'Medium' ? 'badge-blue' : 'badge-muted');
+          $rec = $topIdea['evaluation']['recommendation'] ?? '';
+          $recClass = $rec === 'Highly Recommended' ? 'badge-green' : ($rec === 'Recommended' ? 'badge-blue' : 'badge-red');
+          $overallScore = $topIdea['evaluation']['overall_score'] ?? null;
+          $overallScoreText = is_numeric($overallScore) ? number_format((float) $overallScore, 2) : '—';
         @endphp
-        <span class="lk-badge {{ $priBadge }}">{{ $pri }} Priority</span>
-        <span class="lk-badge {{ $sevBadge }}">⚠ {{ $sev }} Severity</span>
-        <span class="lk-badge {{ $conBadge }}">✓ {{ $con }} Confidence</span>
-      </div>
 
-      {{-- Explanations --}}
-      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:16px">
-        @if($topIdea['severity_explanation'] ?? '')
-          <p style="font-size:12px;color:var(--text3);line-height:1.6">⚠ {{ $topIdea['severity_explanation'] }}</p>
-        @endif
-        @if($topIdea['confidence_explanation'] ?? '')
-          <p style="font-size:12px;color:var(--text3);line-height:1.6">✓ {{ $topIdea['confidence_explanation'] }}</p>
-        @endif
-      </div>
+        <section aria-label="Why LIKHA suggests this" style="margin-bottom:22px">
+          <div class="co-section-head">
+            <span class="co-section-dot"></span>
+            <h2 class="co-section-title">Why LIKHA Suggests This</h2>
+            <span class="co-section-sub">Scored by the Decision Support System</span>
+          </div>
 
-      {{-- Description --}}
-      <p style="font-size:13.5px;color:var(--text2);line-height:1.75;margin-bottom:12px">
-        {{ $topIdea['description'] ?? 'No description available' }}
-      </p>
+          <div class="idea-evaluation" style="margin-bottom:12px">
+            <div class="idea-evaluation-score">
+              <span class="idea-evaluation-label">Priority</span>
+              <span class="lk-badge {{ $priBadge }}">{{ $pri }}</span>
+            </div>
+            <div class="idea-evaluation-score">
+              <span class="idea-evaluation-label">Severity</span>
+              <span class="lk-badge {{ $sevBadge }}">⚠ {{ $sev }}</span>
+            </div>
+            <div class="idea-evaluation-score">
+              <span class="idea-evaluation-label">Confidence</span>
+              <span class="lk-badge {{ $conBadge }}">✓ {{ $con }}</span>
+            </div>
+            <div class="idea-evaluation-score">
+              <span class="idea-evaluation-label">Overall evaluation</span>
+              <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <span style="font-family:'Sora',sans-serif;font-size:17px;font-weight:700;color:var(--amber)">{{ $overallScoreText }}</span>
+                <span class="lk-badge {{ $recClass }}">{{ $rec ?: '—' }}</span>
+              </span>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-wrap:wrap;gap:7px" aria-label="Evaluation criteria">
+            @foreach(['feasibility' => 'Feasibility', 'impact' => 'Impact', 'complexity' => 'Complexity', 'innovation' => 'Innovation'] as $key => $label)
+              <span class="lk-badge badge-muted" aria-label="{{ $label }} {{ $topIdea['evaluation'][$key] ?? 0 }} out of 5">
+                {{ $label }} {{ $topIdea['evaluation'][$key] ?? 0 }}/5
+              </span>
+            @endforeach
+          </div>
+        </section>
+      @endif
 
       {{-- AI wording assistance (optional, clearly secondary to the DSS result) --}}
       @if(isset($topIdea['ai']))
@@ -620,168 +639,158 @@ html.dark .btn-amber { background: #fbb034; }
           </div>
           <div id="ai-wording" x-show="aiOpen" x-transition>
             <p class="co-ai-note">Optional wording enhancement — the DSS recommendation and scores above remain unchanged.</p>
-            <h3 style="font-family:'Sora',sans-serif;font-size:17px;font-weight:700;line-height:1.25;color:var(--text);margin-bottom:10px">
+            <p style="font-family:'Sora',sans-serif;font-size:17px;font-weight:700;line-height:1.25;color:var(--text);margin-bottom:10px">
               {{ $topIdea['ai']['title'] }}
-            </h3>
+            </p>
             <p style="font-size:13.5px;color:var(--text2);line-height:1.75;margin:0">
               {{ $topIdea['ai']['description'] }}
             </p>
+            @if($topIdea['ai']['general_objective'] ?? '')
+              <p style="font-size:12.5px;font-weight:600;color:var(--text);margin:14px 0 8px">General objective</p>
+              <p style="font-size:13px;color:var(--text2);line-height:1.7;margin:0">
+                {{ $topIdea['ai']['general_objective'] }}
+              </p>
+            @endif
+            @if(count($topIdea['ai']['specific_objectives'] ?? []) > 0)
+              <p style="font-size:12.5px;font-weight:600;color:var(--text);margin:14px 0 8px">Specific objectives</p>
+              <ul style="display:flex;flex-direction:column;gap:7px;margin:0;padding:0;list-style:none">
+                @foreach($topIdea['ai']['specific_objectives'] as $objective)
+                  <li style="display:flex;gap:8px;font-size:13px;color:var(--text2);line-height:1.6">
+                    <span style="color:var(--amber);flex-shrink:0;margin-top:2px">▸</span>{{ $objective }}
+                  </li>
+                @endforeach
+              </ul>
+            @endif
           </div>
         </section>
       @endif
 
-      {{-- Toggle button --}}
+      {{-- Toggle button — one collapsible area for all DSS details --}}
       <button class="accordion-btn" style="padding:0;color:var(--amber);font-size:13px;margin-top:16px"
-        @click="detailsOpen = !detailsOpen" :aria-expanded="detailsOpen">
-        <span x-text="detailsOpen ? 'Hide details' : 'View details'"></span>
-        <svg class="accordion-icon" :class="detailsOpen?'rotate-180':''" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+        @click="detailsOpen = !detailsOpen" :aria-expanded="detailsOpen" aria-controls="dss-details">
+        <span x-text="detailsOpen ? 'Hide DSS details' : 'View DSS details'"></span>
+        <svg class="accordion-icon" :class="detailsOpen?'rotate-180':''" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
       </button>
     </div>
 
-    {{-- ── Expandable details ── --}}
-    <div x-show="detailsOpen"
+    {{-- ── Expandable DSS details ── --}}
+    <div id="dss-details"
+         x-show="detailsOpen"
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 -translate-y-1"
          x-transition:enter-end="opacity-100 translate-y-0"
-         style="border-top:1px solid var(--border);display:flex;flex-direction:column;gap:1px;background:var(--border)">
+         style="border-top:1px solid var(--border);padding:22px 28px 26px;">
 
       {{-- Why this idea? (DSS evidence) --}}
-      <div style="background:var(--surface)">
-        <button class="accordion-btn" @click="explainOpen=!explainOpen" :aria-expanded="explainOpen">
-          <span>Why did LIKHA identify this as a capstone opportunity?</span>
-          <svg class="accordion-icon" :class="explainOpen?'rotate-180':''" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
-        </button>
-        <div x-show="explainOpen" x-transition class="accordion-body">
-          <p style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:16px">{{ $topIdea['explanation']['summary'] ?? '' }}</p>
+      <div class="co-section-head">
+        <span class="co-section-dot"></span>
+        <h3 class="co-section-title">Why did LIKHA identify this as a capstone opportunity?</h3>
+      </div>
 
-          {{-- Evidence at a glance --}}
-          <div class="co-evidence">
-            <div class="co-evidence-item">
-              <div class="co-evidence-value">{{ $topIdea['explanation']['factors']['reports'] ?? 'N/A' }}</div>
-              <div class="co-evidence-label">Reports</div>
-            </div>
-            <div class="co-evidence-item">
-              <div class="co-evidence-value">{{ $topIdea['explanation']['factors']['votes'] ?? 'N/A' }}</div>
-              <div class="co-evidence-label">Votes</div>
-            </div>
-            <div class="co-evidence-item">
-              <div class="co-evidence-value">{{ $topIdea['explanation']['factors']['frequency_score'] ?? 'N/A' }}</div>
-              <div class="co-evidence-label">Frequency</div>
-            </div>
-            <div class="co-evidence-item">
-              <div class="co-evidence-value">{{ $topIdea['explanation']['factors']['impact_score'] ?? 'N/A' }}</div>
-              <div class="co-evidence-label">Impact</div>
-            </div>
-            <div class="co-evidence-item">
-              <div class="co-evidence-value" style="font-size:13px">{{ $topIdea['explanation']['factors']['top_affected_group'] ?? 'N/A' }}</div>
-              <div class="co-evidence-label">Affected group</div>
-            </div>
-            <div class="co-evidence-item">
-              <div class="co-evidence-value" style="font-size:13px">{{ $topIdea['severity_level'] ?? '—' }}</div>
-              <div class="co-evidence-label">Severity</div>
-            </div>
-            <div class="co-evidence-item">
-              <div class="co-evidence-value" style="font-size:13px">{{ $topIdea['confidence_level'] ?? '—' }}</div>
-              <div class="co-evidence-label">Confidence</div>
-            </div>
-          </div>
+      <p style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:16px">{{ $topIdea['explanation']['summary'] ?? '' }}</p>
 
-          <div style="display:flex;flex-direction:column;gap:6px">
-            @foreach(['impact','frequency','reports','votes'] as $r)
-              @if($topIdea['explanation']['reasoning'][$r] ?? '')
-                <p style="font-size:12px;color:var(--text3);padding-left:12px;border-left:2px solid var(--amid)">
-                  {{ $topIdea['explanation']['reasoning'][$r] }}
-                </p>
-              @endif
-            @endforeach
-          </div>
+      @if(($topIdea['severity_explanation'] ?? '') || ($topIdea['confidence_explanation'] ?? ''))
+        <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:16px">
+          @if($topIdea['severity_explanation'] ?? '')
+            <p style="font-size:12px;color:var(--text3);line-height:1.6">⚠ {{ $topIdea['severity_explanation'] }}</p>
+          @endif
+          @if($topIdea['confidence_explanation'] ?? '')
+            <p style="font-size:12px;color:var(--text3);line-height:1.6">✓ {{ $topIdea['confidence_explanation'] }}</p>
+          @endif
         </div>
+      @endif
+
+      {{-- Evidence at a glance --}}
+      <div class="co-evidence">
+        <div class="co-evidence-item">
+          <div class="co-evidence-value">{{ $topIdea['explanation']['factors']['reports'] ?? 'N/A' }}</div>
+          <div class="co-evidence-label">Reports</div>
+        </div>
+        <div class="co-evidence-item">
+          <div class="co-evidence-value">{{ $topIdea['explanation']['factors']['votes'] ?? 'N/A' }}</div>
+          <div class="co-evidence-label">Support</div>
+        </div>
+        <div class="co-evidence-item">
+          <div class="co-evidence-value">{{ $topIdea['explanation']['factors']['frequency_score'] ?? 'N/A' }}</div>
+          <div class="co-evidence-label">Frequency</div>
+        </div>
+        <div class="co-evidence-item">
+          <div class="co-evidence-value">{{ $topIdea['explanation']['factors']['impact_score'] ?? 'N/A' }}</div>
+          <div class="co-evidence-label">Impact</div>
+        </div>
+        <div class="co-evidence-item">
+          <div class="co-evidence-value" style="font-size:13px">{{ $topIdea['explanation']['factors']['top_affected_group'] ?? 'N/A' }}</div>
+          <div class="co-evidence-label">Affected group</div>
+        </div>
+        <div class="co-evidence-item">
+          <div class="co-evidence-value" style="font-size:13px">{{ $topIdea['severity_level'] ?? '—' }}</div>
+          <div class="co-evidence-label">Severity</div>
+        </div>
+        <div class="co-evidence-item">
+          <div class="co-evidence-value" style="font-size:13px">{{ $topIdea['confidence_level'] ?? '—' }}</div>
+          <div class="co-evidence-label">Confidence</div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:6px">
+        @foreach(['impact','frequency','reports','votes'] as $r)
+          @if($topIdea['explanation']['reasoning'][$r] ?? '')
+            <p style="font-size:12px;color:var(--text3);padding-left:12px;border-left:2px solid var(--amid)">
+              {{ $topIdea['explanation']['reasoning'][$r] }}
+            </p>
+          @endif
+        @endforeach
       </div>
 
       {{-- Confidence breakdown --}}
-      <div style="background:var(--surface)">
-        <button class="accordion-btn" @click="confOpen=!confOpen" :aria-expanded="confOpen">
-          <span>Confidence breakdown</span>
-          <svg class="accordion-icon" :class="confOpen?'rotate-180':''" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
-        </button>
-        <div x-show="confOpen" x-transition class="accordion-body">
-          <p style="font-size:12px;color:var(--text3);line-height:1.6;margin-bottom:18px">
-            Confidence measures <strong style="color:var(--text2)">how trustworthy the data is</strong> — not how bad the problem is. High confidence means multiple independent sources agree.
-          </p>
-          <div style="display:flex;flex-direction:column;gap:18px">
-            @foreach(['source_diversity'=>['Source diversity','How many unique people reported this?'],'frequency_consistency'=>['Frequency consistency','Do reporters agree on how often this happens?'],'sample_size'=>['Sample size','Is there enough data to generalize from?'],'community_validation'=>['Community validation','How many people upvoted beyond the reporters?']] as $k => [$label,$hint])
-            <div>
-              <div style="display:flex;justify-content:space-between;margin-bottom:3px">
-                <span style="font-size:12.5px;font-weight:600;color:var(--text2)">{{ $label }}</span>
-                <span style="font-size:12px;color:var(--text3)">{{ $topIdea['confidence_breakdown'][$k] ?? '—' }} / 5</span>
-              </div>
-              <div class="factor-bar">
-                <div class="factor-fill" style="width:{{ min(100,(($topIdea['confidence_breakdown'][$k] ?? 0)/5)*100) }}%"></div>
-              </div>
-              <p style="font-size:11px;color:var(--text3);margin-top:4px">{{ $hint }}</p>
+      <div class="co-section-head" style="margin-top:26px">
+        <span class="co-section-dot"></span>
+        <h3 class="co-section-title">Confidence breakdown</h3>
+      </div>
+
+      <p style="font-size:12px;color:var(--text3);line-height:1.6;margin-bottom:18px">
+        Confidence measures <strong style="color:var(--text2)">how trustworthy the data is</strong> — not how bad the problem is. High confidence means multiple independent sources agree.
+      </p>
+
+      <div style="display:flex;flex-direction:column;gap:18px">
+        @foreach(['source_diversity'=>['Source diversity','How many unique people reported this?'],'frequency_consistency'=>['Frequency consistency','Do reporters agree on how often this happens?'],'sample_size'=>['Sample size','Is there enough data to generalize from?'],'community_validation'=>['Community validation','How many people upvoted beyond the reporters?']] as $k => [$label,$hint])
+          <div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+              <span style="font-size:12.5px;font-weight:600;color:var(--text2)">{{ $label }}</span>
+              <span style="font-size:12px;color:var(--text3)">{{ $topIdea['confidence_breakdown'][$k] ?? '—' }} / 5</span>
             </div>
-            @endforeach
+            <div class="factor-bar">
+              <div class="factor-fill" style="width:{{ min(100,(($topIdea['confidence_breakdown'][$k] ?? 0)/5)*100) }}%"></div>
+            </div>
+            <p style="font-size:11px;color:var(--text3);margin-top:4px">{{ $hint }}</p>
           </div>
-        </div>
+        @endforeach
       </div>
 
       {{-- Objectives --}}
-      <div style="background:var(--surface)">
-        <button class="accordion-btn" @click="objOpen=!objOpen" :aria-expanded="objOpen">
-          <span>Objectives</span>
-          <svg class="accordion-icon" :class="objOpen?'rotate-180':''" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
-        </button>
-        <div x-show="objOpen" x-transition class="accordion-body">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
-            <div>
-              <p style="font-size:12.5px;font-weight:600;color:var(--text);margin-bottom:8px">General objective</p>
-              <p style="font-size:13px;color:var(--text2);line-height:1.7">{{ $topIdea['general_objective'] ?? 'No objective available' }}</p>
-            </div>
-            <div>
-              <p style="font-size:12.5px;font-weight:600;color:var(--text);margin-bottom:8px">Specific objectives</p>
-              <ul style="display:flex;flex-direction:column;gap:7px">
-                @foreach($topIdea['specific_objectives'] ?? [] as $obj)
-                  <li style="display:flex;gap:8px;font-size:13px;color:var(--text2);line-height:1.6">
-                    <span style="color:var(--amber);flex-shrink:0;margin-top:2px">▸</span>{{ $obj }}
-                  </li>
-                @endforeach
-              </ul>
-            </div>
-          </div>
-          @if(isset($topIdea['ai']))
-            <div class="co-ai" style="margin-top:24px">
-              <div class="co-ai-head">
-                <span class="lk-badge badge-amber">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.7 4.6 4.6 1.7-4.6 1.7L12 15.6l-1.7-4.6L5.7 9.3l4.6-1.7z"/></svg>
-                  AI-ENHANCED
-                </span>
-                <button type="button" class="co-ai-toggle"
-                  @click="aiOpen = !aiOpen"
-                  :aria-expanded="aiOpen ? 'true' : 'false'"
-                  aria-controls="ai-objectives">
-                  <span x-text="aiOpen ? 'Hide' : 'Show'"></span>
-                  <svg class="co-ai-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-                </button>
-              </div>
-              <div id="ai-objectives" x-show="aiOpen" x-transition>
-                <p class="co-ai-note">Optional wording enhancement — the DSS objectives above remain unchanged.</p>
-                <p style="font-size:12.5px;font-weight:600;color:var(--text);margin-bottom:8px">General objective</p>
-                <p style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:14px">{{ $topIdea['ai']['general_objective'] }}</p>
-                <p style="font-size:12.5px;font-weight:600;color:var(--text);margin-bottom:8px">Specific objectives</p>
-                <ul style="display:flex;flex-direction:column;gap:7px">
-                  @foreach($topIdea['ai']['specific_objectives'] as $obj)
-                    <li style="display:flex;gap:8px;font-size:13px;color:var(--text2);line-height:1.6">
-                      <span style="color:var(--amber);flex-shrink:0;margin-top:2px">▸</span>{{ $obj }}
-                    </li>
-                  @endforeach
-                </ul>
-              </div>
-            </div>
-          @endif
+      <div class="co-section-head" style="margin-top:26px">
+        <span class="co-section-dot"></span>
+        <h3 class="co-section-title">Objectives</h3>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+        <div>
+          <p style="font-size:12.5px;font-weight:600;color:var(--text);margin-bottom:8px">General objective</p>
+          <p style="font-size:13px;color:var(--text2);line-height:1.7">{{ $topIdea['general_objective'] ?? 'No objective available' }}</p>
+        </div>
+        <div>
+          <p style="font-size:12.5px;font-weight:600;color:var(--text);margin-bottom:8px">Specific objectives</p>
+          <ul style="display:flex;flex-direction:column;gap:7px;margin:0;padding:0;list-style:none">
+            @foreach($topIdea['specific_objectives'] ?? [] as $obj)
+              <li style="display:flex;gap:8px;font-size:13px;color:var(--text2);line-height:1.6">
+                <span style="color:var(--amber);flex-shrink:0;margin-top:2px">▸</span>{{ $obj }}
+              </li>
+            @endforeach
+          </ul>
         </div>
       </div>
 
-    </div>{{-- /expandable --}}
+    </div>{{-- /dss-details --}}
 
     {{-- Adviser review (separate evaluation layer) --}}
     @if(isset($topReview))
@@ -802,6 +811,17 @@ html.dark .btn-amber { background: #fbb034; }
     {{-- Action buttons --}}
     <div style="padding:0 28px 28px;display:flex;flex-wrap:wrap;gap:10px;align-items:center">
       @auth
+        <form method="POST" action="{{ route('idea.save') }}">
+          @csrf
+          <input type="hidden" name="title" value="{{ $topIdea['title'] ?? '' }}">
+          <input type="hidden" name="description" value="{{ $topIdea['description'] ?? '' }}">
+          <input type="hidden" name="category" value="{{ $category }}">
+          <button type="submit" class="btn-amber">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            Save Idea
+          </button>
+        </form>
+
         <form method="POST" action="{{ route('idea.enhance', $category) }}" onsubmit="var b=this.querySelector('button[type=submit]'); if(b){b.disabled=true;}">
           @csrf
           <input type="hidden" name="title" value="{{ $topIdea['title'] ?? '' }}">
@@ -812,25 +832,18 @@ html.dark .btn-amber { background: #fbb034; }
           @endforeach
           <button type="submit" class="btn-ghost">✨ Improve with AI</button>
         </form>
-        <form method="POST" action="{{ route('idea.save') }}">
-          @csrf
-          <input type="hidden" name="title" value="{{ $topIdea['title'] ?? '' }}">
-          <input type="hidden" name="description" value="{{ $topIdea['description'] ?? '' }}">
-          <input type="hidden" name="category" value="{{ $category }}">
-          <button type="submit" class="btn-amber">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-            Save Best Idea
-          </button>
-        </form>
 
         @if(auth()->user()->role === 'adviser')
           <button type="button" onclick="document.getElementById('reviewForm').classList.toggle('hidden')" class="btn-ghost">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
             Add Review
           </button>
         @endif
       @else
-        <p style="font-size:12px;color:var(--text3);align-self:center">Login to save this idea.</p>
+        <button type="button" class="btn-amber" @click="loginOpen = true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+          Log in to save this idea
+        </button>
       @endauth
     </div>
 
@@ -849,8 +862,8 @@ html.dark .btn-amber { background: #fbb034; }
         @csrf
         <input type="hidden" name="idea_title" value="{{ $topIdea['title'] }}">
         <input type="hidden" name="category" value="{{ $category }}">
-        <textarea name="comment" rows="3" placeholder="Enter your feedback here…" class="lk-input" style="resize:vertical" required></textarea>
-        <select name="recommendation" class="lk-input" required>
+        <textarea id="review-comment" name="comment" rows="3" placeholder="Enter your feedback here…" class="lk-input" style="resize:vertical" aria-label="Adviser comment" required></textarea>
+        <select id="review-recommendation" name="recommendation" class="lk-input" aria-label="Adviser recommendation" required>
           <option value="">Select Recommendation</option>
           <option value="Recommended">Recommended</option>
           <option value="Needs Revision">Needs Revision</option>
@@ -859,8 +872,8 @@ html.dark .btn-amber { background: #fbb034; }
         <div class="review-grid">
           @foreach(['feasibility'=>'Feasibility (1=Hard, 5=Easy)','impact'=>'Impact (1=Low, 5=High)','complexity'=>'Complexity (1=Hard, 5=Easy)','innovation'=>'Innovation (1=Low, 5=High)'] as $field => $label)
           <div>
-            <label class="review-field-label">{{ $label }}</label>
-            <input type="number" name="{{ $field }}" min="1" max="5" class="lk-input" required>
+            <label class="review-field-label" for="review-{{ $field }}">{{ $label }}</label>
+            <input id="review-{{ $field }}" type="number" name="{{ $field }}" min="1" max="5" class="lk-input" required>
           </div>
           @endforeach
         </div>
@@ -875,97 +888,12 @@ html.dark .btn-amber { background: #fbb034; }
   </div>
   @endif
 
-
-  {{-- ══ IDEA COMPARISON ══ --}}
-  @if(isset($topIdea) && count($otherIdeas) > 0)
-  <div class="lk-card anim-2" style="overflow:hidden">
-    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
-      <div style="width:8px;height:8px;border-radius:50%;background:var(--amber)"></div>
-      <h3 style="font-family:'Sora',sans-serif;font-size:14px;font-weight:700;color:var(--text)">Capstone Opportunity Comparison</h3>
-    </div>
-    <div style="overflow-x:auto">
-      <table class="cmp-table" style="width:100%">
-        <thead>
-          <tr>
-            <th style="text-align:left">Criteria</th>
-            <th style="text-align:center;color:var(--amber)">Top opportunity</th>
-            <th style="text-align:center;color:var(--text3)">Other opportunity</th>
-          </tr>
-        </thead>
-        <tbody>
-          @foreach(['score'=>'Idea Score','feasibility'=>'Feasibility','impact'=>'Impact','complexity'=>'Complexity','severity'=>'Severity','confidence'=>'Confidence'] as $key => $label)
-          <tr>
-            <td style="font-weight:500;color:var(--text2)">{{ $label }}</td>
-            <td style="text-align:center" class="cmp-winner">{{ $topIdea['comparison'][$key] ?? '—' }}</td>
-            <td style="text-align:center;color:var(--text3)">{{ $otherIdeas[0]['comparison'][$key] ?? '—' }}</td>
-          </tr>
-          @endforeach
-        </tbody>
-      </table>
-    </div>
-  </div>
-  @endif
-
-
-  {{-- ══ OTHER IDEAS ══ --}}
-  @if(isset($otherIdeas) && count($otherIdeas) > 0)
-  <div class="anim-3">
-    <div class="co-section-head">
-      <span class="co-section-dot"></span>
-      <span class="co-section-title">Other Capstone Opportunities</span>
-      <span class="co-section-sub">Additional directions from the same problem area</span>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">
-      @foreach($otherIdeas as $idea)
-      <div
-        id="idea-{{ \Illuminate\Support\Str::slug($idea['title'] ?? 'idea') }}"
-        class="lk-card {{ $highlightedIdeaTitle === ($idea['title'] ?? null) ? 'idea-highlight' : '' }}"
-        style="padding:18px 18px 16px;display:flex;flex-direction:column;gap:10px">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-          <span class="lk-badge badge-amber">Capstone Opportunity</span>
-          @php $ip = $idea['priority'] ?? 'Low'; @endphp
-          <span class="lk-badge {{ $ip==='High'?'badge-red':($ip==='Medium'?'badge-amber':'badge-muted') }}">
-            {{ $ip }} Priority
-          </span>
-        </div>
-        <h4 style="font-family:'Sora',sans-serif;font-size:13.5px;font-weight:700;color:var(--text);line-height:1.4">
-          {{ $idea['title'] ?? 'No title' }}
-        </h4>
-        <p style="font-size:11.5px;color:var(--text3);margin-top:-4px">
-          Problem cluster: <strong style="color:var(--text2)">{{ $idea['cluster_label'] ?? Str::headline($idea['group'] ?? '') }}</strong>
-        </p>
-        <p style="font-size:12.5px;color:var(--text2);line-height:1.65;flex:1">
-          {{ Str::limit($idea['description'] ?? '', 120) }}
-        </p>
-        <div style="display:flex;gap:14px;font-size:12px;color:var(--text3)">
-          <span>Score: <strong style="color:var(--text2)">{{ $idea['score'] ?? 0 }}</strong></span>
-          <span>Severity: <strong style="color:var(--amber)">{{ $idea['severity_level'] ?? '—' }}</strong></span>
-          <span>Conf: <strong style="color:var(--blue)">{{ $idea['confidence_level'] ?? '—' }}</strong></span>
-        </div>
-        @auth
-        <form method="POST" action="{{ route('idea.save') }}">
-          @csrf
-          <input type="hidden" name="title" value="{{ $idea['title'] ?? '' }}">
-          <input type="hidden" name="description" value="{{ $idea['description'] ?? '' }}">
-          <input type="hidden" name="category" value="{{ $category }}">
-          <button type="submit" class="btn-amber" style="width:100%;justify-content:center;font-size:12.5px;padding:8px">
-            Save Idea
-          </button>
-        </form>
-        @endauth
-      </div>
-      @endforeach
-    </div>
-  </div>
-  @endif
-
-
   {{-- ══ SUPPORTING REPORTS ══ --}}
-  <div class="anim-4">
+  <div class="anim-2">
     <div class="co-section-head" style="justify-content:space-between">
       <div style="display:flex;align-items:center;gap:10px">
         <span class="co-section-dot"></span>
-        <span class="co-section-title">Supporting Evidence</span>
+        <h2 class="co-section-title">Supporting Evidence</h2>
         <span class="co-section-sub">The real reports behind this opportunity</span>
       </div>
       <span class="lk-badge badge-muted">
@@ -983,12 +911,12 @@ html.dark .btn-amber { background: #fbb034; }
           <div style="margin-bottom:12px">
             @if($feedback->attachment_type === 'image')
               <a href="{{ asset('storage/'.$feedback->attachment_path) }}" target="_blank" rel="noopener noreferrer" style="display:inline-block">
-                <img src="{{ asset('storage/'.$feedback->attachment_path) }}" alt="Supporting evidence" style="max-width:180px;max-height:120px;border-radius:12px;border:1px solid var(--border);object-fit:cover">
+                <img src="{{ asset('storage/'.$feedback->attachment_path) }}" alt="Supporting attachment" style="max-width:180px;max-height:120px;border-radius:12px;border:1px solid var(--border);object-fit:cover">
               </a>
             @else
               <a href="{{ asset('storage/'.$feedback->attachment_path) }}" target="_blank" rel="noopener noreferrer" class="lk-badge badge-blue" style="text-decoration:none">
-                <i data-lucide="paperclip" style="width:12px;height:12px;"></i>
-                View Evidence
+                <i data-lucide="paperclip" style="width:12px;height:12px;" aria-hidden="true"></i>
+                View attachment
               </a>
             @endif
           </div>
@@ -1032,11 +960,126 @@ html.dark .btn-amber { background: #fbb034; }
   </div>
 
 
+
+  {{-- ══ IDEA COMPARISON ══ --}}
+  @if(isset($topIdea) && count($otherIdeas) > 0)
+  <div class="lk-card anim-2" style="overflow:hidden">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+      <div style="width:8px;height:8px;border-radius:50%;background:var(--amber)"></div>
+      <h3 style="font-family:'Sora',sans-serif;font-size:14px;font-weight:700;color:var(--text)">Capstone Opportunity Comparison</h3>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="cmp-table" style="width:100%">
+        <thead>
+          <tr>
+            <th style="text-align:left">Criteria</th>
+            <th style="text-align:center;color:var(--amber)">Top opportunity</th>
+            <th style="text-align:center;color:var(--text3)">Other opportunity</th>
+          </tr>
+        </thead>
+        <tbody>
+          @foreach(['score'=>'Idea Score','feasibility'=>'Feasibility','impact'=>'Impact','complexity'=>'Complexity','severity'=>'Severity','confidence'=>'Confidence'] as $key => $label)
+          <tr>
+            <td style="font-weight:500;color:var(--text2)">{{ $label }}</td>
+            <td style="text-align:center" class="cmp-winner">{{ $topIdea['comparison'][$key] ?? '—' }}</td>
+            <td style="text-align:center;color:var(--text3)">{{ $otherIdeas[0]['comparison'][$key] ?? '—' }}</td>
+          </tr>
+          @endforeach
+        </tbody>
+      </table>
+    </div>
+  </div>
+  @endif
+
+
+  {{-- ══ OTHER IDEAS ══ --}}
+  @if(isset($otherIdeas) && count($otherIdeas) > 0)
+  <div class="anim-3">
+    <div class="co-section-head">
+      <span class="co-section-dot"></span>
+      <h3 class="co-section-title">Other Capstone Opportunities</h3>
+      <span class="co-section-sub">Additional directions from the same problem area</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
+      @foreach($otherIdeas as $idea)
+      @php
+        $ideaProjectName = $idea['project_name'] ?? null;
+        $ideaConceptPrimary = $idea['concept']['primary'] ?? null;
+        $ideaTitle = $idea['title'] ?? 'Capstone Opportunity';
+        $ip = $idea['priority'] ?? 'Low';
+        $pClass = $ip === 'High' ? 'badge-red' : ($ip === 'Medium' ? 'badge-amber' : 'badge-muted');
+      @endphp
+      <div
+        id="idea-{{ \Illuminate\Support\Str::slug($ideaTitle) }}"
+        class="lk-card {{ $highlightedIdeaTitle === $ideaTitle ? 'idea-highlight' : '' }}"
+        style="padding:20px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <span class="lk-badge badge-amber">Capstone Opportunity</span>
+          <span class="lk-badge {{ $pClass }}">
+            {{ $ip }} Priority
+          </span>
+        </div>
+
+        <div>
+          <h4 style="font-family:'Sora',sans-serif;font-size:15px;font-weight:700;color:var(--text);line-height:1.35;margin-bottom:4px">
+            {{ $ideaProjectName ?: $ideaTitle }}
+          </h4>
+          @if($ideaConceptPrimary)
+            <div style="font-size:12.5px;font-weight:600;color:var(--amber);line-height:1.4">
+              {{ $ideaConceptPrimary }}
+            </div>
+          @endif
+          @if($ideaProjectName && $ideaProjectName !== $ideaTitle)
+            <div style="font-size:11px;color:var(--text3);margin-top:3px;line-height:1.4">
+              DSS ID: {{ $ideaTitle }}
+            </div>
+          @endif
+        </div>
+
+        <p style="font-size:11.5px;color:var(--text3);margin-top:-4px">
+          Problem cluster: <strong style="color:var(--text2)">{{ $idea['cluster_label'] ?? Str::headline($idea['group'] ?? '') }}</strong>
+        </p>
+
+        <p style="font-size:12.5px;color:var(--text2);line-height:1.65;flex:1">
+          {{ Str::limit($idea['description'] ?? '', 140) }}
+        </p>
+
+        <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:11.5px;color:var(--text3);padding-top:10px;border-top:1px solid var(--border)">
+          <span>Score: <strong style="color:var(--text2)">{{ $idea['score'] ?? 0 }}</strong></span>
+          <span>Severity: <strong style="color:var(--amber)">{{ $idea['severity_level'] ?? '—' }}</strong></span>
+          <span>Conf: <strong style="color:var(--blue)">{{ $idea['confidence_level'] ?? '—' }}</strong></span>
+        </div>
+
+        <div style="margin-top:4px">
+          @auth
+            <form method="POST" action="{{ route('idea.save') }}">
+              @csrf
+              <input type="hidden" name="title" value="{{ $ideaTitle }}">
+              <input type="hidden" name="description" value="{{ $idea['description'] ?? '' }}">
+              <input type="hidden" name="category" value="{{ $category }}">
+              <button type="submit" class="btn-amber" style="width:100%;justify-content:center;font-size:12.5px;padding:8px">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                Save Idea
+              </button>
+            </form>
+          @else
+            <button type="button" class="btn-ghost" @click="loginOpen = true" style="width:100%;justify-content:center;font-size:12px;padding:8px">
+              Log in to save this idea
+            </button>
+          @endauth
+        </div>
+      </div>
+      @endforeach
+    </div>
+  </div>
+  @endif
+
+
   {{-- ══ STUDENT NEXT STEPS ══ --}}
   <div class="anim-4">
     <div class="co-section-head">
       <span class="co-section-dot"></span>
-      <span class="co-section-title">Your Next Steps</span>
+      <h2 class="co-section-title">Your Next Steps</h2>
       <span class="co-section-sub">A capstone opportunity is a starting point, not a finished project</span>
     </div>
     <div class="co-steps">

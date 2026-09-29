@@ -31,11 +31,17 @@ function savedIdeaPayload(array $attributes = []): array
 
 test('a student can save an existing dss idea', function (): void {
     $student = User::factory()->create();
-    createDssIdeaEvaluation();
+    $evaluation = createDssIdeaEvaluation();
+
+    $expectedRedirectUrl = route('feedback.category', [
+        'category' => $evaluation->category,
+        'idea' => $evaluation->idea_title,
+    ]).'#idea-'.Str::slug($evaluation->idea_title);
 
     $this->actingAs($student)
         ->post(route('idea.save'), savedIdeaPayload())
         ->assertSessionHasNoErrors()
+        ->assertRedirect($expectedRedirectUrl)
         ->assertSessionHas('success');
 
     expect(SavedIdea::query()->where('user_id', $student->id)->count())->toBe(1);
@@ -69,15 +75,22 @@ test('an idea saved with a mismatched category cannot be saved', function (): vo
 
 test('saving the same idea twice does not create a second row', function (): void {
     $student = User::factory()->create();
-    createDssIdeaEvaluation();
+    $evaluation = createDssIdeaEvaluation();
+
+    $expectedRedirectUrl = route('feedback.category', [
+        'category' => $evaluation->category,
+        'idea' => $evaluation->idea_title,
+    ]).'#idea-'.Str::slug($evaluation->idea_title);
 
     $this->actingAs($student)
         ->post(route('idea.save'), savedIdeaPayload())
+        ->assertRedirect($expectedRedirectUrl)
         ->assertSessionHas('success');
 
     $this->actingAs($student)
         ->post(route('idea.save'), savedIdeaPayload())
         ->assertSessionHasNoErrors()
+        ->assertRedirect($expectedRedirectUrl)
         ->assertSessionHas('info');
 
     expect(SavedIdea::query()->where('user_id', $student->id)->count())->toBe(1);
@@ -120,7 +133,7 @@ test('the saved ideas page exposes the original opportunity link', function (): 
         ->assertSeeText('View original opportunity')
         ->assertSeeText($evaluation->idea_title)
         ->assertSee($opportunityUrl)
-        ->assertSeeText('DSS evaluation:')
+        ->assertSeeText('Overall evaluation:')
         ->assertSeeText($evaluation->recommendation);
 });
 
@@ -139,7 +152,7 @@ test('saved ideas without an evaluation id still render the page', function (): 
         ->assertOk()
         ->assertSeeText('Legacy Saved Idea')
         ->assertSeeText('View original opportunity')
-        ->assertDontSeeText('DSS evaluation:');
+        ->assertDontSeeText('Overall evaluation:');
 });
 
 test('the saved ideas page shows the responsible office for assigned categories', function (): void {
@@ -162,4 +175,200 @@ test('the saved ideas page shows the responsible office for assigned categories'
         ->assertOk()
         ->assertSeeText('Responsible office:')
         ->assertSeeText('Chief Administrative Office');
+});
+
+test('a saved idea starts in the exploring status', function (): void {
+    $student = User::factory()->create();
+    createDssIdeaEvaluation();
+
+    $this->actingAs($student)->post(route('idea.save'), savedIdeaPayload());
+
+    $this->assertDatabaseHas('saved_ideas', [
+        'user_id' => $student->id,
+        'title' => 'Campus Request Tracking System',
+        'status' => 'Exploring',
+    ]);
+});
+
+test('the owner can persist a new status for a saved idea', function (): void {
+    $student = User::factory()->create();
+    $evaluation = createDssIdeaEvaluation();
+
+    $idea = SavedIdea::query()->create([
+        'user_id' => $student->id,
+        'title' => $evaluation->idea_title,
+        'description' => 'A single place for students to track requests across campus offices.',
+        'category' => $evaluation->category,
+        'idea_evaluation_id' => $evaluation->id,
+    ]);
+
+    $this->actingAs($student)
+        ->from(route('user.ideas'))
+        ->patch(route('idea.updateStatus', $idea->id), ['status' => 'In Progress'])
+        ->assertRedirect(route('user.ideas'))
+        ->assertSessionHas('success');
+
+    expect($idea->fresh()->status)->toBe('In Progress');
+
+    $this->assertDatabaseHas('saved_ideas', [
+        'id' => $idea->id,
+        'status' => 'In Progress',
+    ]);
+});
+
+test('a student cannot change the status of another student saved idea', function (): void {
+    $owner = User::factory()->create();
+    $intruder = User::factory()->create();
+    $evaluation = createDssIdeaEvaluation();
+
+    $idea = SavedIdea::query()->create([
+        'user_id' => $owner->id,
+        'title' => $evaluation->idea_title,
+        'description' => 'Saved by the owner of this idea.',
+        'category' => $evaluation->category,
+        'idea_evaluation_id' => $evaluation->id,
+    ]);
+
+    $this->actingAs($intruder)
+        ->patch(route('idea.updateStatus', $idea->id), ['status' => 'Completed'])
+        ->assertNotFound();
+
+    expect($idea->fresh()->status)->toBe('Exploring');
+});
+
+test('an unsupported status is rejected and keeps the stored status', function (): void {
+    $student = User::factory()->create();
+    $evaluation = createDssIdeaEvaluation();
+
+    $idea = SavedIdea::query()->create([
+        'user_id' => $student->id,
+        'title' => $evaluation->idea_title,
+        'description' => 'A saved idea that must keep its current status.',
+        'category' => $evaluation->category,
+        'idea_evaluation_id' => $evaluation->id,
+    ]);
+
+    $this->actingAs($student)
+        ->from(route('user.ideas'))
+        ->patch(route('idea.updateStatus', $idea->id), ['status' => 'Abandoned'])
+        ->assertSessionHasErrors('status');
+
+    expect($idea->fresh()->status)->toBe('Exploring');
+});
+
+test('a guest cannot update the status of a saved idea', function (): void {
+    $student = User::factory()->create();
+    $evaluation = createDssIdeaEvaluation();
+
+    $idea = SavedIdea::query()->create([
+        'user_id' => $student->id,
+        'title' => $evaluation->idea_title,
+        'description' => 'A saved idea only its owner may update.',
+        'category' => $evaluation->category,
+        'idea_evaluation_id' => $evaluation->id,
+    ]);
+
+    $this->patch(route('idea.updateStatus', $idea->id), ['status' => 'Completed'])
+        ->assertRedirect(route('login'));
+
+    expect($idea->fresh()->status)->toBe('Exploring');
+});
+
+test('the saved ideas card shows the status control with the stored status selected', function (): void {
+    $student = User::factory()->create();
+    $evaluation = createDssIdeaEvaluation();
+
+    $idea = SavedIdea::query()->create([
+        'user_id' => $student->id,
+        'title' => $evaluation->idea_title,
+        'description' => 'A saved idea tracked with an adopted status.',
+        'category' => $evaluation->category,
+        'idea_evaluation_id' => $evaluation->id,
+        'status' => 'Adopted',
+    ]);
+
+    $this->actingAs($student)
+        ->get(route('user.ideas'))
+        ->assertOk()
+        ->assertSee('name="status"', false)
+        ->assertSee('action="'.route('idea.updateStatus', $idea->id).'"', false)
+        ->assertSeeText('Adopted')
+        ->assertSeeText('Exploring')
+        ->assertSeeText('In Progress')
+        ->assertSeeText('Completed');
+});
+
+test('the refined ai title stays a subordinate ai-enhanced line below the dss heading', function (): void {
+    $student = User::factory()->create();
+    $evaluation = createDssIdeaEvaluation([
+        'ai_title' => 'RequestHub: Campus Service Desk Platform',
+    ]);
+
+    SavedIdea::query()->create([
+        'user_id' => $student->id,
+        'title' => $evaluation->idea_title,
+        'description' => 'A single place for students to track requests across campus offices.',
+        'category' => $evaluation->category,
+        'idea_evaluation_id' => $evaluation->id,
+    ]);
+
+    $response = $this->actingAs($student)->get(route('user.ideas'));
+
+    $response->assertOk()
+        ->assertSeeText($evaluation->idea_title)
+        ->assertSeeText('AI-ENHANCED')
+        ->assertSeeInOrder(['AI-ENHANCED', 'RequestHub: Campus Service Desk Platform'], false)
+        ->assertDontSeeText('DSS title:')
+        ->assertDontSeeText('DSS ID:');
+
+    expect($response->getContent())
+        ->toMatch('/<h3[^>]*>\s*'.preg_quote($evaluation->idea_title, '/').'\s*<\/h3>/')
+        ->not->toMatch('/<h3[^>]*>[^<]*RequestHub/');
+});
+
+test('a saved idea without a refined title keeps the dss heading and renders no ai-enhanced line', function (): void {
+    $student = User::factory()->create();
+    $evaluation = createDssIdeaEvaluation();
+
+    SavedIdea::query()->create([
+        'user_id' => $student->id,
+        'title' => $evaluation->idea_title,
+        'description' => 'A saved idea whose heading is still the DSS title.',
+        'category' => $evaluation->category,
+        'idea_evaluation_id' => $evaluation->id,
+    ]);
+
+    $response = $this->actingAs($student)->get(route('user.ideas'));
+
+    $response->assertOk()
+        ->assertSeeText($evaluation->idea_title)
+        ->assertDontSeeText('AI-ENHANCED')
+        ->assertDontSeeText('DSS title:')
+        ->assertDontSeeText('DSS ID:');
+
+    expect($response->getContent())
+        ->toMatch('/<h3[^>]*>\s*'.preg_quote($evaluation->idea_title, '/').'\s*<\/h3>/');
+});
+
+test('the saved ideas page shows the saved date and category for each card', function (): void {
+    $student = User::factory()->create();
+    $evaluation = createDssIdeaEvaluation();
+
+    SavedIdea::query()->create([
+        'user_id' => $student->id,
+        'title' => $evaluation->idea_title,
+        'description' => 'A saved idea checked for its date and category details.',
+        'category' => $evaluation->category,
+        'idea_evaluation_id' => $evaluation->id,
+    ]);
+
+    $savedOn = SavedIdea::query()->firstOrFail()->created_at->format('M j, Y');
+
+    $this->actingAs($student)
+        ->get(route('user.ideas'))
+        ->assertOk()
+        ->assertSeeText('Saved')
+        ->assertSeeText($savedOn)
+        ->assertSeeText($evaluation->category)
+        ->assertSeeText('View original opportunity');
 });

@@ -1,80 +1,109 @@
 @extends('layouts.app')
 
 @section('title', 'My Contribution')
-@section('subtitle', 'Profile settings and the impact of your reports, support signals, and evidence entries.')
+@section('subtitle', 'Your institutional contribution and your account settings.')
 
 @section('content')
 @include('layouts.partials.design-system')
 
-<div class="mx-auto max-w-7xl space-y-8">
-    <section class="stat-grid anim-1">
-        <div class="s-card">
-            <div class="s-icon">
-                <i data-lucide="message-square" style="width:16px;height:16px;"></i>
+@php
+    $contributionMetrics = [
+        [
+            'label' => 'Problems Submitted',
+            'value' => $submittedProblems,
+            'icon' => 'message-square',
+        ],
+        [
+            'label' => 'Problems Supported',
+            'value' => $supportedProblems,
+            'icon' => 'thumbs-up',
+        ],
+        [
+            'label' => 'Evidence Entries',
+            'value' => $evidenceContributions,
+            'icon' => 'file-text',
+        ],
+        [
+            'label' => 'Ideas Contributed To',
+            'value' => $generatedIdeasContributedTo,
+            'icon' => 'lightbulb',
+        ],
+    ];
+@endphp
+
+<div class="mx-auto max-w-5xl space-y-6">
+
+    {{-- ══ CONTRIBUTION SUMMARY ══ --}}
+    <section class="lk-card anim-1 p-5 sm:p-6">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="min-w-0">
+                <h2 class="font-['Sora'] text-lg font-bold leading-snug text-slate-900 dark:text-white">
+                    Contribution Summary
+                </h2>
+                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    LIKHA profiles measure institutional contribution, not social reach. Your reports, support
+                    signals, and evidence entries are what shape the recommendations LIKHA produces.
+                </p>
             </div>
-            <div class="s-label">Problems Submitted</div>
-            <div class="s-val">{{ $submittedProblems }}</div>
+
+            <span class="lk-badge badge-muted shrink-0">
+                <i data-lucide="user-round" class="h-3 w-3" aria-hidden="true"></i>
+                {{ ucfirst($user->role ?? 'User') }}
+            </span>
         </div>
 
-        <div class="s-card">
-            <div class="s-icon blue">
-                <i data-lucide="thumbs-up" style="width:16px;height:16px;"></i>
+        <div class="mt-5 grid grid-cols-2 gap-5 sm:grid-cols-3">
+            @foreach ($contributionMetrics as $metric)
+                <div class="flex min-w-0 flex-col gap-1.5">
+                    <span class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        <i data-lucide="{{ $metric['icon'] }}" class="h-4 w-4" aria-hidden="true"></i>
+                        {{ $metric['label'] }}
+                    </span>
+                    <span class="font-['Sora'] text-2xl font-bold leading-tight text-slate-900 dark:text-white">
+                        {{ $metric['value'] }}
+                    </span>
+                </div>
+            @endforeach
+
+            {{-- Contribution score: the single emphasised metric --}}
+            <div class="col-span-2 flex min-w-0 flex-col gap-1.5">
+                <span class="lk-badge badge-amber w-fit">
+                    <i data-lucide="award" class="h-3 w-3" aria-hidden="true"></i>
+                    Contribution Score
+                </span>
+                <span class="font-['Sora'] text-2xl font-bold leading-tight" style="color: var(--amber);">
+                    {{ $communityContributionScore }}
+                </span>
             </div>
-            <div class="s-label">Problems Supported</div>
-            <div class="s-val">{{ $supportedProblems }}</div>
         </div>
 
-        <div class="s-card">
-            <div class="s-icon green">
-                <i data-lucide="file-text" style="width:16px;height:16px;"></i>
-            </div>
-            <div class="s-label">Evidence Entries</div>
-            <div class="s-val">{{ $evidenceContributions }}</div>
-        </div>
-
-        <div class="s-card">
-            <div class="s-icon" style="background:var(--blue-bg);border-color:var(--blue-b);color:var(--blue)">
-                <i data-lucide="lightbulb" style="width:16px;height:16px;"></i>
-            </div>
-            <div class="s-label">Ideas Contributed To</div>
-            <div class="s-val">{{ $generatedIdeasContributedTo }}</div>
-        </div>
-
-        <div class="s-card featured">
-            <div class="s-icon">
-                <i data-lucide="award" style="width:16px;height:16px;"></i>
-            </div>
-            <div class="s-label">Contribution Score</div>
-            <div class="s-val">{{ $communityContributionScore }}</div>
-        </div>
+        <p class="mt-5 border-t border-slate-200 pt-4 text-xs leading-6 text-slate-500 dark:border-white/10 dark:text-slate-400">
+            Your score grows when you document real problems, validate them with support, and add evidence that
+            makes those recommendations more trustworthy.
+        </p>
     </section>
 
-    <section class="grid gap-6 xl:grid-cols-[0.9fr,1.1fr] anim-2">
-        <div class="lk-card p-6">
-            <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400 dark:text-slate-500">Profile Focus</p>
-            <p class="mt-4 text-sm leading-7 text-slate-600 dark:text-slate-300">LIKHA profiles are about institutional contribution rather than social reach. Your score increases when you document real problems, validate them with support, and add evidence that makes the system's recommendations more trustworthy.</p>
-            <div class="mt-6 space-y-3">
-                <div class="lk-card p-4">
-                    <p class="text-xs uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Primary role</p>
-                    <p class="mt-2 font-semibold text-slate-900 dark:text-white">{{ ucfirst($user->role ?? 'User') }}</p>
-                </div>
-                <div class="lk-card p-4">
-                    <p class="text-xs uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Contribution mix</p>
-                    <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">{{ $submittedProblems }} reports, {{ $supportedProblems }} support signals, and {{ $evidenceContributions }} evidence entries are currently shaping LIKHA outputs.</p>
-                </div>
-            </div>
+    {{-- ══ ACCOUNT SETTINGS ══ --}}
+    <section class="lk-card anim-2 overflow-hidden">
+        <div class="border-b border-slate-200 px-5 py-4 sm:px-6 dark:border-white/10">
+            <h2 class="font-['Sora'] text-lg font-bold leading-snug text-slate-900 dark:text-white">
+                Account Settings
+            </h2>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Manage your sign-in details, password, and account access.
+            </p>
         </div>
 
-        <div class="space-y-4">
-            <div class="lk-card p-6">
-                @include('profile.partials.update-profile-information-form')
-            </div>
-            <div class="lk-card p-6">
-                @include('profile.partials.update-password-form')
-            </div>
-            <div class="lk-card p-6">
-                @include('profile.partials.delete-user-form')
-            </div>
+        <div class="p-5 sm:p-6">
+            @include('profile.partials.update-profile-information-form')
+        </div>
+
+        <div class="border-t border-slate-200 p-5 sm:p-6 dark:border-white/10">
+            @include('profile.partials.update-password-form')
+        </div>
+
+        <div class="border-t border-slate-200 p-5 sm:p-6 dark:border-white/10">
+            @include('profile.partials.delete-user-form')
         </div>
     </section>
 </div>

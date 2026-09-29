@@ -15,6 +15,7 @@ class SavedIdea extends Model
         'title',
         'description',
         'category',
+        'status',
         'idea_evaluation_id',
     ];
 

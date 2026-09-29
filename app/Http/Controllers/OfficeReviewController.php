@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Feedback;
+use App\Services\CategoryIdeaGenerationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -54,6 +55,8 @@ class OfficeReviewController extends Controller
             'reviewed_at' => now(),
         ]);
 
+        app(CategoryIdeaGenerationService::class)->generateForInstitutionalValidation($feedback);
+
         return back()->with('success', 'Report approved.');
     }
 
@@ -64,6 +67,9 @@ class OfficeReviewController extends Controller
 
         $feedback->update([
             'status' => 'rejected',
+            'is_capstone_worthy' => false,
+            'capstone_marked_by' => null,
+            'capstone_marked_at' => null,
             'reviewed_by' => auth()->id(),
             'reviewed_at' => now(),
         ]);
@@ -92,6 +98,8 @@ class OfficeReviewController extends Controller
             'capstone_marked_by' => auth()->id(),
             'capstone_marked_at' => now(),
         ]);
+
+        app(CategoryIdeaGenerationService::class)->generateForInstitutionalValidation($feedback);
 
         return back()->with('success', 'Marked as a capstone idea.');
     }

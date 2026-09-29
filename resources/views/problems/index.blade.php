@@ -6,31 +6,137 @@
 @section('content')
 @include('layouts.partials.design-system')
 
+<style>
+    /* ── Discover — view-scoped refinements (LIKHA tokens only) ── */
+
+    .lk-search { position: relative; }
+    .lk-search .lk-input { padding-left: 36px; }
+    .lk-search-icon {
+        position: absolute; left: 12px; top: 50%;
+        transform: translateY(-50%);
+        width: 15px; height: 15px;
+        color: var(--text3);
+        pointer-events: none;
+    }
+
+    .lk-problem-title {
+        font-family: 'Sora', sans-serif;
+        font-size: 16px; font-weight: 700; line-height: 1.4;
+        color: var(--text);
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .lk-problem-desc {
+        margin-top: 8px; font-size: 13px; line-height: 1.65;
+        color: var(--text2);
+        display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .lk-signal {
+        display: inline-flex; align-items: center; gap: 5px;
+        font-size: 11.5px; font-weight: 600; color: var(--text3);
+    }
+    .lk-signal i { width: 12px; height: 12px; }
+
+    .lk-why {
+        margin-top: 14px; padding: 10px 12px;
+        border-radius: 10px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-left: 2px solid var(--amber-mid);
+    }
+    .lk-why-label {
+        display: block; margin-bottom: 3px;
+        font-size: 10px; font-weight: 700;
+        letter-spacing: .08em; text-transform: uppercase;
+        color: var(--text3);
+    }
+    .lk-why p { font-size: 12.5px; line-height: 1.6; color: var(--text2); }
+
+    .lk-vote {
+        display: inline-flex; align-items: center; gap: 7px;
+        padding: 8px 14px; border-radius: 999px;
+        font-size: 12.5px; font-weight: 600; font-family: 'DM Sans', sans-serif;
+        background: var(--surface2); border: 1px solid var(--border);
+        color: var(--text2); cursor: pointer;
+        transition: all .18s;
+    }
+    .lk-vote i { width: 15px; height: 15px; }
+    .lk-vote:hover { border-color: var(--amber-mid); background: var(--amber-dim); color: var(--amber); }
+    .lk-vote.is-on { background: var(--amber-dim); border-color: var(--amber-mid); color: var(--amber); }
+
+    /* Vendor Tailwind pagination -> LIKHA amber (view-level override) */
+    .lk-pagination nav a,
+    .lk-pagination nav span {
+        background: var(--surface);
+        border-color: var(--border);
+        color: var(--text2);
+        border-radius: 9px;
+        margin: 0;
+        font-weight: 600;
+        transition: all .15s;
+    }
+    html.dark .lk-pagination nav a,
+    html.dark .lk-pagination nav span {
+        background: var(--surface);
+        border-color: var(--border);
+        color: var(--text2);
+    }
+    .lk-pagination nav a:hover,
+    html.dark .lk-pagination nav a:hover {
+        background: var(--amber-dim);
+        border-color: var(--amber-mid);
+        color: var(--amber);
+    }
+    .lk-pagination nav a:focus,
+    html.dark .lk-pagination nav a:focus {
+        outline: none;
+        background: var(--amber-dim);
+        border-color: var(--amber-mid);
+        color: var(--amber);
+        box-shadow: 0 0 0 3px var(--amber-dim);
+    }
+    .lk-pagination nav [aria-current='page'] span {
+        background: var(--amber-dim);
+        border-color: var(--amber-mid);
+        color: var(--amber);
+    }
+    .lk-pagination nav [aria-disabled='true'] { opacity: .55; }
+    .lk-pagination nav .shadow-sm { box-shadow: none; }
+    .lk-pagination nav p,
+    html.dark .lk-pagination nav p { color: var(--text3); }
+</style>
+
 <div class="mx-auto max-w-7xl space-y-6">
 
-    {{-- ══ FILTERS + RECENT IDEAS ══ --}}
-    <section class="grid gap-4 xl:grid-cols-[1.5fr,0.5fr]">
+    {{-- ══ FIND ══ --}}
+    <section class="lk-card anim-1 p-5 sm:p-6">
+        <div class="co-section-head">
+            <span class="co-section-dot"></span>
+            <span class="co-section-title">Find a problem</span>
+            <span class="co-section-sub">Search by keyword, or narrow to a single category</span>
+        </div>
 
-        <form method="GET" action="{{ route('discover') }}" class="lk-card p-5">
-            <div class="grid gap-3 md:grid-cols-[1.3fr,0.9fr,auto] md:items-end">
-
-                <div>
-                    <label for="discover-search" class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.25em] text-slate-400 dark:text-slate-500">Search</label>
-                    <div class="relative">
-                        <i data-lucide="search" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
-                        <input
-                            id="discover-search"
-                            type="text"
-                            name="search"
-                            value="{{ request('search') }}"
-                            placeholder="Queue delays, registrar, Wi-Fi"
-                            class="lk-input pl-9"
-                        />
-                    </div>
+        <form method="GET" action="{{ route('discover') }}" class="grid gap-3">
+            <div>
+                <label for="discover-search" class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.25em] text-slate-500 dark:text-slate-400">Search</label>
+                <div class="lk-search">
+                    <i data-lucide="search" class="lk-search-icon"></i>
+                    <input
+                        id="discover-search"
+                        type="text"
+                        name="search"
+                        value="{{ request('search') }}"
+                        placeholder="Queue delays, registrar, Wi-Fi"
+                        class="lk-input"
+                    />
                 </div>
+            </div>
 
+            <div class="grid gap-3 md:grid-cols-2 md:items-end">
                 <div>
-                    <label for="discover-category" class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.25em] text-slate-400 dark:text-slate-500">Category</label>
+                    <label for="discover-category" class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.25em] text-slate-500 dark:text-slate-400">Category</label>
                     <select
                         id="discover-category"
                         name="category"
@@ -45,7 +151,7 @@
 
                 <div class="flex items-center gap-2 md:justify-end">
                     <button type="submit" class="btn-amber">
-                        <i data-lucide="filter" class="h-3.5 w-3.5"></i>
+                        <i data-lucide="filter" class="h-4 w-4" aria-hidden="true"></i>
                         Apply
                     </button>
                     @if (request()->hasAny(['search', 'category', 'sort']))
@@ -55,8 +161,8 @@
             </div>
 
             @if (request()->hasAny(['search', 'category']))
-                <div class="mt-3 filter-tags border-t border-slate-200/50 dark:border-white/10 pt-3">
-                    <span class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Filtering by</span>
+                <div class="filter-tags mt-3 border-t pt-3" style="border-color: var(--border);">
+                    <span class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Filtering by</span>
                     @if (request('search'))
                         <span class="filter-tag">
                             "{{ request('search') }}"
@@ -72,96 +178,114 @@
                 </div>
             @endif
         </form>
+    </section>
 
-        <div class="lk-card p-5">
-            <p class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.25em] text-slate-400 dark:text-slate-500">
-                <i data-lucide="sparkles" class="h-3 w-3" style="color:var(--amber)"></i>
-                Recent Capstone Opportunities
-            </p>
-            <div class="mt-2 space-y-2">
-                @forelse ($recentIdeas as $idea)
-                    <a href="{{ route('feedback.category', ['category' => $idea->category, 'idea' => $idea->idea_title]) }}" class="block rounded-xl border border-slate-200/50 dark:border-white/10 p-3 transition hover:border-amber-300 hover:bg-amber-50/60 dark:hover:bg-white/5">
-                        <p class="text-[10px] uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">{{ $idea->category }}</p>
-                        <p class="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{{ $idea->idea_title }}</p>
-                        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Overall score {{ number_format($idea->overall_score, 2) }}</p>
+    {{-- ══ SORT ══ --}}
+    <section class="lk-card anim-2 p-3">
+        <div class="flex flex-wrap items-center gap-3">
+            <span class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Sort</span>
+            <div class="sort-pills flex-1" role="navigation" aria-label="Sort problems">
+                @php
+                    $sorts = [
+                        'trending'  => ['label' => 'Trending', 'icon' => 'trending-up'],
+                        'newest'    => ['label' => 'Newest', 'icon' => 'clock'],
+                        'supported' => ['label' => 'Most Supported', 'icon' => 'thumbs-up'],
+                        'severity'  => ['label' => 'Highest Severity', 'icon' => 'alert-triangle'],
+                    ];
+                @endphp
+                @foreach ($sorts as $value => $meta)
+                    <a
+                        href="{{ request()->fullUrlWithQuery(['sort' => $value, 'page' => null]) }}"
+                        @if($activeSort === $value) aria-current="page" @endif
+                        @class(['sort-pill', 'active' => $activeSort === $value])
+                    >
+                        <i data-lucide="{{ $meta['icon'] }}" aria-hidden="true"></i>
+                        <span>{{ $meta['label'] }}</span>
                     </a>
-                @empty
-                    <p class="text-sm text-slate-500 dark:text-slate-400">No generated ideas yet.</p>
-                @endforelse
+                @endforeach
             </div>
+            <span class="lk-badge badge-muted shrink-0">
+                {{ $feedbacks->total() }} {{ Str::plural('problem', $feedbacks->total()) }}
+            </span>
         </div>
     </section>
 
-    {{-- ══ SORT PILLS ══ --}}
-    <section class="sort-pills" role="navigation" aria-label="Sort problems">
-        @php
-            $sorts = [
-                'trending'  => ['label' => 'Trending', 'icon' => 'trending-up'],
-                'newest'    => ['label' => 'Newest', 'icon' => 'clock'],
-                'supported' => ['label' => 'Most Supported', 'icon' => 'thumbs-up'],
-                'severity'  => ['label' => 'Highest Severity', 'icon' => 'alert-triangle'],
-            ];
-        @endphp
-        @foreach ($sorts as $value => $meta)
-            <a
-                href="{{ request()->fullUrlWithQuery(['sort' => $value, 'page' => null]) }}"
-                @if($activeSort === $value) aria-current="page" @endif
-                class="sort-pill {{ $activeSort === $value ? 'active' : '' }}"
-            >
-                <i data-lucide="{{ $meta['icon'] }}" class="h-4 w-4"></i>
-                {{ $meta['label'] }}
-            </a>
-        @endforeach
-    </section>
-
-    {{-- ══ RESULTS ══ --}}
-    <section class="grid gap-4 lg:grid-cols-2 xl:grid-cols-2">
+    {{-- ══ SCAN PROBLEMS ══ --}}
+    <section class="grid gap-4 lg:grid-cols-2">
         @forelse ($feedbacks as $feedback)
-            <article class="lk-card p-5 flex flex-col">
+            <article class="lk-card anim-{{ min($loop->iteration, 5) }} flex flex-col p-5">
+                {{-- A. CONTEXT --}}
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ $feedback->user?->name ?? 'Anonymous contributor' }}</p>
+                        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ $feedback->created_at->diffForHumans() }} &bull; {{ $feedback->cluster_name }}</p>
+                    </div>
+                    <span class="lk-badge badge-amber shrink-0">#{{ Str::slug($feedback->category, '') }}</span>
+                </div>
+
                 @if($feedback->is_capstone_worthy)
-                    <div class="mb-3 inline-flex w-fit items-center gap-1.5 rounded-full badge-green">
-                        <i data-lucide="sparkles" class="h-3 w-3"></i>
-                        Capstone Opportunity
+                    <div class="mt-3">
+                        <span class="lk-badge badge-green">
+                            <i data-lucide="sparkles" aria-hidden="true"></i>
+                            Capstone Opportunity
+                        </span>
                     </div>
                 @endif
 
-                <div class="flex items-start justify-between gap-3">
-                    <div class="min-w-0">
-                        <p class="truncate font-semibold text-slate-900 dark:text-white">{{ $feedback->title }}</p>
-                        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ $feedback->created_at->diffForHumans() }} · {{ $feedback->user?->name ?? 'Anonymous contributor' }}</p>
-                    </div>
-                    <span class="shrink-0 badge-amber">#{{ Str::slug($feedback->category, '') }}</span>
-                </div>
+                {{-- B. PROBLEM --}}
+                <h2 class="lk-problem-title mt-3">{{ $feedback->title }}</h2>
+                <p class="lk-problem-desc">{{ $feedback->description }}</p>
 
-                <p class="mt-3 line-clamp-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{{ $feedback->description }}</p>
-
-                <div class="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
-                    <span class="lk-badge badge-muted">{{ $feedback->votes_count }} support</span>
-                    <span class="lk-badge badge-muted">{{ $feedback->comments_count }} evidence</span>
-                    <span class="lk-badge badge-muted">{{ $feedback->recurring_report_count }} recurring</span>
-                    @php
-                        $sevBadge = $feedback->severity_level === 'High' ? 'badge-red' : ($feedback->severity_level === 'Medium' ? 'badge-amber' : 'badge-green');
-                        $conBadge = $feedback->confidence_level === 'High' ? 'badge-green' : ($feedback->confidence_level === 'Medium' ? 'badge-blue' : 'badge-muted');
-                    @endphp
+                {{-- D. DSS INTERPRETATION (primary metadata) --}}
+                @php
+                    $sevBadge = $feedback->severity_level === 'High' ? 'badge-red' : ($feedback->severity_level === 'Medium' ? 'badge-amber' : 'badge-green');
+                    $conBadge = $feedback->confidence_level === 'High' ? 'badge-green' : ($feedback->confidence_level === 'Medium' ? 'badge-blue' : 'badge-muted');
+                @endphp
+                <div class="mt-4 flex flex-wrap gap-2">
                     <span class="lk-badge {{ $sevBadge }}">Severity {{ number_format($feedback->severity_score, 1) }}</span>
                     <span class="lk-badge {{ $conBadge }}">Confidence {{ number_format($feedback->confidence_score, 1) }}</span>
                 </div>
 
-                <p class="mt-4 border-l-2 border-amber-200/50 dark:border-amber-500/30 pl-3 text-sm italic leading-6 text-slate-500 dark:text-slate-400">
-                    {{ $feedback->why_it_matters }}
-                </p>
+                {{-- C. EVIDENCE SIGNALS (compact inline metadata) --}}
+                <div class="mt-3 flex flex-wrap items-center gap-3">
+                    <span class="lk-signal">
+                        <i data-lucide="thumbs-up" aria-hidden="true"></i>
+                        {{ $feedback->votes_count }} support
+                    </span>
+                    <span class="lk-signal">
+                        <i data-lucide="file-text" aria-hidden="true"></i>
+                        {{ $feedback->comments_count }} evidence
+                    </span>
+                    <span class="lk-signal">
+                        <i data-lucide="repeat" aria-hidden="true"></i>
+                        {{ $feedback->recurring_report_count }} recurring
+                    </span>
+                </div>
 
-                <div class="mt-4 flex items-center justify-between gap-3 border-t border-slate-200/50 dark:border-white/10 pt-3">
+                {{-- E. WHY IT MATTERS (supporting callout) --}}
+                <div class="lk-why">
+                    <span class="lk-why-label">Why it matters</span>
+                    <p>{{ $feedback->why_it_matters }}</p>
+                </div>
+
+                {{-- F. ACTIONS --}}
+                <div class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-3" style="border-color: var(--border);">
                     <form method="POST" action="{{ route('feedback.vote', $feedback->id) }}">
                         @csrf
-                        <button type="submit" aria-label="{{ $feedback->has_supported ? 'Remove your support' : 'Support this problem' }}" aria-pressed="{{ $feedback->has_supported ? 'true' : 'false' }}" title="{{ $feedback->has_supported ? 'Supported' : 'Support this problem' }}" class="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition {{ $feedback->has_supported ? 'border-amber-500 bg-amber-100 text-amber-800 dark:border-amber-400 dark:bg-amber-500/20 dark:text-amber-200' : 'border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-400/40 dark:text-amber-300 dark:hover:bg-amber-500/10' }}">
-                            <i data-lucide="thumbs-up" class="h-4 w-4" aria-hidden="true"></i>
+                        <button
+                            type="submit"
+                            @class(['lk-vote', 'is-on' => $feedback->has_supported])
+                            aria-label="{{ $feedback->has_supported ? 'Remove your support' : 'Support this problem' }}"
+                            aria-pressed="{{ $feedback->has_supported ? 'true' : 'false' }}"
+                            title="{{ $feedback->has_supported ? 'Supported' : 'Support this problem' }}"
+                        >
+                            <i data-lucide="thumbs-up" aria-hidden="true"></i>
                             <span>{{ $feedback->votes_count }}</span>
                         </button>
                     </form>
                     <a href="{{ route('feedback.show', $feedback) }}" class="btn-amber text-sm">
                         View details
-                        <i data-lucide="arrow-right" class="h-3.5 w-3.5"></i>
+                        <i data-lucide="arrow-right" class="h-4 w-4" aria-hidden="true"></i>
                     </a>
                 </div>
             </article>
@@ -178,7 +302,32 @@
     </section>
 
     @if ($feedbacks->hasPages())
-        <div class="pt-2">{{ $feedbacks->withQueryString()->links() }}</div>
+        <div class="lk-pagination pt-2">{{ $feedbacks->withQueryString()->links() }}</div>
     @endif
+
+    {{-- ══ SECONDARY: RECENT CAPSTONE OPPORTUNITIES ══ --}}
+    <section class="lk-card anim-2 overflow-hidden">
+        <div class="dc-head">
+            <div class="min-w-0">
+                <div class="dc-title">Recent Capstone Opportunities</div>
+                <div class="dc-sub">Freshly generated from the DSS — a starting point for your capstone.</div>
+            </div>
+            <span class="lk-badge badge-muted shrink-0">{{ $recentIdeas->count() }} new</span>
+        </div>
+        <div class="dc-body">
+            @forelse ($recentIdeas as $idea)
+                <a
+                    href="{{ route('feedback.category', ['category' => $idea->category, 'idea' => $idea->idea_title]) }}"
+                    class="row-item"
+                >
+                    <span class="lk-badge badge-amber shrink-0">{{ $idea->category }}</span>
+                    <span class="ri-text flex-1">{{ $idea->idea_title }}</span>
+                    <span class="ri-vote" title="Overall evaluation" aria-label="Overall evaluation {{ number_format($idea->overall_score, 2) }}">{{ number_format($idea->overall_score, 2) }}</span>
+                </a>
+            @empty
+                <p class="empty-text">No generated ideas yet.</p>
+            @endforelse
+        </div>
+    </section>
 </div>
 @endsection

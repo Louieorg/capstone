@@ -7,6 +7,7 @@ use App\Models\IdeaEvaluation;
 use App\Models\SavedIdea;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class IdeaController extends Controller
@@ -45,24 +46,30 @@ class IdeaController extends Controller
             ]
         );
 
+        $redirectUrl = route('feedback.category', [
+            'category' => $evaluation->category,
+            'idea' => $evaluation->idea_title,
+        ]).'#idea-'.Str::slug($evaluation->idea_title);
+
         if (! $idea->wasRecentlyCreated) {
-            return back()->with('info', 'This idea is already in your saved ideas.');
+            return redirect()->to($redirectUrl)->with('info', 'This idea is already in your saved ideas.');
         }
 
-        return back()->with('success', 'Idea saved successfully.');
+        return redirect()->to($redirectUrl)->with('success', 'Idea saved successfully.');
     }
 
-    public function updateStatus(Request $request, $id)
+    public function updateStatus(Request $request, int $id): RedirectResponse
     {
-        $request->validate([
+        $validated = $request->validate([
             'status' => 'required|in:Exploring,Adopted,In Progress,Completed',
         ]);
 
-        $idea = SavedIdea::where('id', $id)
-            ->where('user_id', auth()->id())  // users can only update their own
+        $idea = SavedIdea::query()
+            ->where('id', $id)
+            ->where('user_id', $request->user()->id)
             ->firstOrFail();
 
-        $idea->update(['status' => $request->status]);
+        $idea->update(['status' => $validated['status']]);
 
         return back()->with('success', 'Idea status updated.');
     }
