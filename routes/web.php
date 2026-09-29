@@ -18,7 +18,7 @@ use App\Http\Controllers\UserController;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware('can:isOfficeReviewer')->group(function () {
+Route::middleware(['auth', 'verified', 'can:isOfficeReviewer'])->group(function () {
 
     Route::get('/office/review', [OfficeReviewController::class, 'index'])
         ->name('office.review.index');
