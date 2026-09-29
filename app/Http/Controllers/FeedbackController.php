@@ -166,7 +166,7 @@ class FeedbackController extends Controller
         }
 
         $finalCategory = $request->category === 'Other'
-            ? $request->category_other
+            ? (filled($request->category_other) ? $request->category_other : 'Other')
             : $request->category;
         $finalDepartment = $request->department === 'Other'
             ? $request->department_other

@@ -151,6 +151,34 @@ test('authenticated users can submit feedback when choosing other category and p
     ]);
 });
 
+test('authenticated users can submit an Other category with a blank custom category detail', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->post(route('feedback.store'), [
+        'title' => 'Unspecified campus service delay',
+        'category' => 'Other',
+        'category_other' => '',
+        'description' => 'Students and staff wait for a service that is not covered by the listed categories.',
+        'impact' => 'This interrupts daily transactions for students and staff visiting the office.',
+        'frequency' => 'Often',
+        'current_process' => 'Report verbally to staff',
+        'affected_users' => '50-200',
+        'affected_group' => ['Students'],
+        'force_submit' => '1',
+    ]);
+
+    $response->assertRedirect(route('feedback.submitted', absolute: false));
+    $response->assertSessionHasNoErrors();
+
+    $feedback = Feedback::query()
+        ->where('title', 'Unspecified campus service delay')
+        ->firstOrFail();
+
+    expect($feedback->category)->toBe('Other')
+        ->and($feedback->category_other)->toBeNull()
+        ->and($feedback->is_flagged)->toBeFalse();
+});
+
 test('authenticated users can submit feedback with supporting evidence', function () {
     Storage::fake('public');
 
