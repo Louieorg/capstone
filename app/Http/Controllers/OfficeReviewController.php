@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Feedback;
+use App\Models\User;
 use App\Services\CategoryIdeaGenerationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,6 +29,13 @@ class OfficeReviewController extends Controller
 
         $problems = $query->latest()->paginate(15)->withQueryString();
 
+        $hasOtherReviewer = $this->hasOtherEligibleReviewer();
+
+        foreach ($problems as $problem) {
+            $problem->is_own_submission = $this->isOwnSubmission($problem);
+            $problem->self_review_blocked = $problem->is_own_submission && $hasOtherReviewer;
+        }
+
         $counts = [
             'pending' => Feedback::whereIn('category', $categories)->where('status', 'pending')->count(),
             'approved' => Feedback::whereIn('category', $categories)->where('status', 'approved')->count(),
@@ -47,6 +55,7 @@ class OfficeReviewController extends Controller
     {
         $feedback = Feedback::findOrFail($id);
         $this->authorizeCategory($feedback->category);
+        $this->abortIfSelfReviewBlocked($feedback);
 
         $feedback->update([
             'status' => 'approved',
@@ -64,6 +73,7 @@ class OfficeReviewController extends Controller
     {
         $feedback = Feedback::findOrFail($id);
         $this->authorizeCategory($feedback->category);
+        $this->abortIfSelfReviewBlocked($feedback);
 
         $feedback->update([
             'status' => 'rejected',
@@ -86,10 +96,65 @@ class OfficeReviewController extends Controller
         );
     }
 
+    /**
+     * Determine whether the report was submitted by the user who is reviewing it.
+     *
+     * Anonymous office-head submissions keep no user_id, so the id recorded in
+     * capstone_marked_by identifies the submitter — but only while the report is
+     * still pending. Marking a report capstone-worthy requires an approved status,
+     * so on an approved row capstone_marked_by belongs to whoever marked it, which
+     * may well be a different reviewer than the submitter.
+     */
+    private function isOwnSubmission(Feedback $feedback): bool
+    {
+        $userId = auth()->id();
+
+        if ($userId === null) {
+            return false;
+        }
+
+        if ($feedback->user_id !== null) {
+            return (int) $feedback->user_id === $userId;
+        }
+
+        return $feedback->status === 'pending'
+            && $feedback->capstone_marked_by !== null
+            && (int) $feedback->capstone_marked_by === $userId;
+    }
+
+    /**
+     * Determine whether another verified reviewer with the same office role exists.
+     */
+    private function hasOtherEligibleReviewer(): bool
+    {
+        $user = auth()->user();
+
+        if ($user === null) {
+            return false;
+        }
+
+        return User::query()
+            ->where('role', $user->role)
+            ->whereKeyNot($user->id)
+            ->whereNotNull('email_verified_at')
+            ->exists();
+    }
+
+    /**
+     * Block reviewing your own submission while a second reviewer is available.
+     */
+    private function abortIfSelfReviewBlocked(Feedback $feedback): void
+    {
+        if ($this->isOwnSubmission($feedback) && $this->hasOtherEligibleReviewer()) {
+            abort(403, 'You cannot review your own submission while another reviewer in your office is available.');
+        }
+    }
+
     public function markCapstoneWorthy(int $id): RedirectResponse
     {
         $feedback = Feedback::findOrFail($id);
         $this->authorizeCategory($feedback->category);
+        $this->abortIfSelfReviewBlocked($feedback);
 
         abort_unless($feedback->status === 'approved', 422, 'Only approved reports can be marked as capstone ideas.');
 

@@ -92,29 +92,44 @@
         <div style="font-size:11.5px;color:var(--muted2)">
           @if($item->reviewed_by)
             Reviewed by {{ $item->reviewedBy->name ?? 'Unknown' }} &middot; {{ optional($item->reviewed_at)->diffForHumans() }}
+            @if($item->user_id && (int) $item->reviewed_by === (int) $item->user_id)
+              &middot; <span class="lk-badge b-grey">Self-reviewed</span>
+            @endif
           @else
             Not yet reviewed
           @endif
         </div>
-        @if($item->status === 'pending')
-          <div style="display:flex;gap:8px">
-            <form method="POST" action="{{ route('office.review.approve', $item->id) }}">
-              @csrf @method('PATCH')
-              <button type="submit" class="btn-approve">Approve</button>
-            </form>
-            <form method="POST" action="{{ route('office.review.reject', $item->id) }}">
-              @csrf @method('PATCH')
-              <button type="submit" class="btn-reject">Reject</button>
-            </form>
+        @if($item->self_review_blocked)
+          <div style="font-size:11.5px;color:var(--muted2)">
+            This is your own submission. Another reviewer in your office must review it.
           </div>
-        @elseif($item->status === 'approved')
-          @if($item->is_capstone_worthy)
-            <span class="lk-badge b-green">Marked as Capstone Idea</span>
-          @else
-            <form method="POST" action="{{ route('office.review.mark-capstone', $item->id) }}">
-              @csrf @method('PATCH')
-              <button type="submit" class="btn-approve">Mark as Capstone Idea</button>
-            </form>
+        @else
+          @if($item->status === 'pending')
+            <div style="display:flex;gap:8px">
+              <form method="POST" action="{{ route('office.review.approve', $item->id) }}">
+                @csrf @method('PATCH')
+                <button type="submit" class="btn-approve">Approve</button>
+              </form>
+              <form method="POST" action="{{ route('office.review.reject', $item->id) }}">
+                @csrf @method('PATCH')
+                <button type="submit" class="btn-reject">Reject</button>
+              </form>
+            </div>
+          @elseif($item->status === 'approved')
+            @if($item->is_capstone_worthy)
+              <span class="lk-badge b-green">Marked as Capstone Idea</span>
+            @else
+              <form method="POST" action="{{ route('office.review.mark-capstone', $item->id) }}">
+                @csrf @method('PATCH')
+                <button type="submit" class="btn-approve">Mark as Capstone Idea</button>
+              </form>
+            @endif
+          @endif
+
+          @if($item->is_own_submission)
+            <div style="font-size:11.5px;color:var(--muted2)">
+              You are the only reviewer for your office, so you can review your own submission.
+            </div>
           @endif
         @endif
       </div>
