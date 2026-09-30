@@ -406,7 +406,7 @@ select.field:invalid {
                 </label>
                 <input type="file" id="evidenceInput" name="evidence[]" accept=".jpg,.jpeg,.png,.webp,.pdf" multiple style="position:absolute; opacity:0; pointer-events:none; width:1px; height:1px;" />
               </div>
-              <p style="font-size: .6875rem; color: var(--muted2);">Optional: upload multiple files (images or PDFs). Max 10MB each. You can leave this empty if you do not have files to attach.</p>
+              <p style="font-size: .6875rem; color: var(--muted2);">Optional: upload up to 5 files (JPG, PNG, WEBP or PDF, 10 MB each). You can leave this empty if you do not have files to attach.</p>
             </div>
 
             <input type="file" name="attachment" accept=".jpg,.jpeg,.png,.pdf" class="field" style="margin-top:10px;position:absolute; opacity:0; pointer-events:none; width:1px; height:1px;">
@@ -414,6 +414,9 @@ select.field:invalid {
             <div id="evidencePreview" class="mt-3 grid grid-cols-3 gap-3"></div>
 
             @error('evidence.*')
+              <p style="font-size: .75rem; color: #ef4444; margin-top: .5rem;">{{ $message }}</p>
+            @enderror
+            @error('evidence')
               <p style="font-size: .75rem; color: #ef4444; margin-top: .5rem;">{{ $message }}</p>
             @enderror
           </div>

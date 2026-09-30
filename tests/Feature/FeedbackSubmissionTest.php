@@ -193,7 +193,10 @@ test('authenticated users can submit feedback with supporting evidence', functio
         'current_process' => 'Report verbally to staff',
         'affected_users' => '50-200',
         'affected_group' => ['Students'],
-        'attachment' => UploadedFile::fake()->image('unsafe equipment.png'),
+        'attachment' => UploadedFile::fake()->createWithContent(
+            'unsafe equipment.png',
+            base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=')
+        ),
         'force_submit' => '1',
     ]);
 

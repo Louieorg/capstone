@@ -46,12 +46,22 @@ class StoreFeedbackRequest extends FormRequest
             'affected_users' => 'required|string|max:255',
             'affected_group' => 'required|array|min:1',
             'attachment' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
-            'evidence' => 'nullable|array',
+            'evidence' => 'nullable|array|max:5',
             'evidence.*' => 'file|mimes:jpg,jpeg,png,webp,pdf|max:10240',
             'evidence_captions' => 'nullable|array',
             'evidence_captions.*' => 'nullable|string|max:255',
             'category_other' => 'nullable|string|max:100',
             'current_process_other' => 'nullable|string|max:100',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'evidence.max' => 'You can attach up to 5 evidence files.',
         ];
     }
 

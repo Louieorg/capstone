@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -187,12 +188,15 @@ class FeedbackController extends Controller
 
         if ($request->hasFile('attachment')) {
             $attachment = $request->file('attachment');
-            $extension = strtolower($attachment->getClientOriginalExtension());
-            $safeName = Str::slug(pathinfo($attachment->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'attachment';
-            $filename = $safeName.'-'.Str::uuid().'.'.$extension;
+            $uploadType = $this->detectedUploadType($attachment);
 
-            $attachmentPath = Storage::disk('public')->putFileAs('attachments', $attachment, $filename);
-            $attachmentType = in_array($extension, ['jpg', 'jpeg', 'png'], true) ? 'image' : 'pdf';
+            if ($uploadType !== null) {
+                [$extension, $attachmentType] = $uploadType;
+                $safeName = Str::slug(pathinfo($attachment->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'attachment';
+                $filename = $safeName.'-'.Str::uuid().'.'.$extension;
+
+                $attachmentPath = Storage::disk('public')->putFileAs('attachments', $attachment, $filename);
+            }
         }
 
         $isAuthorizedOfficeSubmission =
@@ -230,7 +234,13 @@ class FeedbackController extends Controller
                     continue;
                 }
 
-                $extension = strtolower($file->getClientOriginalExtension());
+                $uploadType = $this->detectedUploadType($file);
+
+                if ($uploadType === null) {
+                    continue;
+                }
+
+                [$extension, $fileType] = $uploadType;
                 $safeName = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'evidence';
                 $filename = $safeName.'-'.Str::uuid().'.'.$extension;
 
@@ -241,7 +251,7 @@ class FeedbackController extends Controller
                     'user_id' => $request->has('is_anonymous') ? null : Auth::id(),
                     'file_path' => $path,
                     'file_name' => $file->getClientOriginalName(),
-                    'file_type' => in_array($extension, ['jpg', 'jpeg', 'png', 'webp'], true) ? 'image' : 'pdf',
+                    'file_type' => $fileType,
                     'mime_type' => $file->getMimeType(),
                     'file_size' => $file->getSize(),
                     'caption' => $captions[$index] ?? null,
@@ -256,6 +266,20 @@ class FeedbackController extends Controller
                     ? 'Problem submitted for admin review. It will be excluded from idea generation until approved as valid.'
                     : 'Problem submitted successfully.'
             );
+    }
+
+    /**
+     * @return array{0: string, 1: string}|null
+     */
+    private function detectedUploadType(UploadedFile $file): ?array
+    {
+        return match ($file->getMimeType()) {
+            'image/jpeg' => ['jpg', 'image'],
+            'image/png' => ['png', 'image'],
+            'image/webp' => ['webp', 'image'],
+            'application/pdf' => ['pdf', 'pdf'],
+            default => null,
+        };
     }
 
     public function submitted(): View
