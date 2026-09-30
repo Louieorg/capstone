@@ -160,7 +160,7 @@ class FeedbackController extends Controller
             })
             ->take(3);
 
-        if ($similarProblems->count() > 0 && ! $request->has('force_submit')) {
+        if ($similarProblems->count() > 0 && ! $request->boolean('force_submit')) {
             return back()
                 ->withInput()
                 ->with('similarProblems', $similarProblems);

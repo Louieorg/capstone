@@ -165,16 +165,20 @@ select.field:invalid {
     </p>
     <ul style="margin: 0; padding: 0; display: flex; flex-direction: column; gap: .25rem; font-size: .875rem; color: #b45309; margin-bottom: .5rem;">
       @foreach(session('similarProblems') as $problem)
-        <li style="display: flex; gap: .5rem;"><span style="opacity: .6;">▸</span>{{ $problem->title }}</li>
+        <li style="display: flex; gap: .5rem;"><span style="opacity: .6;">▸</span><a href="{{ route('feedback.show', $problem) }}" style="color: inherit; text-decoration: underline;">{{ $problem->title }}</a></li>
       @endforeach
     </ul>
-    <p style="font-size: .75rem; color: #a16207;">You can support an existing problem instead of submitting a new one.</p>
+    <p style="font-size: .75rem; color: #a16207;">You can support an existing problem instead of submitting a new one. If you attached files, please attach them again.</p>
+    <div class="flex flex-wrap gap-3 mt-4">
+      <a href="{{ route('feedback.index') }}" class="btn-back">Review existing problems</a>
+      <button type="submit" name="force_submit" value="1" form="feedback-form" class="btn-submit">Submit anyway</button>
+    </div>
   </div>
   @endif
 
   {{-- ── Main Form Card ── --}}
   <div x-data="{
-      step: {{ old('current_step', session('current_step', 1)) }},
+      step: {{ old('current_step', session('similarProblems') ? 4 : session('current_step', 1)) }},
       showError: false,
       otherGroup: false,
       otherGroupVal: '',
@@ -212,9 +216,8 @@ select.field:invalid {
 
     <div class="h-1 w-full bg-gradient-to-r from-amber-400 to-orange-500"></div>
 
-    <form method="POST" action="{{ route('feedback.store') }}" enctype="multipart/form-data" class="p-6 sm:p-8 space-y-8" @submit="document.querySelector('[name=current_step]').value = step">
+    <form id="feedback-form" method="POST" action="{{ route('feedback.store') }}" enctype="multipart/form-data" class="p-6 sm:p-8 space-y-8" @submit="document.querySelector('[name=current_step]').value = step">
       @csrf
-      <input type="hidden" name="force_submit" value="1">
       <input type="hidden" name="current_step" :value="step">
 
       {{-- ── Step Indicator ── --}}
