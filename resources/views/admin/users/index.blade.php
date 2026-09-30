@@ -184,15 +184,9 @@
             <form method="POST" action="{{ route('admin.users.office-head', $user->id) }}" style="display:flex;gap:6px;align-items:center">
   @csrf @method('PATCH')
   <label style="display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--muted)">
-    <input type="checkbox" name="is_office_head" value="1" {{ $user->is_office_head ? 'checked' : '' }} onchange="this.form.querySelector('select').disabled = !this.checked; if (!this.checked) { this.form.submit(); }">
+    <input type="checkbox" name="is_office_head" value="1" {{ $user->is_office_head ? 'checked' : '' }} onchange="this.form.submit();">
     Office Head
   </label>
-  <select name="office_department" onchange="this.form.submit()" {{ $user->is_office_head ? '' : 'disabled' }} style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:6px 10px;font-size:12px;color:var(--text)">
-    <option value="">Select dept...</option>
-    @foreach(['CICS','CHM','CCJE','CIT','CTE','CFAS','CBEA','Registrar','Guidance Office'] as $dept)
-      <option value="{{ $dept }}" {{ $user->office_department === $dept ? 'selected' : '' }}>{{ $dept }}</option>
-    @endforeach
-  </select>
 </form>
 
             <form method="POST" action="{{ route('admin.users.destroy', $user->id) }}"
