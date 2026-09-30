@@ -165,6 +165,59 @@ test('an authorized office head submission is institutionally validated but gene
         ->and($clusteringSpy->processedFeedbacks)->toBeNull();
 });
 
+test('office approval and rejection reject transitions from non-pending states without changing review data or dss output', function (string $action, string $status): void {
+    $officeUser = officeDssUser();
+    officeDssAssignment('Office Review Facilities');
+
+    $reviewer = User::factory()->create();
+    $capstoneMarker = User::factory()->create();
+    $feedback = officeDssFeedback([
+        'status' => $status,
+        'reviewed_by' => $reviewer->id,
+        'reviewed_at' => now()->subDays(2),
+        'is_capstone_worthy' => true,
+        'capstone_marked_by' => $capstoneMarker->id,
+        'capstone_marked_at' => now()->subDay(),
+    ]);
+    $stateBefore = $feedback->only([
+        'status',
+        'reviewed_by',
+        'reviewed_at',
+        'is_capstone_worthy',
+        'capstone_marked_by',
+        'capstone_marked_at',
+    ]);
+    $ideaEvaluationCount = IdeaEvaluation::query()->count();
+
+    $generationService = Mockery::mock(CategoryIdeaGenerationService::class);
+    $generationService->shouldNotReceive('generateForInstitutionalValidation');
+    $this->app->instance(CategoryIdeaGenerationService::class, $generationService);
+
+    $this->actingAs($officeUser)
+        ->patch(route("office.review.{$action}", $feedback->id), [
+            'status' => 'pending',
+            'reviewed_by' => $officeUser->id,
+            'is_capstone_worthy' => false,
+            'capstone_marked_by' => $officeUser->id,
+        ])
+        ->assertUnprocessable();
+
+    expect($feedback->fresh()->only([
+        'status',
+        'reviewed_by',
+        'reviewed_at',
+        'is_capstone_worthy',
+        'capstone_marked_by',
+        'capstone_marked_at',
+    ]))->toEqual($stateBefore)
+        ->and(IdeaEvaluation::query()->count())->toBe($ideaEvaluationCount);
+})->with([
+    'approving an already-approved report' => ['approve', 'approved'],
+    'approving a rejected report' => ['approve', 'rejected'],
+    'rejecting an already-approved report' => ['reject', 'approved'],
+    'rejecting an already-rejected report' => ['reject', 'rejected'],
+]);
+
 test('office approval runs the existing dss pipeline and persists an idea evaluation', function (): void {
     Cache::flush();
 

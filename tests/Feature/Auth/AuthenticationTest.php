@@ -17,7 +17,31 @@ test('users can authenticate using the login screen', function () {
     ]);
 
     $this->assertAuthenticated();
-    $response->assertRedirect(route('dashboard', absolute: false));
+    $response->assertRedirect(route('home', absolute: false));
+});
+
+test('admin users are redirected to the admin dashboard after login', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+
+    $response = $this->post('/login', [
+        'email' => $admin->email,
+        'password' => 'password',
+    ]);
+
+    $this->assertAuthenticated();
+    $response->assertRedirect(route('admin.dashboard', absolute: false));
+});
+
+test('adviser users are redirected to the adviser dashboard after login', function () {
+    $adviser = User::factory()->create(['role' => 'adviser']);
+
+    $response = $this->post('/login', [
+        'email' => $adviser->email,
+        'password' => 'password',
+    ]);
+
+    $this->assertAuthenticated();
+    $response->assertRedirect(route('adviser.dashboard', absolute: false));
 });
 
 test('users can not authenticate with invalid password', function () {

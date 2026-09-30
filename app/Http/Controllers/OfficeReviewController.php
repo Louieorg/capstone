@@ -57,6 +57,8 @@ class OfficeReviewController extends Controller
         $this->authorizeCategory($feedback->category);
         $this->abortIfSelfReviewBlocked($feedback);
 
+        abort_unless($feedback->status === 'pending', 422, 'Only pending reports can be approved.');
+
         $feedback->update([
             'status' => 'approved',
             'is_flagged' => false,
@@ -74,6 +76,8 @@ class OfficeReviewController extends Controller
         $feedback = Feedback::findOrFail($id);
         $this->authorizeCategory($feedback->category);
         $this->abortIfSelfReviewBlocked($feedback);
+
+        abort_unless($feedback->status === 'pending', 422, 'Only pending reports can be rejected.');
 
         $feedback->update([
             'status' => 'rejected',

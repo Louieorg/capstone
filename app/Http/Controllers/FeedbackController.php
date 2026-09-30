@@ -793,29 +793,40 @@ class FeedbackController extends Controller
 
     public function storeReview(Request $request): RedirectResponse
     {
+        $validated = $request->validate([
+            'idea_title' => 'required|string|max:255',
+            'category' => 'required|string|max:255',
+            'comment' => 'required|string',
+            'recommendation' => 'required|in:Recommended,Needs Revision,Not Recommended',
+            'feasibility' => 'required|integer|min:1|max:5',
+            'impact' => 'required|integer|min:1|max:5',
+            'complexity' => 'required|integer|min:1|max:5',
+            'innovation' => 'required|integer|min:1|max:5',
+        ]);
+
         AdviserReview::query()->create([
-            'idea_title' => $request->idea_title,
-            'category' => $request->category,
-            'comment' => $request->comment,
-            'recommendation' => $request->recommendation,
+            'idea_title' => $validated['idea_title'],
+            'category' => $validated['category'],
+            'comment' => $validated['comment'],
+            'recommendation' => $validated['recommendation'],
             'user_id' => auth()->id(),
         ]);
 
         $evaluation = IdeaEvaluation::query()
-            ->where('idea_title', $request->idea_title)
-            ->where('category', $request->category)
+            ->where('idea_title', $validated['idea_title'])
+            ->where('category', $validated['category'])
             ->first();
 
         if ($evaluation) {
-            $evaluation->adviser_feasibility = $request->feasibility;
-            $evaluation->adviser_impact = $request->impact;
-            $evaluation->adviser_complexity = $request->complexity;
-            $evaluation->adviser_innovation = $request->innovation;
+            $evaluation->adviser_feasibility = $validated['feasibility'];
+            $evaluation->adviser_impact = $validated['impact'];
+            $evaluation->adviser_complexity = $validated['complexity'];
+            $evaluation->adviser_innovation = $validated['innovation'];
 
-            $adviserScore = ($request->impact * 0.35)
-                + ($request->feasibility * 0.25)
-                + ($request->complexity * 0.20)
-                + ($request->innovation * 0.20);
+            $adviserScore = ($validated['impact'] * 0.35)
+                + ($validated['feasibility'] * 0.25)
+                + ($validated['complexity'] * 0.20)
+                + ($validated['innovation'] * 0.20);
             $finalScore = ($evaluation->overall_score * 0.7) + ($adviserScore * 0.3);
 
             $evaluation->final_score = round($finalScore, 2);

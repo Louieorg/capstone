@@ -26,11 +26,13 @@ it('shows the redesigned home feed with approved problems', function () {
         'user_id' => User::factory()->create()->id,
     ]);
 
-    $this->get(route('landing'))
+    $this->get(route('home'))
         ->assertOk()
         ->assertSeeText('Home Feed')
+        ->assertSeeText('Latest Problems')
         ->assertSeeText('Registrar queue stalls during peak enrollment')
-        ->assertSeeText('Support Problem');
+        ->assertSeeText('Support 1')
+        ->assertSee('Support this problem');
 });
 
 it('allows authenticated users to add supporting experience comments', function () {
