@@ -755,8 +755,11 @@ class FeedbackController extends Controller
         }
 
         $feedback = Feedback::findOrFail($id);
+
+        abort_unless($feedback->status === 'approved' && ! $feedback->is_flagged, 404);
+
         $existingVote = FeedbackVote::query()
-            ->where('feedback_id', $id)
+            ->where('feedback_id', $feedback->id)
             ->where('user_id', Auth::id())
             ->first();
 
@@ -767,7 +770,7 @@ class FeedbackController extends Controller
             return back()->with('success', 'Support removed.');
         }
 
-        FeedbackVote::query()->create([
+        FeedbackVote::query()->firstOrCreate([
             'feedback_id' => $feedback->id,
             'user_id' => Auth::id(),
         ]);

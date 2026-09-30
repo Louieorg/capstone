@@ -36,6 +36,25 @@ function uploadHardeningUser(): User
     return User::factory()->create();
 }
 
+/**
+ * Resolve the feedback row a single upload-hardening test created, so evidence
+ * assertions stay scoped to that submission instead of the whole table.
+ */
+function uploadHardeningFeedback(string $title): Feedback
+{
+    return Feedback::query()->where('title', $title)->latest('id')->firstOrFail();
+}
+
+/**
+ * @return \Illuminate\Database\Eloquent\Collection<int, FeedbackEvidence>
+ */
+function uploadHardeningEvidenceFor(Feedback $feedback): \Illuminate\Database\Eloquent\Collection
+{
+    return FeedbackEvidence::query()
+        ->where('feedback_id', $feedback->id)
+        ->get();
+}
+
 test('evidence uses the detected PDF type instead of a jpg client extension', function (): void {
     Storage::fake('public');
 
@@ -44,7 +63,8 @@ test('evidence uses the detected PDF type instead of a jpg client extension', fu
         'evidence' => [UploadedFile::fake()->createWithContent('photo.jpg', uploadHardeningPdfBytes())->mimeType('application/pdf')],
     ]))->assertRedirect(route('feedback.submitted', absolute: false));
 
-    $evidence = FeedbackEvidence::query()->firstOrFail();
+    $feedback = uploadHardeningFeedback('PDF evidence with image extension');
+    $evidence = uploadHardeningEvidenceFor($feedback)->firstOrFail();
 
     expect($evidence->file_path)->toEndWith('.pdf')
         ->and($evidence->file_type)->toBe('pdf');
@@ -58,7 +78,8 @@ test('evidence uses the detected PNG type instead of a pdf client extension', fu
         'evidence' => [UploadedFile::fake()->createWithContent('proof.pdf', uploadHardeningPngBytes())->mimeType('image/png')],
     ]))->assertRedirect(route('feedback.submitted', absolute: false));
 
-    $evidence = FeedbackEvidence::query()->firstOrFail();
+    $feedback = uploadHardeningFeedback('PNG evidence with document extension');
+    $evidence = uploadHardeningEvidenceFor($feedback)->firstOrFail();
 
     expect($evidence->file_path)->toEndWith('.png')
         ->and($evidence->file_type)->toBe('image');
@@ -136,7 +157,9 @@ test('five evidence files are accepted', function (): void {
         ]))
         ->assertRedirect(route('feedback.submitted', absolute: false));
 
-    expect(FeedbackEvidence::query()->count())->toBe(5)
+    $feedback = uploadHardeningFeedback('Five evidence files submission');
+
+    expect(uploadHardeningEvidenceFor($feedback))->toHaveCount(5)
         ->and(Storage::disk('public')->allFiles())->toHaveCount(5);
 });
 
@@ -148,7 +171,8 @@ test('evidence preserves the original filename without using it as the stored fi
         'evidence' => [UploadedFile::fake()->createWithContent('photo.jpg', uploadHardeningPdfBytes())->mimeType('application/pdf')],
     ]))->assertRedirect(route('feedback.submitted', absolute: false));
 
-    $evidence = FeedbackEvidence::query()->firstOrFail();
+    $feedback = uploadHardeningFeedback('Evidence filename preservation submission');
+    $evidence = uploadHardeningEvidenceFor($feedback)->firstOrFail();
     $storedFilename = basename($evidence->file_path);
 
     expect($evidence->file_name)->toBe('photo.jpg')
