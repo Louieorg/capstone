@@ -530,6 +530,8 @@ class FeedbackController extends Controller
 
     public function enhanceIdea(Request $request, string $category): RedirectResponse
     {
+        abort_unless(config('services.ollama.enhance_enabled'), 404);
+
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string'],

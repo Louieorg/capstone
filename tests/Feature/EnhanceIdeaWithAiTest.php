@@ -2,9 +2,59 @@
 
 use App\Jobs\EnhanceIdeaWithAi;
 use App\Models\IdeaEvaluation;
+use App\Models\User;
+use App\Services\CategoryIdeaGenerationService;
 use App\Services\OllamaService;
 
+function configureEnhanceFlagCategoryPage(): void
+{
+    app()->instance(CategoryIdeaGenerationService::class, new class
+    {
+        public function generate(string $category): array
+        {
+            return [
+                'qualifying' => true,
+                'feedbacks' => collect(),
+                'ideas' => [[
+                    'title' => 'Flag Test DSS Idea',
+                    'description' => 'The DSS generated description.',
+                    'general_objective' => 'To improve the documented campus process.',
+                    'specific_objectives' => ['To improve the documented process.'],
+                    'project_name' => 'FlagTest',
+                    'concept' => ['primary' => 'Process improvement system'],
+                    'explanation' => [
+                        'factors' => [
+                            'top_affected_group' => 'Students',
+                        ],
+                    ],
+                    'evaluation' => [
+                        'overall_score' => 4.0,
+                        'recommendation' => 'Recommended',
+                        'feasibility' => 4,
+                        'impact' => 4,
+                        'complexity' => 4,
+                        'innovation' => 4,
+                    ],
+                ]],
+                'thresholds' => ['reports' => 1, 'votes' => 1],
+            ];
+        }
+    });
+}
+
+function enhanceFlagPayload(): array
+{
+    return [
+        'title' => 'Campus Request Tracker',
+        'description' => 'A system for tracking campus requests.',
+        'general_objective' => 'Improve request visibility.',
+        'specific_objectives' => ['Record requests.', 'Track request progress.'],
+    ];
+}
+
 test('authenticated users can enhance the original DSS recommendation without changing its evaluation', function (): void {
+    config(['services.ollama.enhance_enabled' => true]);
+
     $user = \App\Models\User::factory()->create();
     $evaluation = IdeaEvaluation::query()->create([
         'idea_title' => 'Campus Request Tracker',
@@ -12,12 +62,7 @@ test('authenticated users can enhance the original DSS recommendation without ch
         'overall_score' => 4.25,
         'recommendation' => 'Highly Recommended',
     ]);
-    $original = [
-        'title' => 'Campus Request Tracker',
-        'description' => 'A system for tracking campus requests.',
-        'general_objective' => 'Improve request visibility.',
-        'specific_objectives' => ['Record requests.', 'Track request progress.'],
-    ];
+    $original = enhanceFlagPayload();
 
     $this->mock(OllamaService::class, function ($mock) use ($original): void {
         $mock->shouldReceive('enhance')
@@ -85,4 +130,102 @@ test('failed ai enhancement stores the original recommendation as fallback', fun
         ->ai_general_objective->toBe('Original generated objective.')
         ->ai_specific_objectives->toBe(['Original generated specific objective.'])
         ->ai_enhanced_at->not->toBeNull();
+});
+
+test('enhancement writes are disabled by default without changing existing ai fields', function (): void {
+    config(['services.ollama.enhance_enabled' => false]);
+
+    $evaluation = IdeaEvaluation::query()->create([
+        'idea_title' => 'Campus Request Tracker',
+        'category' => 'Academic Process',
+        'overall_score' => 4.25,
+        'ai_title' => 'Existing AI title',
+        'ai_description' => 'Existing AI description',
+        'ai_general_objective' => 'Existing AI objective',
+        'ai_specific_objectives' => ['Existing AI specific objective'],
+        'ai_enhanced_at' => now()->subMinute(),
+    ]);
+    $before = $evaluation->only([
+        'ai_title',
+        'ai_description',
+        'ai_general_objective',
+        'ai_specific_objectives',
+        'ai_enhanced_at',
+    ]);
+
+    $this->actingAs(User::factory()->create())
+        ->post(route('idea.enhance', ['category' => $evaluation->category]), enhanceFlagPayload())
+        ->assertNotFound();
+
+    expect($evaluation->refresh()->only([
+        'ai_title',
+        'ai_description',
+        'ai_general_objective',
+        'ai_specific_objectives',
+        'ai_enhanced_at',
+    ]))->toEqual($before);
+});
+
+test('a guest is still redirected to login when enhancement is disabled', function (): void {
+    config(['services.ollama.enhance_enabled' => false]);
+
+    $this->post(route('idea.enhance', ['category' => 'Academic Process']), enhanceFlagPayload())
+        ->assertRedirect(route('login'));
+});
+
+test('the category page hides the enhancement form when the flag is disabled', function (): void {
+    config(['services.ollama.enhance_enabled' => false]);
+    configureEnhanceFlagCategoryPage();
+
+    IdeaEvaluation::query()->create([
+        'idea_title' => 'Flag Test DSS Idea',
+        'category' => 'Enhance Flag Category',
+        'overall_score' => 4.0,
+    ]);
+
+    $this->actingAs(User::factory()->create())
+        ->get(route('feedback.category', ['category' => 'Enhance Flag Category']))
+        ->assertOk()
+        ->assertDontSeeText('Improve with AI')
+        ->assertDontSee(route('idea.enhance', 'Enhance Flag Category'), false);
+});
+
+test('the category page shows the enhancement form when the flag is enabled', function (): void {
+    config(['services.ollama.enhance_enabled' => true]);
+    configureEnhanceFlagCategoryPage();
+
+    IdeaEvaluation::query()->create([
+        'idea_title' => 'Flag Test DSS Idea',
+        'category' => 'Enhance Flag Category On',
+        'overall_score' => 4.0,
+    ]);
+
+    $this->actingAs(User::factory()->create())
+        ->get(route('feedback.category', ['category' => 'Enhance Flag Category On']))
+        ->assertOk()
+        ->assertSeeText('Improve with AI')
+        ->assertSee(route('idea.enhance', 'Enhance Flag Category On'), false);
+});
+
+test('stored ai wording remains visible when new enhancement writes are disabled', function (): void {
+    config(['services.ollama.enhance_enabled' => false]);
+    configureEnhanceFlagCategoryPage();
+
+    IdeaEvaluation::query()->create([
+        'idea_title' => 'Flag Test DSS Idea',
+        'category' => 'Enhance Flag Category Existing AI',
+        'overall_score' => 4.0,
+        'ai_title' => 'Previously Enhanced Flag Idea',
+        'ai_description' => 'Previously stored AI wording remains available.',
+        'ai_general_objective' => 'To preserve the existing wording.',
+        'ai_specific_objectives' => ['To keep old AI content readable.'],
+        'ai_enhanced_at' => now()->subMinute(),
+    ]);
+
+    $this->actingAs(User::factory()->create())
+        ->get(route('feedback.category', ['category' => 'Enhance Flag Category Existing AI']))
+        ->assertOk()
+        ->assertSeeText('AI-ENHANCED')
+        ->assertSeeText('Previously Enhanced Flag Idea')
+        ->assertDontSeeText('Improve with AI');
 });

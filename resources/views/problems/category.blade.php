@@ -822,16 +822,18 @@ html.dark .btn-amber { background: #fbb034; }
           </button>
         </form>
 
-        <form method="POST" action="{{ route('idea.enhance', $category) }}" onsubmit="var b=this.querySelector('button[type=submit]'); if(b){b.disabled=true;}">
-          @csrf
-          <input type="hidden" name="title" value="{{ $topIdea['title'] ?? '' }}">
-          <input type="hidden" name="description" value="{{ $topIdea['description'] ?? '' }}">
-          <input type="hidden" name="general_objective" value="{{ $topIdea['general_objective'] ?? '' }}">
-          @foreach($topIdea['specific_objectives'] ?? [] as $objective)
-            <input type="hidden" name="specific_objectives[]" value="{{ $objective }}">
-          @endforeach
-          <button type="submit" class="btn-ghost">✨ Improve with AI</button>
-        </form>
+        @if(config('services.ollama.enhance_enabled'))
+          <form method="POST" action="{{ route('idea.enhance', $category) }}" onsubmit="var b=this.querySelector('button[type=submit]'); if(b){b.disabled=true;}">
+            @csrf
+            <input type="hidden" name="title" value="{{ $topIdea['title'] ?? '' }}">
+            <input type="hidden" name="description" value="{{ $topIdea['description'] ?? '' }}">
+            <input type="hidden" name="general_objective" value="{{ $topIdea['general_objective'] ?? '' }}">
+            @foreach($topIdea['specific_objectives'] ?? [] as $objective)
+              <input type="hidden" name="specific_objectives[]" value="{{ $objective }}">
+            @endforeach
+            <button type="submit" class="btn-ghost">✨ Improve with AI</button>
+          </form>
+        @endif
 
         @if(auth()->user()->role === 'adviser')
           <button type="button" onclick="document.getElementById('reviewForm').classList.toggle('hidden')" class="btn-ghost">

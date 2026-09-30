@@ -47,5 +47,7 @@ return [
         'model' => env('OLLAMA_MODEL', 'llama3.2'),
         'timeout' => (int) env('OLLAMA_TIMEOUT', 20),
         'connect_timeout' => (int) env('OLLAMA_CONNECT_TIMEOUT', 5),
+        // Keep new enhancements disabled until input, throttling, output, and failure handling are hardened.
+        'enhance_enabled' => env('OLLAMA_ENHANCE_ENABLED', false),
     ],
 ];
