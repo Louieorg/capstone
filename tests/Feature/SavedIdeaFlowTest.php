@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\CategoryAssignment;
+use App\Models\Feedback;
 use App\Models\IdeaEvaluation;
 use App\Models\SavedIdea;
 use App\Models\User;
@@ -8,7 +9,7 @@ use Illuminate\Support\Str;
 
 function createDssIdeaEvaluation(array $attributes = []): IdeaEvaluation
 {
-    return IdeaEvaluation::query()->create(array_merge([
+    $attributes = array_merge([
         'idea_title' => 'Campus Request Tracking System',
         'category' => 'Facilities',
         'feasibility' => 4,
@@ -17,7 +18,31 @@ function createDssIdeaEvaluation(array $attributes = []): IdeaEvaluation
         'innovation' => 4,
         'overall_score' => 4.2,
         'recommendation' => 'Highly Recommended',
-    ], $attributes));
+    ], $attributes);
+
+    // A persisted DSS evaluation always implies its category currently qualifies:
+    // generate() only writes an evaluation once a qualifying group exists. Seed
+    // that qualifying evidence — an office-approved, capstone-worthy report that
+    // qualifies without meeting the report and vote thresholds — so this fixture
+    // mirrors a state the DSS can actually produce.
+    Feedback::query()->firstOrCreate([
+        'title' => 'Office identified request tracking gap in '.$attributes['category'],
+        'category' => $attributes['category'],
+    ], [
+        'description' => 'Students and staff cannot track requests because follow up depends on manual or paper-based processes.',
+        'impact' => 'Repeated follow ups delay every student transaction that needs a tracked request.',
+        'frequency' => 'Often',
+        'current_process' => 'Manual or paper-based process',
+        'affected_users' => '50-200',
+        'affected_group' => ['Students'],
+        'is_anonymous' => false,
+        'is_flagged' => false,
+        'status' => 'approved',
+        'is_capstone_worthy' => true,
+        'capstone_marked_at' => now(),
+    ]);
+
+    return IdeaEvaluation::query()->create($attributes);
 }
 
 function savedIdeaPayload(array $attributes = []): array

@@ -101,10 +101,7 @@ class FeedbackController extends Controller
             ])
             ->sortByDesc('total')
             ->values();
-        $generatedIdeas = IdeaEvaluation::query()
-            ->latest()
-            ->take(4)
-            ->get();
+        $generatedIdeas = $this->currentDssIdeas(4);
 
         return compact(
             'feed',
@@ -115,6 +112,32 @@ class FeedbackController extends Controller
             'categories',
             'generatedIdeas'
         );
+    }
+
+    /**
+     * Stored DSS ideas that still represent a current opportunity.
+     *
+     * IdeaEvaluation rows are intentionally retained category-level artifacts,
+     * so an old row can outlive the evidence that produced it. The DSS decides
+     * whether a category still qualifies; this only hides rows whose category
+     * no longer does. Nothing is deleted, and Saved Idea references are
+     * untouched.
+     *
+     * @return Collection<int, IdeaEvaluation>
+     */
+    private function currentDssIdeas(int $limit): Collection
+    {
+        $qualifyingCategories = app(CategoryIdeaGenerationService::class)->qualifyingCategories();
+
+        if ($qualifyingCategories->isEmpty()) {
+            return new Collection;
+        }
+
+        return IdeaEvaluation::query()
+            ->whereIn('category', $qualifyingCategories)
+            ->latest()
+            ->take($limit)
+            ->get();
     }
 
     /**
@@ -359,7 +382,7 @@ class FeedbackController extends Controller
             ->distinct()
             ->orderBy('category')
             ->pluck('category');
-        $recentIdeas = IdeaEvaluation::query()->latest()->take(4)->get();
+        $recentIdeas = $this->currentDssIdeas(4);
 
         return view('problems.index', [
             'feedbacks' => $paginated,
@@ -384,14 +407,21 @@ class FeedbackController extends Controller
             ->orderByDesc('id')
             ->paginate(9);
 
-        $dssIdeasByCategory = IdeaEvaluation::query()
-            ->select('category')
-            ->selectRaw('COUNT(*) as total')
-            ->selectRaw('MAX(overall_score) as top_score')
-            ->groupBy('category')
-            ->orderByDesc('total')
-            ->orderBy('category')
-            ->get();
+        // Only categories the DSS still qualifies for are presented as current
+        // opportunities. Stored rows are never deleted, only left uncounted.
+        $qualifyingCategories = app(CategoryIdeaGenerationService::class)->qualifyingCategories();
+
+        $dssIdeasByCategory = $qualifyingCategories->isEmpty()
+            ? new Collection
+            : IdeaEvaluation::query()
+                ->whereIn('category', $qualifyingCategories)
+                ->select('category')
+                ->selectRaw('COUNT(*) as total')
+                ->selectRaw('MAX(overall_score) as top_score')
+                ->groupBy('category')
+                ->orderByDesc('total')
+                ->orderBy('category')
+                ->get();
 
         return view('capstone-opportunities.index', compact('opportunities', 'dssIdeasByCategory'));
     }

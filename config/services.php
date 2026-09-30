@@ -49,5 +49,22 @@ return [
         'connect_timeout' => (int) env('OLLAMA_CONNECT_TIMEOUT', 5),
         // Keep new enhancements disabled until input, throttling, output, and failure handling are hardened.
         'enhance_enabled' => env('OLLAMA_ENHANCE_ENABLED', false),
+
+        // Cluster explanation ("What People Are Experiencing"). Reads an
+        // evidence package produced by the DSS and explains it. It never
+        // decides, scores, qualifies, clusters, or alters a DSS result.
+        //
+        // Every value below defaults to the shared OLLAMA_* setting, so the
+        // behaviour is identical to the legacy flat keys until these are set
+        // explicitly. num_predict -1 is Ollama's own unlimited default and
+        // keep_alive null omits the field entirely.
+        'synthesis' => [
+            'model' => env('OLLAMA_SYNTHESIS_MODEL', env('OLLAMA_MODEL', 'llama3.2')),
+            'timeout' => (int) env('OLLAMA_SYNTHESIS_TIMEOUT', env('OLLAMA_TIMEOUT', 20)),
+            'connect_timeout' => (int) env('OLLAMA_SYNTHESIS_CONNECT_TIMEOUT', env('OLLAMA_CONNECT_TIMEOUT', 5)),
+            'num_predict' => (int) env('OLLAMA_SYNTHESIS_NUM_PREDICT', -1),
+            'keep_alive' => env('OLLAMA_SYNTHESIS_KEEP_ALIVE'),
+            'queue' => env('OLLAMA_SYNTHESIS_QUEUE', 'ai-synthesis'),
+        ],
     ],
 ];

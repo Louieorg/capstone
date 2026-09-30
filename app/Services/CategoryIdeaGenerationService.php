@@ -17,6 +17,61 @@ class CategoryIdeaGenerationService
     private const MINIMUM_REPORTS_FOR_IDEA_GENERATION = 3;
 
     /**
+     * The clusters within one category that currently qualify for idea generation.
+     *
+     * This is the single source of truth for cluster qualification. It is shared
+     * by generate() and by the read-only visibility helper so a stored
+     * IdeaEvaluation is only ever presented as a current opportunity under
+     * exactly the rules that produced it.
+     *
+     * An institutionally validated (capstone-worthy) report qualifies its own
+     * cluster regardless of the report and vote thresholds, so the established
+     * institutional path is preserved.
+     *
+     * @param  Collection<int, Feedback>  $feedbacks  Already eligibility-filtered feedback.
+     * @param  array{votes: int, reports: int}  $thresholds
+     * @return Collection<string, Collection<int, Feedback>>
+     */
+    private function qualifyingGroups(Collection $feedbacks, array $thresholds): Collection
+    {
+        return app(ClusteringService::class)
+            ->group($feedbacks)
+            ->filter(fn (Collection $groupFeedbacks): bool => ($groupFeedbacks->count() >= $thresholds['reports']
+                && $groupFeedbacks->sum('votes_count') >= $thresholds['votes'])
+                || $groupFeedbacks->contains(fn (Feedback $feedback): bool => $feedback->is_capstone_worthy));
+    }
+
+    /**
+     * Category names that currently hold at least one qualifying DSS cluster.
+     *
+     * Read-only visibility support. It reuses the same eligibility and cluster
+     * qualification rules as generate() but never clusters for generation,
+     * never persists an IdeaEvaluation, never notifies, and never reads or
+     * writes the generation cache.
+     *
+     * IdeaEvaluation rows are intentionally retained category-level artifacts,
+     * so this answers "does this category still qualify?" without deleting
+     * anything. The DSS decides; the AI only explains.
+     *
+     * @return Collection<int, string>
+     */
+    public function qualifyingCategories(): Collection
+    {
+        $thresholds = $this->thresholds();
+
+        return Feedback::query()
+            ->where('status', 'approved')
+            ->notFlagged()
+            ->withCount('votes')
+            ->get()
+            ->filter(fn (Feedback $feedback): bool => $feedback->is_capstone_worthy || $feedback->votes_count >= $thresholds['votes'])
+            ->groupBy(fn (Feedback $feedback): string => (string) $feedback->category)
+            ->filter(fn (Collection $categoryFeedbacks): bool => $this->qualifyingGroups($categoryFeedbacks, $thresholds)->isNotEmpty())
+            ->keys()
+            ->values();
+    }
+
+    /**
      * Run the category-level DSS pipeline: eligibility, clustering, severity,
      * confidence, evaluation, solution-concept idea generation, intra-run
      * deduplication, IdeaEvaluation persistence and idea notifications.
@@ -44,10 +99,7 @@ class CategoryIdeaGenerationService
 
         $clustering = app(ClusteringService::class);
 
-        $qualifyingGroups = $clustering->group($feedbacks)
-            ->filter(fn (Collection $groupFeedbacks): bool => ($groupFeedbacks->count() >= $thresholds['reports']
-                && $groupFeedbacks->sum('votes_count') >= $thresholds['votes'])
-                || $groupFeedbacks->contains(fn (Feedback $feedback): bool => $feedback->is_capstone_worthy));
+        $qualifyingGroups = $this->qualifyingGroups($feedbacks, $thresholds);
 
         if ($qualifyingGroups->isEmpty()) {
             return [
@@ -69,10 +121,13 @@ class CategoryIdeaGenerationService
             ->pluck('id')
             ->sort()
             ->implode(','));
-        // ideas_v5 keys on concept-level idempotent presentation: the same
+        // ideas_v6 keys on concept-level idempotent presentation: the same
         // cluster and concept always resolve to the same title, so a cached
         // pre-fix result that rotated project names can never be returned.
-        $cacheKey = "ideas_v5_{$category}_{$feedbacks->count()}_{$feedbacks->max('id')}_{$voteSignature}_cw-{$capstoneSignature}_votes-{$thresholds['votes']}_reports-{$thresholds['reports']}";
+        // The version also advances for the additive 'evidence' key below, so a
+        // payload cached before that key existed is never returned as if it
+        // carried the cluster's report ids.
+        $cacheKey = "ideas_v6_{$category}_{$feedbacks->count()}_{$feedbacks->max('id')}_{$voteSignature}_cw-{$capstoneSignature}_votes-{$thresholds['votes']}_reports-{$thresholds['reports']}";
 
         $ideas = Cache::remember($cacheKey, now()->addMinutes(30), function () use ($category, $clustering, $qualifyingGroups): array {
             $ideas = [];
@@ -214,6 +269,16 @@ class CategoryIdeaGenerationService
                     'reports_count' => $reports,
                     'support_count' => $votes,
                     'affected_groups' => $groupFeedbacks->pluck('affected_group')->flatten()->filter()->unique()->values()->all(),
+                    // The exact feedback collection the DSS scored for this
+                    // cluster. Purely additive: every other key above is
+                    // unchanged, so existing consumers that read named keys
+                    // only are unaffected. The raw cluster key is never
+                    // included here; this is the cluster's own report ids.
+                    'evidence' => [
+                        'feedback_ids' => $groupFeedbacks->pluck('id')->map(fn ($id): int => (int) $id)->values()->all(),
+                        'reports_count' => $reports,
+                        'support_count' => $votes,
+                    ],
                 ];
             }
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreSavedIdeaRequest;
 use App\Models\IdeaEvaluation;
 use App\Models\SavedIdea;
+use App\Services\CategoryIdeaGenerationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -16,8 +17,14 @@ class IdeaController extends Controller
      * Save an existing DSS-generated idea for the authenticated student.
      *
      * The submitted title and category must match a persisted idea_evaluations
-     * record. No clustering, idea generation, evaluation writes, or AI calls
+     * record, and that record's category must still be a current DSS-qualified
+     * category. No clustering, idea generation, evaluation writes, or AI calls
      * happen here.
+     *
+     * This guard is applied only when a new saved idea would be created. An
+     * existing saved idea is a historical personal record and is never
+     * re-validated, so a retained evaluation that later goes stale cannot
+     * invalidate a student's saved idea.
      */
     public function save(StoreSavedIdeaRequest $request): RedirectResponse
     {
@@ -31,6 +38,24 @@ class IdeaController extends Controller
         if ($evaluation === null) {
             throw ValidationException::withMessages([
                 'title' => 'That capstone opportunity could not be found. Open it from its category page and save it again.',
+            ]);
+        }
+
+        // The DSS decides whether an opportunity is still current. Stored
+        // evaluations are retained, but only a currently qualifying category may
+        // back a brand-new saved idea. This reuses the same read-only
+        // qualification helper the Home, Discover and Capstone Opportunities
+        // surfaces use, so a save can never introduce an opportunity that those
+        // pages deliberately hide.
+        $qualifyingCategories = app(CategoryIdeaGenerationService::class)->qualifyingCategories();
+
+        // Strict comparison: both sides are raw category strings, and identity
+        // is compared in PHP so the result never depends on the database
+        // collation (MySQL's utf8mb4_unicode_ci is case-insensitive, SQLite is
+        // not). Identical behaviour in every environment.
+        if (! in_array($evaluation->category, $qualifyingCategories->all(), true)) {
+            throw ValidationException::withMessages([
+                'title' => 'That capstone opportunity is no longer a current capstone opportunity. Open it from its category page and save it again.',
             ]);
         }
 
