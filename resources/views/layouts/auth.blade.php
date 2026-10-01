@@ -214,6 +214,12 @@
   .divider-v { display: none; }
   .form-row { flex-direction: column; gap: 0; }
 }
+@media (max-width: 420px) {
+  .lk-right { padding: 24px 14px; }
+  .card { padding: 26px 18px; border-radius: 16px; }
+  .card-top { margin-bottom: 20px; }
+  .form-group { margin-bottom: 14px; }
+}
    
 body{
         background: #0a0b0f;

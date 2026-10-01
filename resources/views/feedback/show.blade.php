@@ -7,7 +7,7 @@
 <div class="mx-auto max-w-7xl space-y-8">
     <section class="grid gap-8 xl:grid-cols-[1.45fr,0.8fr]">
         <div class="space-y-6">
-            <article class="rounded-[30px] border border-black/5 bg-white/95 p-7 shadow-lg shadow-slate-900/5 dark:border-white/10 dark:bg-slate-950/80">
+            <article class="rounded-[30px] border border-black/5 bg-white/95 p-5 sm:p-7 shadow-lg shadow-slate-900/5 dark:border-white/10 dark:bg-slate-950/80">
                 <div class="flex flex-wrap items-start justify-between gap-3">
                     <div>
                         <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ $feedback->is_anonymous ? 'Anonymous contributor' : ($feedback->user?->name ?? 'Campus contributor') }}</p>
@@ -23,7 +23,7 @@
                         @endif
                     </div>
                 </div>
-                <h1 class="mt-5 font-['Sora'] text-3xl font-extrabold text-slate-900 dark:text-white">{{ $feedback->title }}</h1>
+                <h1 class="mt-5 font-['Sora'] text-2xl font-extrabold text-slate-900 sm:text-3xl dark:text-white">{{ $feedback->title }}</h1>
 
                 @if($feedback->is_priority)
                 <div class="mt-4 flex items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-400/30 dark:bg-amber-500/10">
@@ -47,7 +47,7 @@
                     <div class="mt-5">
                         @if ($feedback->attachment_type === 'image')
                             <a href="{{ asset('storage/'.$feedback->attachment_path) }}" target="_blank" rel="noopener noreferrer" class="block w-fit">
-                                <img src="{{ asset('storage/'.$feedback->attachment_path) }}" alt="Supporting evidence" class="max-h-72 rounded-[24px] border border-slate-200 object-cover transition hover:opacity-90 dark:border-white/10">
+                                <img src="{{ asset('storage/'.$feedback->attachment_path) }}" alt="Supporting evidence" class="max-h-72 max-w-full rounded-[24px] border border-slate-200 object-cover transition hover:opacity-90 dark:border-white/10">
                             </a>
                         @else
                             <a href="{{ asset('storage/'.$feedback->attachment_path) }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-amber-300 hover:text-amber-700 dark:border-white/10 dark:text-slate-300">
@@ -61,12 +61,12 @@
                 @if(isset($evidenceFiles) && $evidenceFiles->count())
                     <div class="mt-6">
                         <p class="text-sm font-semibold text-slate-700 dark:text-slate-300">Supporting Evidence</p>
-                        <div class="mt-3 grid grid-cols-3 gap-3">
+                        <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
                             @foreach($evidenceFiles as $file)
                                 <div class="rounded-lg border border-slate-200 p-3 text-center bg-slate-50 transition hover:border-amber-300 dark:border-white/10 dark:bg-white/5">
                                     @if($file->file_type === 'image')
                                         <a href="{{ asset('storage/'.$file->file_path) }}" target="_blank" rel="noopener noreferrer">
-                                            <img src="{{ asset('storage/'.$file->file_path) }}" alt="{{ $file->file_name }}" class="mx-auto max-h-36 object-cover rounded-md">
+                                            <img src="{{ asset('storage/'.$file->file_path) }}" alt="{{ $file->file_name }}" class="mx-auto max-h-36 max-w-full object-cover rounded-md">
                                         </a>
                                     @else
                                         <div class="flex flex-col items-center gap-1 py-4 text-slate-500 dark:text-slate-400">
@@ -106,7 +106,7 @@
                 </div>
             </article>
 
-            <section class="rounded-[30px] border border-black/5 bg-white/95 p-7 shadow-lg shadow-slate-900/5 dark:border-white/10 dark:bg-slate-950/80">
+            <section class="rounded-[30px] border border-black/5 bg-white/95 p-5 sm:p-7 shadow-lg shadow-slate-900/5 dark:border-white/10 dark:bg-slate-950/80">
                 <div class="flex items-center justify-between gap-3">
                     <div>
                         <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Supporting Evidence</p>
@@ -159,7 +159,7 @@
         </div>
 
         <aside class="space-y-5">
-            <section class="rounded-[30px] border border-black/5 bg-white/95 p-6 shadow-lg shadow-slate-900/5 dark:border-white/10 dark:bg-slate-950/80">
+            <section class="rounded-[30px] border border-black/5 bg-white/95 p-5 sm:p-6 shadow-lg shadow-slate-900/5 dark:border-white/10 dark:bg-slate-950/80">
                 <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">LIKHA Analysis</p>
                 <div class="mt-5 space-y-4">
                     <div class="rounded-2xl bg-slate-50 p-4 dark:bg-white/5">
@@ -193,7 +193,7 @@
                 </div>
             </section>
 
-            <section class="rounded-[30px] border border-black/5 bg-white/95 p-6 shadow-lg shadow-slate-900/5 dark:border-white/10 dark:bg-slate-950/80">
+            <section class="rounded-[30px] border border-black/5 bg-white/95 p-5 sm:p-6 shadow-lg shadow-slate-900/5 dark:border-white/10 dark:bg-slate-950/80">
                 <div class="flex items-center justify-between gap-3">
                     <div>
                         <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Timeline</p>
@@ -223,7 +223,7 @@
                 </div>
             </section>
 
-            <section class="rounded-[30px] border border-black/5 bg-white/95 p-6 shadow-lg shadow-slate-900/5 dark:border-white/10 dark:bg-slate-950/80">
+            <section class="rounded-[30px] border border-black/5 bg-white/95 p-5 sm:p-6 shadow-lg shadow-slate-900/5 dark:border-white/10 dark:bg-slate-950/80">
                 <div class="flex items-center justify-between gap-3">
                     <h3 class="font-['Sora'] text-xl font-bold text-slate-900 dark:text-white">Related Problems</h3>
                     <span class="text-sm text-slate-500">Based on clustering</span>

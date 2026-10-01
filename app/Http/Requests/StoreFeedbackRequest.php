@@ -45,6 +45,7 @@ class StoreFeedbackRequest extends FormRequest
             'current_process' => 'required|string|max:255',
             'affected_users' => 'required|string|max:255',
             'affected_group' => 'required|array|min:1',
+            'office_id' => ['nullable', 'integer', 'exists:offices,id'],
             'attachment' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'evidence' => 'nullable|array|max:5',
             'evidence.*' => 'file|mimes:jpg,jpeg,png,webp,pdf|max:10240',
@@ -93,6 +94,14 @@ class StoreFeedbackRequest extends FormRequest
 
             if (! $this->hasMeaningfulDescription((string) $this->input('description', ''))) {
                 $validator->errors()->add('description', 'Please describe the problem with enough specific details.');
+            }
+
+            if ($this->filled('office_id')) {
+                $user = $this->user();
+
+                if (! $user || ! $user->representsActiveOffice($this->input('office_id'))) {
+                    $validator->errors()->add('office_id', 'Please choose an active office that you represent.');
+                }
             }
         });
     }

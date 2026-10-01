@@ -20,18 +20,24 @@
   x-data="{
     loginOpen: false,
     userOpen: false,
-    collapsed: localStorage.getItem('sidebar') === 'collapsed'
-  }"
-  x-init="$watch('collapsed', v => localStorage.setItem('sidebar', v ? 'collapsed' : 'expanded'))">
+    collapsed: false
+  }">
 
 <div class="shell">
-
-  @include('layouts.partials.header')
 
   <div class="app-body">
 
     {{-- ══ SIDEBAR (User) ══ --}}
     <aside class="app-sidebar" :class="{ collapsed }" x-show="true">
+      <a href="{{ route('home') }}" class="sb-brand">
+        <img
+            src="{{ asset('images/logolikha.png') }}"
+            alt="LIKHA Logo"
+            class="sb-brand-image"
+        >
+        <span class="sb-brand-text">LIKHA</span>
+      </a>
+
       <nav class="sb-nav">
         <div class="sb-label">Main</div>
 
@@ -59,24 +65,10 @@
           <span class="nav-label">Capstone Opportunities</span>
         </a>
 
-        <a href="{{ route('priority.index') }}"
-   class="nav-item {{ request()->routeIs('priority.index') ? 'nav-active' : '' }}">
-  <i data-lucide="alert-triangle"></i>
-  <span class="nav-label">Priority Problems</span>
-</a>
-
-        <a href="{{ route('feedback.summary') }}"
-           class="nav-item {{ request()->routeIs('feedback.summary') ? 'nav-active' : '' }}">
-          <i data-lucide="bar-chart-3"></i>
-          <span class="nav-label">Category Summary</span>
-        </a>
-
         @auth
-          <a href="{{ route('profile.edit') }}"
-             class="nav-item {{ request()->routeIs('profile.edit') ? 'nav-active' : '' }}">
-            <i data-lucide="badge-check"></i>
-            <span class="nav-label">My Contribution</span>
-          </a>
+          <div class="sb-divider"></div>
+
+          <div class="sb-label">Personal</div>
 
           <a href="/my-ideas"
              class="nav-item {{ request()->is('my-ideas') ? 'nav-active' : '' }}">
@@ -84,32 +76,56 @@
             <span class="nav-label">Saved Ideas</span>
           </a>
 
-          {{--
-  Admin and Adviser nav no longer live in the user sidebar — both have
-  their own dedicated layouts. Entry points live in the header avatar
-  dropdown (see layouts/partials/header.blade.php).
---}}
+          <a href="{{ route('profile.edit') }}"
+             class="nav-item {{ request()->routeIs('profile.edit') ? 'nav-active' : '' }}">
+            <i data-lucide="badge-check"></i>
+            <span class="nav-label">My Contribution</span>
+          </a>
+
+          {{-- Admin, Adviser, and office entry points are not sidebar sections;
+               they stay in the account menu at the bottom of this sidebar. --}}
         @endauth
       </nav>
 
+      @auth
+        @include('layouts.partials.account-menu', ['logoutFormId' => 'logoutForm', 'placement' => 'sidebar'])
+      @endauth
     </aside>
 
     {{-- ══ MAIN ══ --}}
     <div class="app-main">
+      {{-- The student shell has no top header row, so the notification control
+           (and the guest actions) sit in the top-right of the content area. --}}
+      <div class="app-topbar">
+        @auth
+          @include('layouts.partials.notifications')
+        @else
+          <button @click="loginOpen = true" class="h-btn-ghost">Sign in</button>
+          <a href="{{ route('register') }}" class="h-btn-amber">Get started</a>
+        @endauth
+      </div>
+
       <main style="flex:1;overflow-y:auto">
 
+        {{-- A full title bar is only rendered when the page still needs one
+             (detail and settings views). Pages the sidebar already identifies fall
+             back to a bare description line, or to no heading at all. --}}
         @hasSection('title')
-        <div class="page-bar">
-          <div>
-            <div class="page-title">@yield('title')</div>
-            @hasSection('subtitle')
-              <div class="page-sub">@yield('subtitle')</div>
+          <div class="page-bar">
+            <div>
+              <div class="page-title">@yield('title')</div>
+              @hasSection('subtitle')
+                <div class="page-sub">@yield('subtitle')</div>
+              @endif
+            </div>
+            @hasSection('page-action')
+              <div>@yield('page-action')</div>
             @endif
           </div>
-          @hasSection('page-action')
-            <div>@yield('page-action')</div>
+        @else
+          @hasSection('subtitle')
+            <div class="page-lede">@yield('subtitle')</div>
           @endif
-        </div>
         @endif
 
         <div class="page-content">
@@ -122,9 +138,13 @@
   </div>
 </div>
 
-{{-- ══ BOTTOM NAV (mobile) ══ --}}
+{{-- ══ BOTTOM NAV (mobile) ══
+     Five slots, mirroring the approved student IA: Home Feed, Discover, the
+     Submit Problem CTA, Capstone Opportunities, and Profile. Profile is the
+     mobile personal/account hub (Saved Ideas, My Contribution, profile
+     information, password, theme, logout). --}}
 <nav class="bottom-nav md:hidden">
-  <a href="{{ route('landing') }}" class="bn-item {{ request()->routeIs('home') || request()->routeIs('landing') ? 'bn-active' : '' }}">
+  <a href="{{ route('home') }}" class="bn-item {{ request()->routeIs('home') ? 'bn-active' : '' }}">
     <i data-lucide="home"></i><span>Home</span>
   </a>
   <a href="{{ route('discover') }}" class="bn-item {{ request()->routeIs('feedback.index') || request()->routeIs('discover') || request()->routeIs('feedback.show') ? 'bn-active' : '' }}">
@@ -136,12 +156,12 @@
     </div>
     <span>Submit</span>
   </a>
-  <a href="{{ route('feedback.summary') }}" class="bn-item {{ request()->routeIs('feedback.summary') ? 'bn-active' : '' }}">
-    <i data-lucide="bar-chart-3"></i><span>Summary</span>
+  <a href="{{ route('capstone.opportunities') }}" class="bn-item {{ request()->routeIs('capstone.opportunities') ? 'bn-active' : '' }}">
+    <i data-lucide="lightbulb"></i><span>Capstone</span>
   </a>
   @auth
-    <a href="/my-ideas" class="bn-item {{ request()->is('my-ideas') ? 'bn-active' : '' }}">
-      <i data-lucide="bookmark"></i><span>Saved</span>
+    <a href="{{ route('profile.edit') }}" class="bn-item {{ request()->routeIs('profile.edit') ? 'bn-active' : '' }}">
+      <i data-lucide="user-round"></i><span>Profile</span>
     </a>
   @else
     <button @click="loginOpen = true" class="bn-item">

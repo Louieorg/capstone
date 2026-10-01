@@ -71,6 +71,31 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(SavedIdea::class);
     }
 
+    public function representedOffices(): HasMany
+    {
+        return $this->hasMany(Office::class, 'representative_user_id');
+    }
+
+    /**
+     * Whether the user currently represents the given active office.
+     *
+     * Representation is resolved from the office the user represents right
+     * now, not from a role or from an office/category assignment, so an
+     * office report is only ever attributed to an office this user actually
+     * speaks for.
+     */
+    public function representsActiveOffice(mixed $officeId): bool
+    {
+        if ($officeId === null || $officeId === '') {
+            return false;
+        }
+
+        return $this->representedOffices()
+            ->where('offices.id', (int) $officeId)
+            ->where('offices.is_active', true)
+            ->exists();
+    }
+
     public function isOfficeReviewer(): bool
     {
         return in_array($this->role, ['office_academic', 'office_chief'], true);

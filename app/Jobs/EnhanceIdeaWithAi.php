@@ -23,6 +23,7 @@ class EnhanceIdeaWithAi implements ShouldQueue
         public string $description,
         public string $generalObjective,
         public array $specificObjectives,
+        public ?int $officeId = null,
     ) {}
 
     public function handle(OllamaService $ollama): void
@@ -49,6 +50,7 @@ class EnhanceIdeaWithAi implements ShouldQueue
         IdeaEvaluation::query()
             ->where('idea_title', $this->ideaTitle)
             ->where('category', $this->category)
+            ->when($this->officeId !== null, fn ($query) => $query->where('office_id', $this->officeId), fn ($query) => $query->whereNull('office_id'))
             ->update([
                 'ai_title' => $enhanced['title'],
                 'ai_description' => $enhanced['description'],

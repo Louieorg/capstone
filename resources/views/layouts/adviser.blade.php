@@ -82,6 +82,23 @@
   </div>
 </div>
 
+{{-- ══ BOTTOM NAV (mobile) — the sidebar is hidden below 768px ══ --}}
+<nav class="bottom-nav">
+  <a href="{{ route('adviser.dashboard') }}"
+     class="bn-item {{ request()->routeIs('adviser.dashboard') ? 'bn-active' : '' }}">
+    <i data-lucide="layout-dashboard"></i><span>Dashboard</span>
+  </a>
+  @if (Route::has('adviser.evaluations.index'))
+    <a href="{{ route('adviser.evaluations.index') }}"
+       class="bn-item {{ request()->routeIs('adviser.evaluations.*') ? 'bn-active' : '' }}">
+      <i data-lucide="history"></i><span>History</span>
+    </a>
+  @endif
+  <a href="{{ route('home') }}" class="bn-item">
+    <i data-lucide="arrow-left"></i><span>Exit Panel</span>
+  </a>
+</nav>
+
 {{-- Scripts --}}
 @include('layouts.partials.scripts')
 </body>

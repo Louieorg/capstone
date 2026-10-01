@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Discover')
+{{-- No page-title bar: the sidebar already marks Discover active. The subtitle is
+     kept so the page still explains what it lists. --}}
 @section('subtitle', 'Browse institutional problems by momentum, support, severity, and fresh capstone activity.')
 
 @section('content')
@@ -106,6 +107,45 @@
     .lk-pagination nav .shadow-sm { box-shadow: none; }
     .lk-pagination nav p,
     html.dark .lk-pagination nav p { color: var(--text3); }
+
+    /* ── Mobile: keep every Discover control inside the viewport ──
+       The scope and sort pills live in flex rows whose automatic minimum width
+       is their widest pill, and the card headers are non-wrapping flex rows.
+       Together they push the card past the screen instead of reflowing, which
+       makes the content area scroll sideways. The rules below let those rows
+       wrap and let the pill groups take the card's full width.
+
+       Every pill is atomic (nowrap, 0 1 auto) so a long option such as
+       "Highest Severity" moves onto its own line rather than being squeezed or
+       clipped. No overflow is used to achieve this — the row simply wraps. */
+    @media (max-width: 640px) {
+        .lk-card, .lk-search, .lk-search input, .lk-input,
+        select.lk-input, .lk-pagination nav { min-width: 0; max-width: 100%; }
+
+        /* Card headers: the descriptive sub-copy drops to its own line. */
+        .co-section-head { flex-wrap: wrap; row-gap: 4px; }
+        .co-section-head > * { min-width: 0; }
+
+        .discover-filters { gap: 10px; }
+        .discover-filters > .lk-badge { align-self: flex-start; }
+
+        /* Scope and Sort each own a full-width row; their pills wrap inside it. */
+        .discover-filters > .sort-pills {
+            flex: 1 1 100%; width: 100%;
+            flex-wrap: wrap; min-width: 0; gap: 8px;
+        }
+
+        /* Modest mobile reduction — still comfortably above body-copy size. */
+        .sort-pill {
+            font-size: 11px; padding: 7px 10px; gap: 5px;
+            white-space: nowrap; flex: 0 1 auto; min-width: 0;
+        }
+        .sort-pill i { width: 14px; height: 14px; }
+
+        /* Long idea titles in the recent-opportunities rows must truncate
+           rather than stretch the row. */
+        .ri-text { min-width: 0; }
+    }
 </style>
 
 <div class="mx-auto max-w-7xl space-y-6">
@@ -182,7 +222,21 @@
 
     {{-- ══ SORT ══ --}}
     <section class="lk-card anim-2 p-3">
-        <div class="flex flex-wrap items-center gap-3">
+        <div class="discover-filters flex flex-wrap items-center gap-3">
+            <span class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Problems</span>
+            <div class="sort-pills flex-1" role="navigation" aria-label="Problem scope">
+                @foreach ([
+                    'all' => 'All',
+                    'office' => 'Office Problems',
+                    'community' => 'Community Problems',
+                ] as $scope => $label)
+                    <a
+                        href="{{ request()->fullUrlWithQuery(['scope' => $scope === 'all' ? null : $scope, 'page' => null]) }}"
+                        @if($activeScope === $scope) aria-current="page" @endif
+                        @class(['sort-pill', 'active' => $activeScope === $scope])
+                    >{{ $label }}</a>
+                @endforeach
+            </div>
             <span class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Sort</span>
             <div class="sort-pills flex-1" role="navigation" aria-label="Sort problems">
                 @php
@@ -230,6 +284,14 @@
                             Capstone Opportunity
                         </span>
                     </div>
+                @endif
+
+                @if($feedback->office)
+                    <div class="mt-3">
+                        <span class="lk-badge badge-blue">Office Problem</span>
+                        <span class="ml-2 text-xs text-slate-500 dark:text-slate-400">Associated with {{ $feedback->office->name }}</span>
+                    </div>
+                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Representative: {{ $feedback->office->representative?->name ?? 'Unavailable' }}</p>
                 @endif
 
                 {{-- B. PROBLEM --}}

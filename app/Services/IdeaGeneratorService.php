@@ -52,6 +52,7 @@ class IdeaGeneratorService
 
         // Detect problem signals from text
         $signals = $this->detectSignals($text);
+        $officeId = $this->officeScopeId($groupFeedbacks);
 
         // Rule-based solution concept — the DSS decides, AI only explains later.
         $solution = $this->generateSolutionConcept([
@@ -64,11 +65,12 @@ class IdeaGeneratorService
             'department' => $dominantDepartment,
             'frequency' => (float) $frequencyScore,
             'impact' => (float) $impactScore,
+            'office_id' => $officeId,
         ]);
 
         // Build all parts
         $title = $solution['title'];
-        $description = $this->generateDescription($displayGroupName, $category, $signals, $reports, $votes, $topGroup, $currentProcess, $frequencyScore, $impactScore, $dominantDepartment);
+        $description = $this->generateDescription($displayGroupName, $category, $signals, $reports, $votes, $topGroup, $currentProcess, $frequencyScore, $impactScore, $dominantDepartment, $officeId);
         $objectives = $this->generateObjectives($signals, $category, $displayGroupName, $topGroup, $groupFeedbacks, $dominantDepartment);
         $explanation = $this->generateExplanation($displayGroupName, $topGroup, $reports, $votes, $frequencyScore, $impactScore);
 
@@ -157,7 +159,7 @@ class IdeaGeneratorService
             );
         }
 
-        $existingTitles = $this->existingTitles();
+        $existingTitles = $this->existingTitles($context['office_id'] ?? null);
         $reservedNames = [];
         $selection = $this->selectSolutionConcepts($scored);
         $primary = $selection['primary'];
@@ -295,7 +297,7 @@ class IdeaGeneratorService
             $value = trim($groupName);
         }
 
-        $normalized = Str::lower($value);
+        $normalized = Str::lower($this->stripOfficeScope($value));
 
         return $normalized === '' ? null : $normalized;
     }
@@ -306,17 +308,18 @@ class IdeaGeneratorService
     private function resolveSolutionProfile(?string $clusterKey, string $groupName): ?array
     {
         $profiles = $this->solutionProfiles();
+        $normalizedClusterKey = $clusterKey !== null ? $this->stripOfficeScope($clusterKey) : null;
 
         // Unclassified clusters never rediscover a profile from raw keywords.
-        if ($clusterKey !== null && $this->isUnclassifiedClusterKey($clusterKey)) {
+        if ($normalizedClusterKey !== null && $this->isUnclassifiedClusterKey($normalizedClusterKey)) {
             return null;
         }
 
-        if ($clusterKey !== null && isset($profiles[$clusterKey])) {
-            return $profiles[$clusterKey];
+        if ($normalizedClusterKey !== null && isset($profiles[$normalizedClusterKey])) {
+            return $profiles[$normalizedClusterKey];
         }
 
-        $label = Str::lower(trim($groupName));
+        $label = Str::lower(trim($this->stripOfficeScope($groupName)));
 
         foreach ($profiles as $profile) {
             if (Str::lower($profile['label']) === $label) {
@@ -329,7 +332,12 @@ class IdeaGeneratorService
 
     private function isUnclassifiedClusterKey(string $clusterKey): bool
     {
-        return str_contains($clusterKey, '_unclassified_');
+        return str_contains($this->stripOfficeScope($clusterKey), '_unclassified_');
+    }
+
+    private function stripOfficeScope(string $clusterKey): string
+    {
+        return preg_replace('/^office_\d+_/', '', $clusterKey) ?? $clusterKey;
     }
 
     /**
@@ -771,20 +779,34 @@ class IdeaGeneratorService
      *
      * @return Collection<int, string>
      */
-    protected function existingTitles(): Collection
+    protected function existingTitles(?int $officeId = null): Collection
     {
         if (Model::getConnectionResolver() === null) {
             return new Collection;
         }
 
         try {
-            return IdeaEvaluation::query()
-                ->pluck('idea_title')
+            $query = IdeaEvaluation::query();
+
+            if ($officeId !== null) {
+                $query->where('office_id', $officeId);
+            } else {
+                $query->whereNull('office_id');
+            }
+
+            return $query->pluck('idea_title')
                 ->map(fn ($title): string => (string) $title)
                 ->values();
         } catch (QueryException) {
             return new Collection;
         }
+    }
+
+    private function officeScopeId($groupFeedbacks): ?int
+    {
+        $officeId = $groupFeedbacks->first()?->office_id ?? null;
+
+        return $officeId !== null && $officeId !== '' ? (int) $officeId : null;
     }
 
     // ══════════════════════════════════════════════
@@ -1318,7 +1340,7 @@ class IdeaGeneratorService
     // DESCRIPTION GENERATION
     // Rich, specific, reads like a project abstract
     // ══════════════════════════════════════════════
-    private function generateDescription($groupName, $category, array $signals, $reports, $votes, $topGroup, $currentProcess, $frequencyScore, $impactScore, ?string $dominantDepartment): string
+    private function generateDescription($groupName, $category, array $signals, $reports, $votes, $topGroup, $currentProcess, $frequencyScore, $impactScore, ?string $dominantDepartment, ?int $officeId): string
     {
         $name = ucwords($groupName);
         $group = $topGroup ?? 'campus users';
@@ -1336,7 +1358,9 @@ class IdeaGeneratorService
         // Evidence sentence
         $freq = $frequencyScore >= 3 ? 'frequently occurring' : 'reported';
         $support = $votes >= 10
-            ? "Backed by {$reports} community reports and {$votes} upvotes"
+            ? ($officeId === null
+                ? "Backed by {$reports} community reports and {$votes} upvotes"
+                : "Backed by {$reports} reports associated with this office and {$votes} upvotes")
             : "Based on {$reports} submitted reports";
 
         $evidence = "{$support}, this is identified as a {$freq} concern with measurable impact on campus operations.";

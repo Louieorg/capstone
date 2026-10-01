@@ -62,6 +62,8 @@ class ClusteringService
 
     public function label(string $clusterKey): string
     {
+        $clusterKey = $this->stripOfficeScope($clusterKey);
+
         foreach ($this->profiles as $categoryProfiles) {
             if (isset($categoryProfiles[$clusterKey])) {
                 return $categoryProfiles[$clusterKey]['label'];
@@ -79,6 +81,8 @@ class ClusteringService
 
     public function explanation(string $clusterKey): string
     {
+        $clusterKey = $this->stripOfficeScope($clusterKey);
+
         foreach ($this->profiles as $categoryProfiles) {
             if (isset($categoryProfiles[$clusterKey])) {
                 return 'Reports share the problem-specific signals: '.implode(', ', $categoryProfiles[$clusterKey]['signals']).'.';
@@ -104,15 +108,35 @@ class ClusteringService
         $bestKey = $scores->sortDesc()->keys()->first();
         $bestScore = $scores->get($bestKey, 0);
 
+        $officeScope = $this->officeScope($feedback);
+
+        $scopedKey = fn (string $key): string => $officeScope === null ? $key : 'office_'.$officeScope.'_'.$key;
+
         if ($category === 'network and connectivity' && $bestScore >= 1) {
-            return $bestKey;
+            return $scopedKey((string) $bestKey);
         }
 
         if ($bestScore >= 2) {
-            return $bestKey;
+            return $scopedKey((string) $bestKey);
         }
 
-        return Str::slug($category, '_').'_unclassified_'.substr(md5($text), 0, 12);
+        return $scopedKey(Str::slug($category, '_').'_unclassified_'.substr(md5($text), 0, 12));
+    }
+
+    private function officeScope(object $feedback): ?string
+    {
+        $officeId = $feedback->office_id ?? null;
+
+        if ($officeId === null || $officeId === '') {
+            return null;
+        }
+
+        return (string) $officeId;
+    }
+
+    private function stripOfficeScope(string $clusterKey): string
+    {
+        return preg_replace('/^office_\d+_/', '', $clusterKey) ?? $clusterKey;
     }
 
     /**

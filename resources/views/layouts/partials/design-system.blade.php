@@ -154,6 +154,9 @@
   .co-hero-copy {
     font-size: 13.5px; color: var(--text2); line-height: 1.7; max-width: 720px;
   }
+  @media (max-width: 640px) {
+    .co-hero { padding: 20px 18px; }
+  }
 
   /* ── Stat Cards (from admin/dashboard) ── */
   .stat-grid {
@@ -535,6 +538,13 @@
     display: block; margin-bottom: 5px; font-size: 11.5px; color: var(--text3);
   }
 
+  /* Nested insets are desktop-sized; drop them on phones so the form keeps a
+     usable measure instead of stacking margins on card + page gutters. */
+  @media (max-width: 640px) {
+    .review-form { margin: 0 0 16px; padding: 16px 14px; }
+    .co-adviser { margin: 0 0 16px; padding: 14px; }
+  }
+
   /* ── Sort Pills ── */
   .sort-pills {
     display: flex; flex-wrap: gap-1.5;
@@ -564,9 +574,10 @@
     color: var(--amber);
   }
   .filter-tag-remove {
-    width: 16px; height: 16px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 50%;
+    margin: -3px; display: flex; align-items: center; justify-content: center;
     color: var(--amber); cursor: pointer;
+    touch-action: manipulation;
     transition: background .15s;
   }
   .filter-tag-remove:hover { background: var(--amber-mid); }

@@ -25,6 +25,7 @@ class StoreSavedIdeaRequest extends FormRequest
             'title' => 'required|string|min:5|max:255',
             'description' => 'required|string|min:15|max:5000',
             'category' => 'required|string|max:255',
+            'office_id' => ['nullable', 'integer', 'exists:offices,id'],
         ];
     }
 

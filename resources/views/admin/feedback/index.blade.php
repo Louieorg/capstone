@@ -103,7 +103,7 @@ html:not(.dark) {
 }
 .mf-tab-count {
   font-size: 11px; padding: 1px 6px; border-radius: 999px;
-  background: rgba(0,0,0,0.08); color: inherit;
+  background: var(--surface2); color: inherit;
 }
 
 /* ── Badges ── */
@@ -140,8 +140,8 @@ html:not(.dark) {
   overflow: hidden;
 }
 .fb-foot { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
-.fb-stats { display: flex; gap: 14px; font-size: 12px; color: var(--text3); }
-.fb-actions { display: flex; gap: 8px; }
+.fb-stats { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text3); }
+.fb-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .btn-approve {
   padding: 6px 14px; border-radius: 9px; font-size: 12px; font-weight: 600;
   background: var(--green-bg); color: var(--green); border: 1px solid var(--green-b);

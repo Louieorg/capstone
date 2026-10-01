@@ -118,7 +118,7 @@ test('category idea generation only processes problems with at least ten votes',
         ->assertOk()
         ->assertSeeText('Validated Vote Threshold Idea')
         ->assertSeeInOrder([
-            'Top Capstone Opportunity',
+            'Generated DSS Idea',
             'Validated Vote Threshold Idea',
             'Feasibility',
             'Impact',

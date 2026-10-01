@@ -136,6 +136,86 @@ test('an existing stale saved idea remains visible', function (): void {
         ->assertSeeText('View original opportunity');
 });
 
+test('same title and category resolve to the correct office-specific evaluation when saving', function (): void {
+    $studentA = User::factory()->create();
+    $studentB = User::factory()->create();
+    $officeA = \App\Models\Office::query()->create([
+        'name' => 'Office Save A',
+        'representative_user_id' => User::factory()->create()->id,
+        'is_active' => true,
+    ]);
+    $officeB = \App\Models\Office::query()->create([
+        'name' => 'Office Save B',
+        'representative_user_id' => User::factory()->create()->id,
+        'is_active' => true,
+    ]);
+
+    guardQualifyCategory();
+
+    $evaluationA = guardIdea([
+        'idea_title' => 'Shared Office Title',
+        'category' => 'Guard Category',
+        'office_id' => $officeA->id,
+    ]);
+    $evaluationB = guardIdea([
+        'idea_title' => 'Shared Office Title',
+        'category' => 'Guard Category',
+        'office_id' => $officeB->id,
+    ]);
+
+    $this->actingAs($studentA)
+        ->post(route('idea.save'), guardSavePayload([
+            'title' => 'Shared Office Title',
+            'category' => 'Guard Category',
+            'office_id' => $officeA->id,
+        ]))
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('success');
+
+    $this->actingAs($studentB)
+        ->post(route('idea.save'), guardSavePayload([
+            'title' => 'Shared Office Title',
+            'category' => 'Guard Category',
+            'office_id' => $officeB->id,
+        ]))
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('success');
+
+    expect(SavedIdea::query()->where('user_id', $studentA->id)->firstOrFail()->idea_evaluation_id)->toBe($evaluationA->id)
+        ->and(SavedIdea::query()->where('user_id', $studentB->id)->firstOrFail()->idea_evaluation_id)->toBe($evaluationB->id);
+});
+
+test('community saved ideas still resolve to the null-office evaluation when title and category match office rows', function (): void {
+    $student = User::factory()->create();
+    $office = \App\Models\Office::query()->create([
+        'name' => 'Office Community Save',
+        'representative_user_id' => User::factory()->create()->id,
+        'is_active' => true,
+    ]);
+    guardQualifyCategory('Guard Community Category');
+
+    $communityEvaluation = guardIdea([
+        'idea_title' => 'Community Shared Title',
+        'category' => 'Guard Community Category',
+        'office_id' => null,
+    ]);
+    guardIdea([
+        'idea_title' => 'Community Shared Title',
+        'category' => 'Guard Community Category',
+        'office_id' => $office->id,
+    ]);
+
+    $this->actingAs($student)
+        ->post(route('idea.save'), guardSavePayload([
+            'title' => 'Community Shared Title',
+            'category' => 'Guard Community Category',
+        ]))
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('success');
+
+    expect(SavedIdea::query()->where('user_id', $student->id)->firstOrFail()->idea_evaluation_id)->toBe($communityEvaluation->id);
+});
+
 test('a tampered idea evaluation id is ignored', function (): void {
     $student = User::factory()->create();
     guardQualifyCategory();

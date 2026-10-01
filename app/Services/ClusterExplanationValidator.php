@@ -61,7 +61,7 @@ class ClusterExplanationValidator
 
     private const HONORIFICS = ['Mr.', 'Mrs.', 'Ms.', 'Mx.', 'Dr.', 'Engr.', 'Prof.', 'Atty.'];
 
-    private const LEAK_WORDS = ['cluster key', 'unclassified', 'hash', 'score'];
+    private const LEAK_WORDS = ['cluster key', 'unclassified', 'hash', 'score', 'scores'];
 
     /**
      * Validate a decoded explanation against its evidence package.
@@ -335,11 +335,13 @@ class ClusterExplanationValidator
         }
 
         foreach (self::HONORIFICS as $honorific) {
-            if (stripos($output, $honorific) === false) {
+            $pattern = '/\\b'.preg_quote($honorific, '/').'\\s+\\p{Lu}/u';
+
+            if (! preg_match($pattern, $output)) {
                 continue;
             }
 
-            if (stripos($evidence, $honorific) === false) {
+            if (! preg_match($pattern, $evidence)) {
                 return false;
             }
         }
@@ -355,8 +357,8 @@ class ClusterExplanationValidator
      */
     private function internalsAreAbsent(array $normalized, array $package): bool
     {
-        $output = strtolower($this->flattenText($normalized));
-        $evidence = strtolower($this->packageText($package));
+        $output = $this->flattenText($normalized);
+        $evidence = $this->packageText($package);
 
         if (str_contains($output, '_unclassified_')) {
             return false;
@@ -367,7 +369,9 @@ class ClusterExplanationValidator
         }
 
         foreach (self::LEAK_WORDS as $word) {
-            if (str_contains($output, $word) && ! str_contains($evidence, $word)) {
+            $pattern = '/\\b'.preg_quote($word, '/').'\\b/i';
+
+            if (preg_match($pattern, $output) && ! preg_match($pattern, $evidence)) {
                 return false;
             }
         }

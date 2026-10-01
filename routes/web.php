@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminOfficeController;
 use App\Http\Controllers\AdviserController;
 use App\Http\Controllers\AdviserReviewController;
 use App\Http\Controllers\AnalyticsController;
@@ -8,6 +9,7 @@ use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\IdeaController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\OfficeConfirmationController;
 use App\Http\Controllers\OfficeReviewController;
 use App\Http\Controllers\PriorityProblemController;
 use App\Http\Controllers\ProfileController;
@@ -92,6 +94,18 @@ Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'verified'])->group(function () {
+
+    Route::get('/office/confirmations', [OfficeConfirmationController::class, 'index'])
+        ->name('office.confirmations.index');
+
+    Route::post('/office-opportunities/{evaluation}/confirmation-request', [OfficeConfirmationController::class, 'store'])
+        ->name('office.confirmations.store');
+
+    Route::patch('/office/confirmations/{confirmationRequest}/confirm', [OfficeConfirmationController::class, 'confirm'])
+        ->name('office.confirmations.confirm');
+
+    Route::patch('/office/confirmations/{confirmationRequest}/decline', [OfficeConfirmationController::class, 'decline'])
+        ->name('office.confirmations.decline');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -230,6 +244,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::delete('/admin/users/{user}', [UserController::class, 'destroy'])
             ->name('admin.users.destroy');
+
+        Route::get('/admin/offices', [AdminOfficeController::class, 'index'])
+            ->name('admin.offices.index');
+
+        Route::post('/admin/offices', [AdminOfficeController::class, 'store'])
+            ->name('admin.offices.store');
+
+        Route::patch('/admin/offices/{office}', [AdminOfficeController::class, 'update'])
+            ->name('admin.offices.update');
+
+        Route::patch('/admin/offices/{office}/status', [AdminOfficeController::class, 'updateStatus'])
+            ->name('admin.offices.status');
+
         Route::get('/admin/recommendations', [RecommendationController::class, 'index'])
             ->name('admin.recommendations.index');
         Route::get('/admin/adviser-reviews', [AdviserReviewController::class, 'index'])

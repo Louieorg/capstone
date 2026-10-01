@@ -3,12 +3,17 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class IdeaEvaluation extends Model
 {
     protected $fillable = [
         'idea_title',
         'category',
+        'office_id',
+        'office_cluster_key',
+        'office_source_feedback_ids',
+        'office_provenance_fingerprint',
         'feasibility',
         'impact',
         'complexity',
@@ -31,8 +36,14 @@ class IdeaEvaluation extends Model
     protected function casts(): array
     {
         return [
+            'office_source_feedback_ids' => 'array',
             'ai_specific_objectives' => 'array',
             'ai_enhanced_at' => 'datetime',
         ];
+    }
+
+    public function office(): BelongsTo
+    {
+        return $this->belongsTo(Office::class);
     }
 }

@@ -69,10 +69,17 @@ html:not(.dark) {
   flex-shrink: 0;
 }
 
+/* Long unbroken notification text must wrap instead of widening the card. */
+.notif-body {
+  flex: 1;
+  min-width: 0;
+}
+
 .notif-message {
   font-size: 14px;
   line-height: 1.7;
   color: var(--text);
+  overflow-wrap: anywhere;
 }
 
 .notif-meta {
@@ -114,7 +121,7 @@ html:not(.dark) {
       <path d="M9 17a3 3 0 0 0 6 0"/>
     </svg>
   </div>
-  <div>
+  <div class="notif-body">
     <div class="notif-message">{{ $notification->data['message'] }}</div>
     <div class="notif-meta">
       {{ $notification->created_at->diffForHumans() }}

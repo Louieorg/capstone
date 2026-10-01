@@ -379,7 +379,7 @@ test('synthesisProfile reports the configured model, prompt version and language
         'prompt_version' => OllamaService::SYNTHESIS_PROMPT_VERSION,
         'language' => 'en',
     ])
-        ->and(OllamaService::SYNTHESIS_PROMPT_VERSION)->toBe('1');
+        ->and(OllamaService::SYNTHESIS_PROMPT_VERSION)->toBe('3');
 
     config(['services.ollama.synthesis.model' => 'llama3.1:candidate']);
     expect(ollama()->synthesisProfile()['model'])->toBe('llama3.1:candidate');

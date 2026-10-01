@@ -92,3 +92,41 @@ test('idea generation formats internal cluster keys for people', function (): vo
         ->and($idea['title'])->not->toBe('')
         ->and($idea['cluster_key'])->toBe('laboratory_equipment_monitoring');
 });
+
+test('community opportunity descriptions retain community evidence wording', function (): void {
+    $feedbacks = new Collection([
+        (object) [
+            'title' => 'Community request tracking delays',
+            'description' => 'Students wait too long for request status updates.',
+            'impact' => 'Students cannot plan around delayed requests.',
+            'department' => 'Registrar',
+            'affected_group' => ['Students'],
+            'current_process' => 'Manual or paper-based process',
+            'office_id' => null,
+        ],
+    ]);
+
+    $idea = (new IdeaGeneratorService)->generate('request tracking', 'Academic Process', $feedbacks, 1, 41, 3, 3);
+
+    expect($idea['description'])->toContain('Backed by 1 community reports and 41 upvotes');
+});
+
+test('office opportunity descriptions identify office-associated evidence', function (): void {
+    $feedbacks = new Collection([
+        (object) [
+            'title' => 'Office request tracking delays',
+            'description' => 'Staff manually track request status updates for students.',
+            'impact' => 'Students cannot plan around delayed requests.',
+            'department' => 'Registrar',
+            'affected_group' => ['Students'],
+            'current_process' => 'Manual or paper-based process',
+            'office_id' => 7,
+        ],
+    ]);
+
+    $idea = (new IdeaGeneratorService)->generate('request tracking', 'Academic Process', $feedbacks, 1, 41, 3, 3);
+
+    expect($idea['description'])
+        ->toContain('Backed by 1 reports associated with this office and 41 upvotes')
+        ->not->toContain('community reports');
+});

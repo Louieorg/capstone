@@ -4,6 +4,7 @@ use App\Models\CategoryAssignment;
 use App\Models\Feedback;
 use App\Models\FeedbackVote;
 use App\Models\IdeaEvaluation;
+use App\Models\Office;
 use App\Models\User;
 use App\Services\CategoryIdeaGenerationService;
 use App\Services\ClusteringService;
@@ -252,6 +253,35 @@ test('office approval runs the existing dss pipeline and persists an idea evalua
         'idea_title' => 'Office Validated Laboratory Idea',
         'category' => 'Office Review Facilities',
     ]);
+});
+
+test('normal office dss generation preserves the originating office in the evaluation and wording', function (): void {
+    Cache::flush();
+
+    $office = Office::query()->create([
+        'name' => 'Screenshot Regression Office',
+        'representative_user_id' => User::factory()->create()->id,
+        'is_active' => true,
+    ]);
+    $feedback = officeDssFeedback([
+        'office_id' => $office->id,
+        'is_capstone_worthy' => true,
+        'title' => 'Laboratory equipment availability is tracked manually',
+        'description' => 'Laboratory staff manually track equipment availability and maintenance status for students.',
+        'impact' => 'Students lose time locating available equipment during laboratory sessions.',
+    ]);
+    officeDssAddVotes($feedback, 10);
+
+    $generated = app(CategoryIdeaGenerationService::class)->generate('Office Review Facilities');
+    $evaluation = IdeaEvaluation::query()
+        ->where('idea_title', $generated['ideas'][0]['title'])
+        ->where('category', $feedback->category)
+        ->firstOrFail();
+
+    expect($evaluation->office_id)->toBe($feedback->office_id)
+        ->and($generated['ideas'][0]['description'])
+        ->toContain('reports associated with this office')
+        ->not->toContain('community reports');
 });
 
 test('admin approval of an institutionally validated submission also runs the dss pipeline', function (): void {
@@ -515,6 +545,175 @@ test('viewing the category page after automatic generation does not duplicate th
         ->assertSeeText('Office Validated Laboratory Idea');
 
     expect(IdeaEvaluation::query()->count())->toBe(1);
+});
+
+test('same category across different offices stays isolated in cluster keys and idea evaluations', function (): void {
+    Cache::flush();
+
+    $officeA = Office::query()->create([
+        'name' => 'Office Alpha',
+        'representative_user_id' => User::factory()->create()->id,
+        'is_active' => true,
+    ]);
+    $officeB = Office::query()->create([
+        'name' => 'Office Beta',
+        'representative_user_id' => User::factory()->create()->id,
+        'is_active' => true,
+    ]);
+
+    $feedbackA = officeDssFeedback([
+        'title' => 'Laboratory station availability is tracked manually',
+        'category' => 'Office Review Facilities',
+        'office_id' => $officeA->id,
+        'description' => 'Laboratory personnel manually inspect each workstation to determine availability and maintenance needs.',
+        'impact' => 'Students lose time waiting for working workstations while staff repeat manual checks.',
+    ]);
+    $feedbackB = officeDssFeedback([
+        'title' => 'Laboratory station availability is tracked manually',
+        'category' => 'Office Review Facilities',
+        'office_id' => $officeB->id,
+        'description' => 'Laboratory personnel manually inspect each workstation to determine availability and maintenance needs.',
+        'impact' => 'Students lose time waiting for working workstations while staff repeat manual checks.',
+    ]);
+
+    $clusters = app(ClusteringService::class)->group(collect([$feedbackA, $feedbackB]));
+
+    expect($clusters->keys()->all())
+        ->toHaveCount(2)
+        ->and($clusters->keys()->first())->toStartWith("office_{$officeA->id}_")
+        ->and($clusters->keys()->last())->toStartWith("office_{$officeB->id}_")
+        ->and(app(ClusteringService::class)->label($clusters->keys()->first()))->toBe('Office Review Facilities')
+        ->and(app(ClusteringService::class)->label($clusters->keys()->last()))->toBe('Office Review Facilities');
+
+    IdeaEvaluation::query()->create([
+        'idea_title' => 'Same Title Across Offices',
+        'category' => 'Office Review Facilities',
+        'office_id' => $officeA->id,
+    ]);
+    IdeaEvaluation::query()->create([
+        'idea_title' => 'Same Title Across Offices',
+        'category' => 'Office Review Facilities',
+        'office_id' => $officeB->id,
+    ]);
+
+    $records = IdeaEvaluation::query()
+        ->where('idea_title', 'Same Title Across Offices')
+        ->where('category', 'Office Review Facilities')
+        ->orderBy('office_id')
+        ->get();
+
+    expect($records)->toHaveCount(2)
+        ->and($records->first()->office_id)->toBe($officeA->id)
+        ->and($records->last()->office_id)->toBe($officeB->id);
+});
+
+test('same-office reports still cluster normally under the existing office namespace', function (): void {
+    Cache::flush();
+
+    $office = Office::query()->create([
+        'name' => 'Office Same Office',
+        'representative_user_id' => User::factory()->create()->id,
+        'is_active' => true,
+    ]);
+
+    $feedbackA = officeDssFeedback([
+        'title' => 'Workstation status is tracked manually',
+        'category' => 'Office Review Facilities',
+        'office_id' => $office->id,
+        'description' => 'Manual workstation checks create delays in lab maintenance and support.',
+    ]);
+    $feedbackB = officeDssFeedback([
+        'title' => 'Workstation status is tracked manually',
+        'category' => 'Office Review Facilities',
+        'office_id' => $office->id,
+        'description' => 'Manual workstation checks create delays in lab maintenance and support.',
+    ]);
+
+    $clusters = app(ClusteringService::class)->group(collect([$feedbackA, $feedbackB]));
+
+    expect($clusters)->toHaveCount(1)
+        ->and($clusters->keys()->first())->toStartWith("office_{$office->id}_");
+});
+
+test('null-office community reports keep the existing community clustering path', function (): void {
+    Cache::flush();
+
+    $feedbackA = officeDssFeedback([
+        'title' => 'Request review is handled manually',
+        'category' => 'Community Facilities Review',
+        'office_id' => null,
+        'description' => 'Students follow up on request statuses through manual checks and delayed updates.',
+    ]);
+    $feedbackB = officeDssFeedback([
+        'title' => 'Request review is handled manually',
+        'category' => 'Community Facilities Review',
+        'office_id' => null,
+        'description' => 'Students follow up on request statuses through manual checks and delayed updates.',
+    ]);
+
+    $clusters = app(ClusteringService::class)->group(collect([$feedbackA, $feedbackB]));
+
+    expect($clusters->keys()->all())
+        ->toHaveCount(1)
+        ->and($clusters->keys()->first())->not->toStartWith('office_')
+        ->and($clusters->keys()->first())->toContain('request');
+
+    $evaluation = IdeaEvaluation::query()->create([
+        'idea_title' => 'Community Request Tracker',
+        'category' => 'Community Facilities Review',
+        'office_id' => null,
+    ]);
+
+    expect(IdeaEvaluation::query()->where('idea_title', 'Community Request Tracker')->whereNull('office_id')->count())->toBe(1)
+        ->and(IdeaEvaluation::query()->where('idea_title', 'Community Request Tracker')->count())->toBe(1);
+});
+
+test('office-specific caches stay isolated while the community null-office path remains valid', function (): void {
+    Cache::flush();
+
+    $officeA = Office::query()->create([
+        'name' => 'Office Cache A',
+        'representative_user_id' => User::factory()->create()->id,
+        'is_active' => true,
+    ]);
+    $officeB = Office::query()->create([
+        'name' => 'Office Cache B',
+        'representative_user_id' => User::factory()->create()->id,
+        'is_active' => true,
+    ]);
+
+    officeDssFeedback([
+        'title' => 'Laboratory status is tracked manually',
+        'category' => 'Office Review Facilities',
+        'office_id' => $officeA->id,
+        'status' => 'approved',
+        'is_capstone_worthy' => true,
+    ]);
+    officeDssFeedback([
+        'title' => 'Laboratory status is tracked manually',
+        'category' => 'Office Review Facilities',
+        'office_id' => $officeB->id,
+        'status' => 'approved',
+        'is_capstone_worthy' => true,
+    ]);
+    officeDssFeedback([
+        'title' => 'Community request review is tracked manually',
+        'category' => 'Community Facilities Review',
+        'office_id' => null,
+        'status' => 'approved',
+        'is_capstone_worthy' => true,
+    ]);
+
+    $service = app(CategoryIdeaGenerationService::class);
+    $resultA = $service->generate('Office Review Facilities', $officeA->id, false);
+    $resultB = $service->generate('Office Review Facilities', $officeB->id, false);
+    $community = $service->generate('Community Facilities Review', null, false);
+
+    expect($resultA['cache_key'])->not->toBe($resultB['cache_key'])
+        ->and($resultA['cache_key'])->toContain("office_{$officeA->id}")
+        ->and($resultB['cache_key'])->toContain("office_{$officeB->id}")
+        ->and($community['cache_key'])->toContain('community')
+        ->and($community['cache_key'])->not->toContain('office_');
 });
 
 test('community problems still generate ideas once three reports each reach ten votes', function (): void {

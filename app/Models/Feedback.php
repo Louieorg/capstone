@@ -13,6 +13,7 @@ class Feedback extends Model
 
     protected $fillable = [
         'user_id',
+        'office_id',
         'title',
         'description',
         'impact',
@@ -86,6 +87,8 @@ class Feedback extends Model
         'affected_group' => 'array',   // auto JSON encode/decode
         'is_anonymous' => 'boolean',
         'is_flagged' => 'boolean',
+        'is_priority' => 'boolean',
+        'is_capstone_worthy' => 'boolean',
     ];
 
     public function votes(): HasMany
@@ -106,6 +109,11 @@ class Feedback extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function office(): BelongsTo
+    {
+        return $this->belongsTo(Office::class);
     }
 
     public function scopeNotFlagged(Builder $query): Builder

@@ -27,7 +27,7 @@
 }
 .pp-tab:hover { border-color: var(--amber-mid); color: var(--text); }
 .pp-tab.active { background: var(--amber-dim); border-color: var(--amber-mid); color: var(--amber); }
-.pp-tab-count { font-size: 11px; padding: 1px 6px; border-radius: 999px; background: rgba(0,0,0,0.08); color: inherit; }
+.pp-tab-count { font-size: 11px; padding: 1px 6px; border-radius: 999px; background: var(--surface2); color: inherit; }
 
 .lk-badge {
   display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px;
@@ -52,10 +52,15 @@
 }
 .pp-foot { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
 .pp-info { font-size: 11.5px; color: var(--muted2); }
-.pp-actions { display: flex; gap: 8px; }
+.pp-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .btn-take {
   padding: 6px 14px; border-radius: 9px; font-size: 12px; font-weight: 600;
   background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-b);
+  cursor: pointer; font-family: 'DM Sans', sans-serif;
+}
+.btn-capstone {
+  padding: 6px 14px; border-radius: 9px; font-size: 12px; font-weight: 600;
+  background: var(--green-bg); color: var(--green); border: 1px solid var(--green-b);
   cursor: pointer; font-family: 'DM Sans', sans-serif;
 }
 .btn-resolve {
@@ -95,7 +100,6 @@
       Resolved <span class="pp-tab-count">{{ $counts['resolved'] }}</span>
     </a>
   </div>
-  
 
   {{-- ══ FILTERS ══ --}}
   <form method="GET" action="{{ route('admin.priority.index') }}" class="pp-toolbar">
@@ -148,19 +152,17 @@
             @endif
             <span class="lk-badge b-amber" style="margin-left:6px">Feedback status: {{ ucfirst($item->status) }}</span>
           </div>
-            @if($item->status === 'approved')
-    <div style="margin-left:10px">
-      @if($item->is_capstone_worthy)
-        <span class="lk-badge b-green">Marked as Capstone Idea</span>
-      @else
-        <form method="POST" action="{{ route('admin.priority.mark-capstone', $item->id) }}">
-          @csrf @method('PATCH')
-          <button type="submit" class="btn-approve">Mark as Capstone Idea</button>
-        </form>
-      @endif
-    </div>
-  @endif
           <div class="pp-actions">
+            @if($item->status === 'approved')
+              @if($item->is_capstone_worthy)
+                <span class="lk-badge b-green">Capstone Opportunity</span>
+              @else
+                <form method="POST" action="{{ route('admin.priority.mark-capstone', $item->id) }}">
+                  @csrf @method('PATCH')
+                  <button type="submit" class="btn-capstone">Mark as Capstone Opportunity</button>
+                </form>
+              @endif
+            @endif
             @if($item->priority_status === 'pending')
               <form method="POST" action="{{ route('admin.priority.take', $item->id) }}">
                 @csrf @method('PATCH')

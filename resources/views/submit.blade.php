@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Submit a Campus Problem')
+{{-- No page-title bar: the sidebar already marks Submit Problem active. The
+     subtitle is kept so the form still explains what to report. --}}
 @section('subtitle', 'Report an issue that affects members of the campus community')
 
 @section('content')
@@ -220,6 +221,26 @@ select.field:invalid {
       @csrf
       <input type="hidden" name="current_step" :value="step">
 
+      @if($userOffices->isNotEmpty())
+      <div x-data="{ submitForOffice: {{ old('submit_for_office', old('office_id') ? '1' : '0') }} === 1 }" class="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+        <label class="check-card" :class="submitForOffice ? 'is-checked' : ''">
+          <input type="checkbox" name="submit_for_office" value="1" x-model="submitForOffice" {{ old('submit_for_office') ? 'checked' : '' }} />
+          <span style="font-size: .875rem; font-weight: 500; color: var(--text);">Submit this report for an office I represent</span>
+        </label>
+
+        <div x-show="submitForOffice" x-transition.opacity class="mt-3">
+          <label class="field-label" for="office_id">Office</label>
+          <select id="office_id" name="office_id" class="field">
+            <option value="">Select an office…</option>
+            @foreach($userOffices as $office)
+              <option value="{{ $office->id }}" {{ old('office_id') == $office->id ? 'selected' : '' }}>{{ $office->name }}</option>
+            @endforeach
+          </select>
+          <p style="font-size: .6875rem; color: var(--muted2); margin-top: .25rem;">Submitting for the office you represent files this as an institutional office report.</p>
+        </div>
+      </div>
+      @endif
+
       {{-- ── Step Indicator ── --}}
       <div>
         <div class="relative flex items-center justify-between mb-3">
@@ -414,7 +435,7 @@ select.field:invalid {
 
             <input type="file" name="attachment" accept=".jpg,.jpeg,.png,.pdf" class="field" style="margin-top:10px;position:absolute; opacity:0; pointer-events:none; width:1px; height:1px;">
 
-            <div id="evidencePreview" class="mt-3 grid grid-cols-3 gap-3"></div>
+            <div id="evidencePreview" class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3"></div>
 
             @error('evidence.*')
               <p style="font-size: .75rem; color: #ef4444; margin-top: .5rem;">{{ $message }}</p>
@@ -558,6 +579,7 @@ select.field:invalid {
         const img = document.createElement('img');
         img.src = ev.target.result;
         img.style.maxHeight = '90px';
+        img.style.maxWidth = '100%';
         img.style.borderRadius = '8px';
         card.appendChild(img);
         addMeta();
@@ -575,6 +597,8 @@ select.field:invalid {
       const name = document.createElement('div');
       name.style.fontSize = '.8rem';
       name.style.marginTop = '6px';
+      name.style.textAlign = 'center';
+      name.style.overflowWrap = 'anywhere';
       name.innerText = file.name + ' (' + (Math.round(file.size/1024/10)/100) + ' MB)';
       card.appendChild(name);
 

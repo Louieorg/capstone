@@ -2,6 +2,7 @@
 
 use App\Models\Feedback;
 use App\Models\FeedbackVote;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
@@ -125,6 +126,62 @@ test('authenticated users can submit feedback without uploading any files', func
         'title' => 'Campus Wi-Fi access issues',
         'user_id' => $user->id,
     ]);
+});
+
+test('a submission for an active office the user represents is stored against that office', function () {
+    $user = User::factory()->create();
+    $office = Office::query()->create([
+        'name' => 'Academic Success Office',
+        'representative_user_id' => $user->id,
+        'is_active' => true,
+    ]);
+
+    $response = $this->actingAs($user)->post(route('feedback.store'), [
+        'title' => 'Office association metadata should be stored separately',
+        'category' => 'Facilities',
+        'description' => 'The report should record the office context while keeping the review pipeline unchanged.',
+        'impact' => 'This tests the office association path and its institutional qualification.',
+        'frequency' => 'Sometimes',
+        'current_process' => 'Report verbally to staff',
+        'affected_users' => 'Less than 50',
+        'affected_group' => ['Students'],
+        'office_id' => $office->id,
+        'force_submit' => '1',
+    ]);
+
+    $response->assertRedirect(route('feedback.submitted', absolute: false));
+
+    $feedback = Feedback::query()
+        ->where('title', 'Office association metadata should be stored separately')
+        ->firstOrFail();
+
+    expect($feedback->office_id)->toBe($office->id);
+});
+
+test('a user cannot associate a report with an office they do not represent', function () {
+    $representative = User::factory()->create();
+    $office = Office::query()->create([
+        'name' => 'Registrar Office',
+        'representative_user_id' => $representative->id,
+        'is_active' => true,
+    ]);
+    $otherUser = User::factory()->create();
+
+    $response = $this->actingAs($otherUser)->post(route('feedback.store'), [
+        'title' => 'Tampered office assignment attempt',
+        'category' => 'Facilities',
+        'description' => 'The office metadata should not be accepted when the user does not represent that office.',
+        'impact' => 'This ensures the optional office field is enforced server-side and cannot be spoofed.',
+        'frequency' => 'Often',
+        'current_process' => 'Report verbally to staff',
+        'affected_users' => '50-200',
+        'affected_group' => ['Students'],
+        'office_id' => $office->id,
+        'force_submit' => '1',
+    ]);
+
+    $response->assertSessionHasErrors('office_id');
+    $this->assertDatabaseMissing('feedback', ['title' => 'Tampered office assignment attempt']);
 });
 
 test('authenticated users can submit feedback when choosing other category and process without extra details', function () {

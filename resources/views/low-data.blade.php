@@ -129,6 +129,15 @@
     color: #9a97b0;
     border-color: rgba(0,0,0,.06);
   }
+
+  /* Phones: the desktop inset would eat most of a 360px viewport. */
+  @media (max-width: 480px) {
+    .empty-container { min-height: 0; padding: 24px 12px; }
+    .empty-card { padding: 36px 20px; }
+    .empty-icon { width: 64px; height: 64px; font-size: 28px; margin-bottom: 18px; }
+    .empty-title { font-size: 20px; }
+    .empty-desc { font-size: 13px; margin-bottom: 28px; }
+  }
 </style>
 
 <div class="empty-container">

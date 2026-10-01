@@ -28,12 +28,20 @@
 
     <aside class="app-sidebar" :class="{ collapsed }" x-show="true">
       <nav class="sb-nav">
-        <div class="sb-label">{{ auth()->user()->officeLabel() }}</div>
+        <div class="sb-label">{{ auth()->user()->officeLabel() ?? 'Office' }}</div>
 
-        <a href="{{ route('office.review.index') }}"
-           class="nav-item {{ request()->routeIs('office.review.*') ? 'nav-active' : '' }}">
-          <i data-lucide="clipboard-check"></i>
-          <span class="nav-label">Review Queue</span>
+        @if(auth()->user()->isOfficeReviewer())
+          <a href="{{ route('office.review.index') }}"
+             class="nav-item {{ request()->routeIs('office.review.*') ? 'nav-active' : '' }}">
+            <i data-lucide="clipboard-check"></i>
+            <span class="nav-label">Review Queue</span>
+          </a>
+        @endif
+
+        <a href="{{ route('office.confirmations.index') }}"
+           class="nav-item {{ request()->routeIs('office.confirmations.*') ? 'nav-active' : '' }}">
+          <i data-lucide="badge-check"></i>
+          <span class="nav-label">Confirmation Requests</span>
         </a>
 
         <div class="sb-label">Back to LIKHA</div>
@@ -65,6 +73,23 @@
 
   </div>
 </div>
+
+{{-- ══ BOTTOM NAV (mobile) — the sidebar is hidden below 768px ══ --}}
+<nav class="bottom-nav">
+  @if(auth()->user()->isOfficeReviewer())
+    <a href="{{ route('office.review.index') }}"
+       class="bn-item {{ request()->routeIs('office.review.*') ? 'bn-active' : '' }}">
+      <i data-lucide="clipboard-check"></i><span>Review Queue</span>
+    </a>
+  @endif
+  <a href="{{ route('office.confirmations.index') }}"
+     class="bn-item {{ request()->routeIs('office.confirmations.*') ? 'bn-active' : '' }}">
+    <i data-lucide="badge-check"></i><span>Confirmations</span>
+  </a>
+  <a href="{{ route('home') }}" class="bn-item">
+    <i data-lucide="arrow-left"></i><span>Exit Review</span>
+  </a>
+</nav>
 
 @include('layouts.partials.scripts')
 </body>

@@ -7,7 +7,7 @@
 
 <div class="max-w-xl mx-auto">
 
-<div class="bg-white border rounded-xl p-8 text-center">
+<div class="bg-white border rounded-xl p-5 sm:p-8 text-center">
 
 <h2 class="text-xl font-semibold text-gray-800 mb-3">
 {{ session('warning') ? 'Problem Submitted for Review' : 'Problem Submitted Successfully' }}
@@ -22,7 +22,7 @@ Once approved, it will appear in the problem feed where students can view and su
 @endif
 </p>
 
-<div class="flex justify-center gap-4">
+<div class="flex flex-wrap justify-center gap-3">
 
 <a href="{{ route('feedback.index') }}"
 class="bg-gray-200 hover:bg-gray-300 px-5 py-2 rounded-lg text-sm">

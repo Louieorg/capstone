@@ -132,6 +132,59 @@ test('failed ai enhancement stores the original recommendation as fallback', fun
         ->ai_enhanced_at->not->toBeNull();
 });
 
+test('ai enhancement updates only the matching office evaluation when title and category are shared', function (): void {
+    $officeA = \App\Models\Office::query()->create([
+        'name' => 'Office AI A',
+        'representative_user_id' => User::factory()->create()->id,
+        'is_active' => true,
+    ]);
+    $officeB = \App\Models\Office::query()->create([
+        'name' => 'Office AI B',
+        'representative_user_id' => User::factory()->create()->id,
+        'is_active' => true,
+    ]);
+
+    $evaluationA = IdeaEvaluation::query()->create([
+        'idea_title' => 'Shared Office Idea',
+        'category' => 'Academic Process',
+        'office_id' => $officeA->id,
+    ]);
+    $evaluationB = IdeaEvaluation::query()->create([
+        'idea_title' => 'Shared Office Idea',
+        'category' => 'Academic Process',
+        'office_id' => $officeB->id,
+    ]);
+
+    $this->mock(OllamaService::class, function ($mock): void {
+        $mock->shouldReceive('enhance')
+            ->once()
+            ->with([
+                'title' => 'Shared Office Idea',
+                'description' => 'Original description.',
+                'general_objective' => 'Improve request processing.',
+                'specific_objectives' => ['Track requests.', 'Monitor completion.'],
+            ])
+            ->andReturn([
+                'title' => 'Shared Office Idea Enhanced',
+                'description' => 'Enhanced office description.',
+                'general_objective' => 'Improve request processing visibility.',
+                'specific_objectives' => ['Track requests.', 'Monitor completion.'],
+            ]);
+    });
+
+    app(EnhanceIdeaWithAi::class, [
+        'ideaTitle' => 'Shared Office Idea',
+        'category' => 'Academic Process',
+        'description' => 'Original description.',
+        'generalObjective' => 'Improve request processing.',
+        'specificObjectives' => ['Track requests.', 'Monitor completion.'],
+        'officeId' => $officeA->id,
+    ])->handle(app(OllamaService::class));
+
+    expect($evaluationA->refresh()->ai_title)->toBe('Shared Office Idea Enhanced')
+        ->and($evaluationB->refresh()->ai_title)->toBeNull();
+});
+
 test('enhancement writes are disabled by default without changing existing ai fields', function (): void {
     config(['services.ollama.enhance_enabled' => false]);
 

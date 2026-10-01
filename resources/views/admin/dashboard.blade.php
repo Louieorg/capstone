@@ -390,7 +390,7 @@ html:not(.dark) {
 
     <div class="dash-card">
       <div class="dc-head">
-        <span class="dc-title">Capstone opportunities</span>
+        <span class="dc-title">Generated DSS Ideas</span>
         <span class="lk-badge b-green">{{ $ideaCandidates->count() }}</span>
       </div>
       <div class="dc-body">
@@ -489,61 +489,7 @@ html:not(.dark) {
   </div>
 
 </div>
-
-{{-- ══ CHART.JS ══ --}}
-@push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const isDark   = document.documentElement.classList.contains('dark');
-  const gridClr  = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
-  const tickClr  = isDark ? '#5e6175' : '#9a97b0';
-  const tipBg    = isDark ? '#13141a' : '#111014';
-  const amber    = isDark ? '#fbb034' : '#b57318';
-
-  @php
-    $labels          = $categoryData->pluck('category');
-    $counts          = $categoryData->pluck('total');
-    $affLabels       = $affectedGroupData->pluck('affected_group');
-    $affCounts       = $affectedGroupData->pluck('total');
-  @endphp
-
-  /* ── Remove the static bar chart and replace with real Chart.js ── */
-  const barWrap = document.querySelector('.chart-bars');
-  if (barWrap) {
-    barWrap.innerHTML = '<canvas id="catChart"></canvas>';
-    barWrap.style.height = '180px';
-    new Chart(document.getElementById('catChart'), {
-      type: 'bar',
-      data: {
-        labels: {!! json_encode($labels) !!},
-        datasets: [{
-          data: {!! json_encode($counts) !!},
-          backgroundColor: amber,
-          hoverBackgroundColor: isDark ? '#f97316' : '#c2410c',
-          borderRadius: 6,
-          borderSkipped: false,
-        }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        animation: { duration: 900, easing: 'easeOutQuart' },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: tipBg, titleColor: '#f0f0f5', bodyColor: '#9a9bb0',
-            padding: 10, cornerRadius: 8, displayColors: false,
-          }
-        },
-        scales: {
-          x: { grid: { display: false }, ticks: { color: tickClr, font: { size: 11 } } },
-          y: { beginAtZero: true, grid: { color: gridClr }, ticks: { color: tickClr, font: { size: 11 } } }
-        }
-      }
-    });
-  }
-});
-</script>
-@endpush
-
+{{-- The Chart.js block that used to sit here was pushed to a "scripts" stack
+     that this layout never renders, so it never reached the browser. The
+     category chart above is the server-rendered one that actually displays. --}}
 @endsection

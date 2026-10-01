@@ -14,22 +14,42 @@
   <script src="https://unpkg.com/lucide@latest"></script>
 
   @include('layouts.partials.styles')
+  <style>
+    /* Admin carries seven bottom-nav destinations. From 430px down each item is
+       about 50px wide, so the labels are tightened and pinned to a single line
+       to keep every destination readable without wrapping, clipping, or
+       overlapping. Scoped to .bottom-nav-admin so the student bar is untouched. */
+    @media (max-width: 430px) {
+      .bottom-nav-admin { gap: 2px; padding-left: 2px; padding-right: 2px; }
+      .bottom-nav-admin .bn-item { min-width: 0; padding: 0 1px; gap: 3px; }
+      .bottom-nav-admin .bn-item span {
+        font-size: 9px; line-height: 1.2; white-space: nowrap;
+        max-width: 100%; overflow: hidden;
+      }
+      .bottom-nav-admin .bn-item svg { width: 18px; height: 18px; }
+    }
+  </style>
 </head>
 
 <body
-  x-data="{
-    collapsed: localStorage.getItem('sidebar') === 'collapsed'
-  }"
-  x-init="$watch('collapsed', v => localStorage.setItem('sidebar', v ? 'collapsed' : 'expanded'))">
+  class="has-mobile-account"
+  x-data="{ collapsed: false }">
 
 <div class="shell">
-
-  @include('layouts.partials.header')
 
   <div class="app-body">
 
     {{-- ══ SIDEBAR (Administrator) ══ --}}
     <aside class="app-sidebar" :class="{ collapsed }" x-show="true">
+      <a href="{{ route('admin.dashboard') }}" class="sb-brand">
+        <img
+            src="{{ asset('images/logolikha.png') }}"
+            alt="LIKHA Logo"
+            class="sb-brand-image"
+        >
+        <span class="sb-brand-text">LIKHA</span>
+      </a>
+
       <nav class="sb-nav">
         <div class="sb-label">Main</div>
 
@@ -72,7 +92,13 @@
           </div>
         </div>
 
-        {{-- Recommendation Management (routes not built yet — see note below) --}}
+        <a href="{{ route('admin.evidence') }}"
+           class="nav-item {{ request()->routeIs('admin.evidence') ? 'nav-active' : '' }}">
+          <i data-lucide="paperclip"></i>
+          <span class="nav-label">Evidence</span>
+        </a>
+
+        {{-- Recommendation Management --}}
         <div x-data="{ open: {{ request()->routeIs('admin.recommendations.*') || request()->routeIs('admin.adviser-reviews.*') ? 'true' : 'false' }} }">
           <button @click="open = !open" class="nav-group-btn">
             <i data-lucide="lightbulb"></i>
@@ -91,7 +117,7 @@
           </div>
         </div>
 
-        {{-- Analytics (routes not built yet — see note below) --}}
+        {{-- Analytics --}}
         <div x-data="{ open: {{ request()->routeIs('admin.reports.*') || request()->routeIs('admin.analytics.*') ? 'true' : 'false' }} }">
           <button @click="open = !open" class="nav-group-btn">
             <i data-lucide="bar-chart-3"></i>
@@ -110,21 +136,29 @@
           </div>
         </div>
 
-        {{-- User Management (route not built yet) --}}
-        <a href="{{ Route::has('admin.users.index') ? route('admin.users.index') : '#' }}"
+        {{-- User Management --}}
+        <a href="{{ route('admin.users.index') }}"
            class="nav-item {{ request()->routeIs('admin.users.*') ? 'nav-active' : '' }}">
           <i data-lucide="users"></i>
           <span class="nav-label">User Management</span>
         </a>
 
+        {{-- Reviewer-role assignment. The institutional Office directory is a
+             separate, unrelated concept — see the Office Directory item below. --}}
         <a href="{{ route('admin.category-assignments.index') }}"
-   class="nav-item {{ request()->routeIs('admin.category-assignments.*') ? 'nav-active' : '' }}">
-  <i data-lucide="git-branch"></i>
-  <span class="nav-label">Office Assignments</span>
-</a>
+           class="nav-item {{ request()->routeIs('admin.category-assignments.*') ? 'nav-active' : '' }}">
+          <i data-lucide="git-branch"></i>
+          <span class="nav-label">Reviewer Assignments</span>
+        </a>
 
-        {{-- Settings (route not built yet) --}}
-        <a href="{{ Route::has('admin.settings') ? route('admin.settings') : '#' }}"
+        <a href="{{ route('admin.offices.index') }}"
+           class="nav-item {{ request()->routeIs('admin.offices.*') ? 'nav-active' : '' }}">
+          <i data-lucide="building-2"></i>
+          <span class="nav-label">Office Directory</span>
+        </a>
+
+        {{-- Settings --}}
+        <a href="{{ route('admin.settings') }}"
            class="nav-item {{ request()->routeIs('admin.settings') ? 'nav-active' : '' }}">
           <i data-lucide="settings"></i>
           <span class="nav-label">Settings</span>
@@ -137,10 +171,21 @@
         </a>
       </nav>
 
+      {{-- Account. The top header row is gone, so the profile and session
+           controls live at the bottom of the sidebar, as on the student shell. --}}
+      @include('layouts.partials.account-menu', ['logoutFormId' => 'logoutForm', 'placement' => 'sidebar'])
     </aside>
 
     {{-- ══ MAIN ══ --}}
     <div class="app-main">
+      {{-- No top header row: the notification control floats in the top-right of
+           the content area, the same way the student shell does it. --}}
+      <div class="app-topbar">
+        @auth
+          @include('layouts.partials.notifications')
+        @endauth
+      </div>
+
       <main style="flex:1;overflow-y:auto">
 
         @hasSection('title')
@@ -166,6 +211,43 @@
 
   </div>
 </div>
+
+{{-- ══ BOTTOM NAV (mobile) — the sidebar is hidden below 768px ══ --}}
+<nav class="bottom-nav bottom-nav-admin">
+  <a href="{{ route('admin.dashboard') }}"
+     class="bn-item {{ request()->routeIs('admin.dashboard') ? 'bn-active' : '' }}">
+    <i data-lucide="layout-dashboard"></i><span>Dashboard</span>
+  </a>
+  <a href="{{ route('admin.priority.index') }}"
+     class="bn-item {{ request()->routeIs('admin.priority.*') ? 'bn-active' : '' }}">
+    <i data-lucide="alert-triangle"></i><span>Priority</span>
+  </a>
+  <a href="{{ route('admin.feedback.index') }}"
+     class="bn-item {{ request()->routeIs('admin.feedback.*') ? 'bn-active' : '' }}">
+    <i data-lucide="inbox"></i><span>Feedback</span>
+  </a>
+  <a href="{{ route('admin.evidence') }}"
+     class="bn-item {{ request()->routeIs('admin.evidence') ? 'bn-active' : '' }}">
+    <i data-lucide="paperclip"></i><span>Evidence</span>
+  </a>
+  <a href="{{ route('admin.category-assignments.index') }}"
+     class="bn-item {{ request()->routeIs('admin.category-assignments.*') ? 'bn-active' : '' }}">
+    <i data-lucide="git-branch"></i><span>Reviewers</span>
+  </a>
+  <a href="{{ route('admin.offices.index') }}"
+     class="bn-item {{ request()->routeIs('admin.offices.*') ? 'bn-active' : '' }}">
+    <i data-lucide="building-2"></i><span>Offices</span>
+  </a>
+  <a href="{{ route('home') }}" class="bn-item">
+    <i data-lucide="arrow-left"></i><span>Exit</span>
+  </a>
+</nav>
+
+{{-- The sidebar is hidden below 768px, so the same account menu is also
+     reachable from a pill pinned above the mobile bottom nav. --}}
+@auth
+  @include('layouts.partials.account-menu', ['logoutFormId' => '', 'placement' => 'mobile'])
+@endauth
 
 {{-- Scripts --}}
 @include('layouts.partials.scripts')

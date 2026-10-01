@@ -52,7 +52,7 @@
 }
 .mu-tab:hover { border-color: var(--amber-mid); color: var(--text); }
 .mu-tab.active { background: var(--amber-dim); border-color: var(--amber-mid); color: var(--amber); }
-.mu-tab-count { font-size: 11px; padding: 1px 6px; border-radius: 999px; background: rgba(0,0,0,0.08); color: inherit; }
+.mu-tab-count { font-size: 11px; padding: 1px 6px; border-radius: 999px; background: var(--surface2); color: inherit; }
 
 .lk-badge {
   display: inline-flex; align-items: center; gap: 4px;
@@ -80,13 +80,13 @@
 .mu-identity { min-width: 180px; flex: 1; }
 .mu-name { font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 700; color: var(--text); }
 .mu-email { font-size: 12px; color: var(--muted2); }
-.mu-stats { display: flex; gap: 14px; font-size: 11.5px; color: var(--muted2); min-width: 200px; }
+.mu-stats { display: flex; flex-wrap: wrap; gap: 14px; font-size: 11.5px; color: var(--muted2); min-width: 200px; }
 .mu-joined { font-size: 11.5px; color: var(--muted2); }
-.mu-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.mu-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-left: auto; }
 .mu-role-select {
   background: var(--surface2); border: 1px solid var(--border);
   border-radius: 9px; padding: 6px 10px; font-size: 12px; color: var(--text);
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'DM Sans', sans-serif; max-width: 100%;
 }
 .btn-danger {
   padding: 6px 14px; border-radius: 9px; font-size: 12px; font-weight: 600;
@@ -114,6 +114,16 @@
     <a href="{{ route('admin.users.index', array_merge(request()->except('role', 'page'), ['role' => 'adviser'])) }}"
        class="mu-tab {{ $role === 'adviser' ? 'active' : '' }}">
       Advisers <span class="mu-tab-count">{{ $counts['adviser'] }}</span>
+    </a>
+    {{-- Reviewer roles. These grant category review authority through
+         CategoryAssignment; they are not institutional offices. --}}
+    <a href="{{ route('admin.users.index', array_merge(request()->except('role', 'page'), ['role' => 'office_academic'])) }}"
+       class="mu-tab {{ $role === 'office_academic' ? 'active' : '' }}">
+      Reviewer — Academic Affairs
+    </a>
+    <a href="{{ route('admin.users.index', array_merge(request()->except('role', 'page'), ['role' => 'office_chief'])) }}"
+       class="mu-tab {{ $role === 'office_chief' ? 'active' : '' }}">
+      Reviewer — Chief Administrative Office
     </a>
     <a href="{{ route('admin.users.index', array_merge(request()->except('role', 'page'), ['role' => 'admin'])) }}"
        class="mu-tab {{ $role === 'admin' ? 'active' : '' }}">
@@ -163,8 +173,8 @@
           <span>{{ $user->comments_count }} comments</span>
         </div>
 
-        <span class="lk-badge {{ $user->role === 'admin' ? 'b-amber' : ($user->role === 'adviser' ? 'b-blue' : 'b-grey') }}">
-          {{ ucfirst($user->role) }}
+        <span class="lk-badge {{ $user->role === 'admin' ? 'b-amber' : ($user->role === 'adviser' ? 'b-blue' : ($user->isOfficeReviewer() ? 'b-blue' : 'b-grey')) }}">
+          {{ $user->isOfficeReviewer() ? $user->officeLabel() : ucfirst($user->role) }}
         </span>
 
         <div class="mu-joined">Joined {{ $user->created_at->format('M d, Y') }}</div>
@@ -174,20 +184,20 @@
             <form method="POST" action="{{ route('admin.users.role', $user->id) }}" style="display:flex;gap:6px;align-items:center">
               @csrf @method('PATCH')
               <select name="role" class="mu-role-select" onchange="this.form.submit()">
-  <option value="user" {{ $user->role === 'user' ? 'selected' : '' }}>User</option>
-  <option value="adviser" {{ $user->role === 'adviser' ? 'selected' : '' }}>Adviser</option>
-  <option value="office_academic" {{ $user->role === 'office_academic' ? 'selected' : '' }}>Office — Academic Affairs</option>
-  <option value="office_chief" {{ $user->role === 'office_chief' ? 'selected' : '' }}>Office — Chief Administrative</option>
-  <option value="admin" {{ $user->role === 'admin' ? 'selected' : '' }}>Admin</option>
-</select>
+                <option value="user" {{ $user->role === 'user' ? 'selected' : '' }}>User</option>
+                <option value="adviser" {{ $user->role === 'adviser' ? 'selected' : '' }}>Adviser</option>
+                <option value="office_academic" {{ $user->role === 'office_academic' ? 'selected' : '' }}>Reviewer — Academic Affairs</option>
+                <option value="office_chief" {{ $user->role === 'office_chief' ? 'selected' : '' }}>Reviewer — Chief Administrative Office</option>
+                <option value="admin" {{ $user->role === 'admin' ? 'selected' : '' }}>Admin</option>
+              </select>
             </form>
             <form method="POST" action="{{ route('admin.users.office-head', $user->id) }}" style="display:flex;gap:6px;align-items:center">
-  @csrf @method('PATCH')
-  <label style="display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--muted)">
-    <input type="checkbox" name="is_office_head" value="1" {{ $user->is_office_head ? 'checked' : '' }} onchange="this.form.submit();">
-    Office Head
-  </label>
-</form>
+              @csrf @method('PATCH')
+              <label style="display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--muted)">
+                <input type="checkbox" name="is_office_head" value="1" {{ $user->is_office_head ? 'checked' : '' }} onchange="this.form.submit();">
+                Office Head
+              </label>
+            </form>
 
             <form method="POST" action="{{ route('admin.users.destroy', $user->id) }}"
                   onsubmit="return confirm('Remove {{ $user->name }}\'s account? This cannot be undone.');">

@@ -66,5 +66,21 @@ return [
             'keep_alive' => env('OLLAMA_SYNTHESIS_KEEP_ALIVE'),
             'queue' => env('OLLAMA_SYNTHESIS_QUEUE', 'ai-synthesis'),
         ],
+
+        // Filipino rendering of an already-completed English cluster
+        // explanation. It translates stored English synthesis only, never raw
+        // evidence, and never decides anything the DSS has not decided.
+        //
+        // Every value below defaults to the shared OLLAMA_* setting, so the
+        // behaviour matches the legacy flat keys until these are set
+        // explicitly.
+        'translation' => [
+            'model' => env('OLLAMA_TRANSLATION_MODEL', env('OLLAMA_MODEL', 'llama3.2')),
+            'timeout' => (int) env('OLLAMA_TRANSLATION_TIMEOUT', env('OLLAMA_TIMEOUT', 20)),
+            'connect_timeout' => (int) env('OLLAMA_TRANSLATION_CONNECT_TIMEOUT', env('OLLAMA_CONNECT_TIMEOUT', 5)),
+            'num_predict' => (int) env('OLLAMA_TRANSLATION_NUM_PREDICT', -1),
+            'keep_alive' => env('OLLAMA_TRANSLATION_KEEP_ALIVE'),
+            'queue' => env('OLLAMA_TRANSLATION_QUEUE', 'ai-filipino'),
+        ],
     ],
 ];

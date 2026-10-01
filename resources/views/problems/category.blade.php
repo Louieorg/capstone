@@ -85,37 +85,17 @@ html:not(.dark) {
   box-shadow: 0 0 0 4px var(--adim);
 }
 
-/* ── Page identity header ── */
-.co-hero {
-  position: relative; overflow: hidden;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 26px 28px;
+/* ── Scope filter (page-level; this view does not load the design-system partial) ── */
+.sort-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.sort-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 14px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 600; text-decoration: none;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text2);
+  transition: all .15s;
 }
-.co-hero::before {
-  content: ''; position: absolute; left: 0; top: 0; right: 0; height: 3px;
-  background: linear-gradient(to right, #fbb034, #f97316);
-}
-.co-hero-eyebrow {
-  display: inline-flex; align-items: center; gap: 7px;
-  padding: 5px 13px; border-radius: 999px;
-  background: var(--adim); border: 1px solid var(--amid);
-  font-size: 10.5px; font-weight: 700; letter-spacing: .1em;
-  text-transform: uppercase; color: var(--amber);
-}
-.co-hero-title {
-  font-family: 'Sora', sans-serif;
-  font-size: clamp(20px, 3vw, 28px); font-weight: 800;
-  line-height: 1.15; color: var(--text); margin: 14px 0 8px;
-}
-.co-hero-copy {
-  font-size: 13.5px; color: var(--text2); line-height: 1.7; max-width: 720px;
-}
-.co-hero-note {
-  margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border);
-  font-size: 12px; color: var(--text3); line-height: 1.6;
-}
+.sort-pill:hover { border-color: var(--amid); color: var(--amber); background: var(--adim); }
+.sort-pill.active { background: var(--adim); border-color: var(--amid); color: var(--amber); }
 
 /* ── Problem → DSS → Opportunity flow ── */
 .co-flow {
@@ -264,6 +244,7 @@ html:not(.dark) {
 /* ── Section heading ── */
 .co-section-head {
   display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+  flex-wrap: wrap;
 }
 .co-section-dot {
   width: 8px; height: 8px; border-radius: 50%; background: var(--amber); flex-shrink: 0;
@@ -349,6 +330,13 @@ select.lk-input:invalid {
   color: var(--text3);
 }
 
+/* Nested horizontal insets are desktop-sized. On phones they stack with the
+   card padding and the page gutter, so drop them to keep a usable measure. */
+@media (max-width: 640px) {
+  .review-form { margin: 0 0 16px; padding: 16px 14px; }
+  .co-adviser { margin: 0 0 16px; padding: 14px; }
+}
+
 /* ── Buttons ── */
 .btn-amber {
   display: inline-flex; align-items: center; gap: 7px;
@@ -422,6 +410,30 @@ html.dark .btn-amber { background: #fbb034; }
 .co-ai-toggle-icon { width: 13px; height: 13px; flex-shrink: 0; transition: transform .25s; }
 .co-ai-toggle[aria-expanded="true"] .co-ai-toggle-icon { transform: rotate(180deg); }
 
+/* ── Cluster explanation: AI summary of the DSS's own evidence ── */
+.co-synth-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; padding: 20px 22px 18px;
+}
+.co-synth-summary { font-size: 14.5px; color: var(--text); line-height: 1.75; margin: 0; }
+.co-synth-label {
+  font-family: 'Sora', sans-serif; font-size: 11px; font-weight: 700;
+  letter-spacing: .09em; text-transform: uppercase; color: var(--text3);
+  margin: 18px 0 8px;
+}
+.co-synth-list {
+  display: flex; flex-direction: column; gap: 7px; margin: 0; padding: 0; list-style: none;
+}
+.co-synth-list li { display: flex; gap: 8px; font-size: 13px; color: var(--text2); line-height: 1.65; }
+.co-synth-bullet { color: var(--amber); flex-shrink: 0; margin-top: 2px; }
+.co-synth-exp { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; }
+.co-synth-exp-title { font-size: 13.5px; font-weight: 700; color: var(--text); margin: 0 0 5px; }
+.co-synth-exp-body { font-size: 13px; color: var(--text2); line-height: 1.7; margin: 0; }
+.co-synth-note {
+  margin: 18px 0 0; padding-top: 12px; border-top: 1px solid var(--border);
+  font-size: 11.5px; color: var(--text3); line-height: 1.6;
+}
+
 /* ── Adviser review (separate layer) ── */
 .co-adviser {
   margin: 0 28px 28px; padding: 16px 20px; border-radius: 12px;
@@ -459,23 +471,33 @@ html.dark .btn-amber { background: #fbb034; }
 
 <div class="max-w-4xl mx-auto" style="display:flex;flex-direction:column;gap:20px">
 
-  {{-- ══ PAGE IDENTITY ══ --}}
-  <div class="co-hero anim-1">
-    <span class="co-hero-eyebrow">
-      <span style="width:6px;height:6px;border-radius:50%;background:var(--amber);display:inline-block"></span>
-      Capstone Opportunities
-    </span>
-    <h1 class="co-hero-title">Capstone Opportunities from Real Institutional Problems</h1>
-    <p class="co-hero-copy">
-      These opportunities are not generated ideas. Each one is derived from recurring institutional
-      problems reported by the community, then analyzed by LIKHA's Decision Support System (DSS) to
-      surface where a capstone project could create measurable impact.
-    </p>
-    <p class="co-hero-note">
-      A capstone opportunity is a starting point — not a finished capstone. Students still study the
-      problem, consult the concerned office and adviser, and refine the final project.
-    </p>
+  {{-- ══ SCOPE ══ — slim, uncarded filter row. The page bar above already
+       names the category, so the old large hero header repeated it. --}}
+  <div class="anim-1" style="display:flex;flex-wrap:wrap;align-items:center;gap:12px">
+    <span style="font-size:10px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--muted2)">Scope</span>
+    <div class="sort-pills" role="navigation" aria-label="Opportunity scope">
+      @foreach ([
+        'all' => 'All',
+        'office' => 'Office-Backed',
+        'community' => 'Community',
+      ] as $scope => $label)
+        <a
+          href="{{ request()->fullUrlWithQuery(['scope' => $scope === 'all' ? null : $scope, 'idea' => null]) }}"
+          @class(['sort-pill', 'active' => $activeScope === $scope])
+        >{{ $label }}</a>
+      @endforeach
+    </div>
   </div>
+
+  {{-- ══ CONTEXT ══ — the one distinction worth stating up front, kept from the
+       removed hero header. --}}
+  <p class="anim-1 co-section-sub" style="max-width:840px">
+    These are not generated ideas. Each capstone opportunity below is derived from a recurring
+    institutional problem {{ $activeScope === 'office' ? 'associated with offices' : 'reported by the community' }},
+    then analyzed by LIKHA's Decision Support System (DSS) to surface where a capstone project could
+    create measurable impact. A capstone opportunity is a starting point — not a finished capstone:
+    students still study the problem, consult the concerned office and adviser, and refine the final project.
+  </p>
 
   {{-- ══ TOP RECOMMENDED IDEA ══ --}}
   @if(isset($topIdea))
@@ -501,7 +523,7 @@ html.dark .btn-amber { background: #fbb034; }
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
         <div style="display:inline-flex;align-items:center;gap:7px;padding:5px 13px;border-radius:999px;background:var(--adim);border:1px solid var(--amid);font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--amber)">
           <span style="width:6px;height:6px;border-radius:50%;background:var(--amber);display:inline-block"></span>
-          Top Capstone Opportunity
+          Generated DSS Idea
         </div>
         <span style="font-size:11.5px;color:var(--text3);max-width:280px;line-height:1.5">
           Identified from a real institutional problem and DSS analysis.
@@ -808,6 +830,50 @@ html.dark .btn-amber { background: #fbb034; }
     </div>
     @endif
 
+    @if($topIdea['office'] ?? null)
+      @php
+        $officeConfirmationState = $topIdea['office_confirmation_state'] ?? 'unavailable';
+        $officeStatusLabel = match ($officeConfirmationState) {
+          'available' => 'AVAILABLE',
+          'office-confirmed' => 'OFFICE-CONFIRMED',
+          'taken' => 'TAKEN',
+          default => 'UNAVAILABLE',
+        };
+        $officeStatusClass = $officeConfirmationState === 'office-confirmed' ? 'badge-green' : ($officeConfirmationState === 'taken' ? 'badge-muted' : 'badge-amber');
+      @endphp
+      <section class="mx-7 mb-6 border-t pt-4" style="border-color:var(--border)" aria-label="Office opportunity details">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div class="space-y-1 text-sm" style="color:var(--text2)">
+            <p>Office: <strong style="color:var(--text)">{{ $topIdea['office']->name }}</strong></p>
+            <p>Representative: <strong style="color:var(--text)">{{ $topIdea['office']->representative?->name ?? 'Unavailable' }}</strong></p>
+            <p>Contact:
+              @if($topIdea['office']->contact_email)
+                <a class="underline" href="mailto:{{ $topIdea['office']->contact_email }}">{{ $topIdea['office']->contact_email }}</a>
+              @else
+                <span>Not provided</span>
+              @endif
+            </p>
+          </div>
+          <span class="lk-badge {{ $officeStatusClass }}">{{ $officeStatusLabel }}</span>
+        </div>
+        @if($officeConfirmationState === 'available')
+          <p class="mt-3 text-sm" style="color:var(--text3)">Consult the office representative before requesting confirmation. Consultation happens outside LIKHA; this request does not record a consultation or reserve the opportunity.</p>
+          @auth
+            @if($topIdea['has_pending_confirmation'] ?? false)
+              <p class="mt-2 text-sm font-medium" style="color:var(--text2)">Your confirmation request is pending. The opportunity remains available until the office confirms.</p>
+            @else
+              <form method="POST" action="{{ route('office.confirmations.store', $topIdea['office_evaluation_id']) }}" class="mt-3">
+                @csrf
+                <button type="submit" class="btn-ghost text-sm">Request office confirmation</button>
+              </form>
+            @endif
+          @endauth
+        @elseif($officeConfirmationState === 'unavailable')
+          <p class="mt-3 text-sm" style="color:var(--text3)">This opportunity is no longer available for office confirmation.</p>
+        @endif
+      </section>
+    @endif
+
     {{-- Action buttons --}}
     <div style="padding:0 28px 28px;display:flex;flex-wrap:wrap;gap:10px;align-items:center">
       @auth
@@ -816,6 +882,7 @@ html.dark .btn-amber { background: #fbb034; }
           <input type="hidden" name="title" value="{{ $topIdea['title'] ?? '' }}">
           <input type="hidden" name="description" value="{{ $topIdea['description'] ?? '' }}">
           <input type="hidden" name="category" value="{{ $category }}">
+          <input type="hidden" name="office_id" value="{{ $topIdea['office_id'] ?? '' }}">
           <button type="submit" class="btn-amber">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
             Save Idea
@@ -827,6 +894,7 @@ html.dark .btn-amber { background: #fbb034; }
             @csrf
             <input type="hidden" name="title" value="{{ $topIdea['title'] ?? '' }}">
             <input type="hidden" name="description" value="{{ $topIdea['description'] ?? '' }}">
+            <input type="hidden" name="office_id" value="{{ $topIdea['office_id'] ?? '' }}">
             <input type="hidden" name="general_objective" value="{{ $topIdea['general_objective'] ?? '' }}">
             @foreach($topIdea['specific_objectives'] ?? [] as $objective)
               <input type="hidden" name="specific_objectives[]" value="{{ $objective }}">
@@ -891,6 +959,77 @@ html.dark .btn-amber { background: #fbb034; }
   @endif
 
   {{-- ══ SUPPORTING REPORTS ══ --}}
+  {{-- ══ AI EXPLANATION OF THE TOP CLUSTER'S EVIDENCE ══
+       Rendered only when a queued generation has already finished and passed
+       the evidence validator. This page never waits on a model and never shows
+       invented stand-in text, so when nothing is stored yet this section simply
+       is not there and Supporting Evidence still reads on its own. --}}
+  @if (! empty($clusterSynthesis))
+  @php
+    $activeSynthesisLanguage = $activeSynthesisLanguage ?? 'en';
+    $clusterTranslation = $clusterTranslation ?? null;
+    $translationPending = $translationPending ?? false;
+    $displaySynthesis = ($activeSynthesisLanguage === 'fil' && ! empty($clusterTranslation)) ? $clusterTranslation : $clusterSynthesis;
+    $synthToggleUrl = function (string $language) use ($category, $highlightedIdeaTitle) {
+        $parameters = ['category' => $category, 'synth_lang' => $language];
+
+        if (filled($highlightedIdeaTitle)) {
+            $parameters['idea'] = $highlightedIdeaTitle;
+        }
+
+        return route('feedback.category', $parameters).($highlightedIdeaTitle ? '#idea-'.Str::slug($highlightedIdeaTitle) : '');
+    };
+  @endphp
+  <section class="anim-2" aria-label="AI summary of the reports behind this opportunity">
+    <div class="co-section-head" style="justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span class="co-section-dot"></span>
+        <h2 class="co-section-title">What People Are Experiencing</h2>
+        <span class="co-section-sub">Plain-language summary of the reports below</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        <a href="{{ $synthToggleUrl('en') }}" class="lk-badge {{ $activeSynthesisLanguage === 'en' ? 'badge-amber' : 'badge-muted' }}" style="text-decoration:none">English</a>
+        <a href="{{ $synthToggleUrl('fil') }}" class="lk-badge {{ $activeSynthesisLanguage === 'fil' ? 'badge-amber' : 'badge-muted' }}" style="text-decoration:none">Filipino</a>
+        <span class="lk-badge badge-amber">AI-generated</span>
+      </div>
+    </div>
+
+    <div class="co-synth-card">
+      @if($activeSynthesisLanguage === 'fil' && empty($clusterTranslation))
+        @if($translationPending)
+          <p class="co-synth-summary">Filipino translation is being prepared…</p>
+        @endif
+        <p class="co-synth-summary">{{ $clusterSynthesis->summary }}</p>
+      @else
+        <p class="co-synth-summary">{{ $displaySynthesis->summary }}</p>
+      @endif
+
+      @if(count($displaySynthesis->patterns ?? []) > 0)
+        <p class="co-synth-label">Recurring patterns</p>
+        <ul class="co-synth-list">
+          @foreach($displaySynthesis->patterns as $pattern)
+            <li>
+              <span class="co-synth-bullet" aria-hidden="true">&rsaquo;</span><span>{{ $pattern }}</span>
+            </li>
+          @endforeach
+        </ul>
+      @endif
+
+      @if(count($displaySynthesis->experiences ?? []) > 0)
+        <p class="co-synth-label">What reporters described</p>
+        @foreach($displaySynthesis->experiences as $experience)
+          <div class="co-synth-exp">
+            <p class="co-synth-exp-title">{{ $experience['title'] ?? '' }}</p>
+            <p class="co-synth-exp-body">{{ $experience['body'] ?? '' }}</p>
+          </div>
+        @endforeach
+      @endif
+
+      <p class="co-synth-note">The DSS decided this problem qualifies; AI only summarizes the evidence.</p>
+    </div>
+  </section>
+  @endif
+
   <div class="anim-2">
     <div class="co-section-head" style="justify-content:space-between">
       <div style="display:flex;align-items:center;gap:10px">
@@ -968,15 +1107,15 @@ html.dark .btn-amber { background: #fbb034; }
   <div class="lk-card anim-2" style="overflow:hidden">
     <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
       <div style="width:8px;height:8px;border-radius:50%;background:var(--amber)"></div>
-      <h3 style="font-family:'Sora',sans-serif;font-size:14px;font-weight:700;color:var(--text)">Capstone Opportunity Comparison</h3>
+      <h3 style="font-family:'Sora',sans-serif;font-size:14px;font-weight:700;color:var(--text)">Generated DSS Idea Comparison</h3>
     </div>
     <div style="overflow-x:auto">
       <table class="cmp-table" style="width:100%">
         <thead>
           <tr>
             <th style="text-align:left">Criteria</th>
-            <th style="text-align:center;color:var(--amber)">Top opportunity</th>
-            <th style="text-align:center;color:var(--text3)">Other opportunity</th>
+            <th style="text-align:center;color:var(--amber)">Top idea</th>
+            <th style="text-align:center;color:var(--text3)">Other idea</th>
           </tr>
         </thead>
         <tbody>
@@ -999,7 +1138,7 @@ html.dark .btn-amber { background: #fbb034; }
   <div class="anim-3">
     <div class="co-section-head">
       <span class="co-section-dot"></span>
-      <h3 class="co-section-title">Other Capstone Opportunities</h3>
+      <h3 class="co-section-title">Other Generated DSS Ideas</h3>
       <span class="co-section-sub">Additional directions from the same problem area</span>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
@@ -1016,7 +1155,7 @@ html.dark .btn-amber { background: #fbb034; }
         class="lk-card {{ $highlightedIdeaTitle === $ideaTitle ? 'idea-highlight' : '' }}"
         style="padding:20px;display:flex;flex-direction:column;gap:12px">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-          <span class="lk-badge badge-amber">Capstone Opportunity</span>
+          <span class="lk-badge badge-amber">Generated DSS Idea</span>
           <span class="lk-badge {{ $pClass }}">
             {{ $ip }} Priority
           </span>
@@ -1046,6 +1185,46 @@ html.dark .btn-amber { background: #fbb034; }
           {{ Str::limit($idea['description'] ?? '', 140) }}
         </p>
 
+        @if($idea['office'] ?? null)
+          @php
+            $officeConfirmationState = $idea['office_confirmation_state'] ?? 'unavailable';
+            $officeStatusLabel = match ($officeConfirmationState) {
+              'available' => 'AVAILABLE',
+              'office-confirmed' => 'OFFICE-CONFIRMED',
+              'taken' => 'TAKEN',
+              default => 'UNAVAILABLE',
+            };
+            $officeStatusClass = $officeConfirmationState === 'office-confirmed' ? 'badge-green' : ($officeConfirmationState === 'taken' ? 'badge-muted' : 'badge-amber');
+          @endphp
+          <section class="border-t pt-3" style="border-color:var(--border)" aria-label="Office opportunity details">
+            <p style="font-size:11.5px;color:var(--text2)">Office: <strong>{{ $idea['office']->name }}</strong></p>
+            <p style="font-size:11.5px;color:var(--text2)">Representative: <strong>{{ $idea['office']->representative?->name ?? 'Unavailable' }}</strong></p>
+            <p style="font-size:11.5px;color:var(--text2)">Contact:
+              @if($idea['office']->contact_email)
+                <a class="underline" href="mailto:{{ $idea['office']->contact_email }}">{{ $idea['office']->contact_email }}</a>
+              @else
+                Not provided
+              @endif
+            </p>
+            <span class="lk-badge {{ $officeStatusClass }} mt-2">{{ $officeStatusLabel }}</span>
+            @if($officeConfirmationState === 'available')
+              <p class="mt-2" style="font-size:11.5px;color:var(--text3)">Consult the office representative before requesting confirmation. Consultation happens outside LIKHA.</p>
+              @auth
+                @if($idea['has_pending_confirmation'] ?? false)
+                  <p class="mt-2" style="font-size:11.5px;color:var(--text2)">Your request is pending; this opportunity remains available.</p>
+                @else
+                  <form method="POST" action="{{ route('office.confirmations.store', $idea['office_evaluation_id']) }}" class="mt-2">
+                    @csrf
+                    <button type="submit" class="btn-ghost" style="width:100%;justify-content:center;font-size:12px;padding:8px">Request office confirmation</button>
+                  </form>
+                @endif
+              @endauth
+            @elseif($officeConfirmationState === 'unavailable')
+              <p class="mt-2" style="font-size:11.5px;color:var(--text3)">No longer available for confirmation.</p>
+            @endif
+          </section>
+        @endif
+
         <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:11.5px;color:var(--text3);padding-top:10px;border-top:1px solid var(--border)">
           <span>Score: <strong style="color:var(--text2)">{{ $idea['score'] ?? 0 }}</strong></span>
           <span>Severity: <strong style="color:var(--amber)">{{ $idea['severity_level'] ?? '—' }}</strong></span>
@@ -1059,6 +1238,7 @@ html.dark .btn-amber { background: #fbb034; }
               <input type="hidden" name="title" value="{{ $ideaTitle }}">
               <input type="hidden" name="description" value="{{ $idea['description'] ?? '' }}">
               <input type="hidden" name="category" value="{{ $category }}">
+              <input type="hidden" name="office_id" value="{{ $idea['office_id'] ?? '' }}">
               <button type="submit" class="btn-amber" style="width:100%;justify-content:center;font-size:12.5px;padding:8px">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
                 Save Idea

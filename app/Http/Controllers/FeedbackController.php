@@ -4,14 +4,22 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreFeedbackCommentRequest;
 use App\Http\Requests\StoreFeedbackRequest;
+use App\Jobs\SynthesizeClusterExplanation;
+use App\Jobs\TranslateClusterExplanationToFilipino;
 use App\Models\AdviserReview;
+use App\Models\ClusterExplanation;
 use App\Models\Feedback;
 use App\Models\FeedbackComment;
 use App\Models\FeedbackVote;
 use App\Models\IdeaEvaluation;
+use App\Models\OfficeConfirmationRequest;
 use App\Services\CategoryIdeaGenerationService;
+use App\Services\ClusterEvidenceService;
 use App\Services\ClusteringService;
+use App\Services\ClusterTranslationService;
 use App\Services\ConfidenceService;
+use App\Services\OfficeConfirmationService;
+use App\Services\OfficeSubmissionQualificationService;
 use App\Services\OllamaService;
 use App\Services\SeverityService;
 use Illuminate\Database\Eloquent\Builder;
@@ -24,15 +32,34 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class FeedbackController extends Controller
 {
+    /**
+     * A queued cluster explanation is retried only a bounded number of times,
+     * and never more often than this window, so a model that is down or a
+     * cluster whose evidence keeps changing cannot spend a generation on every
+     * page view.
+     */
+    private const MAX_SYNTHESIS_ATTEMPTS = 3;
+
+    private const SYNTHESIS_RETRY_AFTER_HOURS = 6;
+
+    private const MAX_TRANSLATION_ATTEMPTS = 3;
+
+    private const TRANSLATION_RETRY_AFTER_HOURS = 6;
+
     public function create(): View
     {
-        return view('submit');
+        $userOffices = auth()->check()
+            ? auth()->user()->representedOffices()->where('is_active', true)->orderBy('name')->get()
+            : collect();
+
+        return view('submit', compact('userOffices'));
     }
 
     public function home(): View
@@ -125,7 +152,7 @@ class FeedbackController extends Controller
      *
      * @return Collection<int, IdeaEvaluation>
      */
-    private function currentDssIdeas(int $limit): Collection
+    private function currentDssIdeas(int $limit, string $scope = 'all'): Collection
     {
         $qualifyingCategories = app(CategoryIdeaGenerationService::class)->qualifyingCategories();
 
@@ -135,6 +162,8 @@ class FeedbackController extends Controller
 
         return IdeaEvaluation::query()
             ->whereIn('category', $qualifyingCategories)
+            ->when($scope === 'office', fn (Builder $query): Builder => $query->whereNotNull('office_id'))
+            ->when($scope === 'community', fn (Builder $query): Builder => $query->whereNull('office_id'))
             ->latest()
             ->take($limit)
             ->get();
@@ -222,12 +251,20 @@ class FeedbackController extends Controller
             }
         }
 
-        $isAuthorizedOfficeSubmission =
-            auth()->user()->is_office_head &&
-            in_array($finalCategory, auth()->user()->reviewableCategories(), true);
+        // An office-associated report is institutionally validated when the
+        // submitter currently represents the selected active office. The
+        // existing office/category authority rule still applies on its own and
+        // is unchanged: representing an office grants no authority over
+        // categories it is not assigned.
+        $selectedOfficeId = $request->filled('office_id') ? (int) $request->office_id : null;
+        $isAuthorizedOfficeSubmission = app(OfficeSubmissionQualificationService::class)
+            ->isRepresentativeSubmission(auth()->user(), $selectedOfficeId)
+            || (auth()->user()->is_office_head
+                && in_array($finalCategory, auth()->user()->reviewableCategories(), true));
 
         $created = Feedback::create([
             'user_id' => $request->has('is_anonymous') ? null : Auth::id(),
+            'office_id' => $selectedOfficeId,
             'title' => $request->title,
             'description' => $request->description,
             'impact' => $request->impact,
@@ -313,6 +350,13 @@ class FeedbackController extends Controller
     public function index(Request $request): View
     {
         $query = $this->approvedFeedbackQuery();
+        $activeScope = $this->feedbackScope($request->get('scope'));
+
+        if ($activeScope === 'office') {
+            $query->whereNotNull('office_id');
+        } elseif ($activeScope === 'community') {
+            $query->whereNull('office_id');
+        }
 
         if ($request->filled('search')) {
             $search = (string) $request->search;
@@ -382,13 +426,14 @@ class FeedbackController extends Controller
             ->distinct()
             ->orderBy('category')
             ->pluck('category');
-        $recentIdeas = $this->currentDssIdeas(4);
+        $recentIdeas = $this->currentDssIdeas(4, $activeScope);
 
         return view('problems.index', [
             'feedbacks' => $paginated,
             'categories' => $categories,
             'recentIdeas' => $recentIdeas,
             'activeSort' => $sort,
+            'activeScope' => $activeScope,
         ]);
     }
 
@@ -398,14 +443,18 @@ class FeedbackController extends Controller
      * Reads existing DSS output only; it never runs clustering, idea generation,
      * or evaluation persistence.
      */
-    public function capstoneOpportunities(): View
+    public function capstoneOpportunities(Request $request): View
     {
-        $opportunities = $this->approvedFeedbackQuery()
+        $activeScope = $this->feedbackScope($request->get('scope'));
+        $opportunitiesQuery = $this->approvedFeedbackQuery()
             ->where('is_capstone_worthy', true)
-            ->with('capstoneMarkedBy')
+            ->with(['capstoneMarkedBy', 'office.representative'])
+            ->when($activeScope === 'office', fn (Builder $query): Builder => $query->whereNotNull('office_id'))
+            ->when($activeScope === 'community', fn (Builder $query): Builder => $query->whereNull('office_id'))
             ->orderByDesc('capstone_marked_at')
-            ->orderByDesc('id')
-            ->paginate(9);
+            ->orderByDesc('id');
+
+        $opportunities = $opportunitiesQuery->paginate(9)->withQueryString();
 
         // Only categories the DSS still qualifies for are presented as current
         // opportunities. Stored rows are never deleted, only left uncounted.
@@ -415,6 +464,8 @@ class FeedbackController extends Controller
             ? new Collection
             : IdeaEvaluation::query()
                 ->whereIn('category', $qualifyingCategories)
+                ->when($activeScope === 'office', fn (Builder $query): Builder => $query->whereNotNull('office_id'))
+                ->when($activeScope === 'community', fn (Builder $query): Builder => $query->whereNull('office_id'))
                 ->select('category')
                 ->selectRaw('COUNT(*) as total')
                 ->selectRaw('MAX(overall_score) as top_score')
@@ -423,7 +474,7 @@ class FeedbackController extends Controller
                 ->orderBy('category')
                 ->get();
 
-        return view('capstone-opportunities.index', compact('opportunities', 'dssIdeasByCategory'));
+        return view('capstone-opportunities.index', compact('opportunities', 'dssIdeasByCategory', 'activeScope'));
     }
 
     public function priorityIndex(Request $request): View
@@ -527,7 +578,7 @@ class FeedbackController extends Controller
         return view('problems.summary', compact('categories'));
     }
 
-    public function showCategory(string $category): View
+    public function showCategory(Request $request, string $category): View
     {
         $generated = app(CategoryIdeaGenerationService::class)->generate($category);
 
@@ -538,8 +589,16 @@ class FeedbackController extends Controller
             ]);
         }
 
-        $feedbacks = $generated['feedbacks'];
-        $suggestedIdeas = $generated['ideas'];
+        $activeScope = $this->feedbackScope($request->get('scope'));
+        $feedbacks = $generated['feedbacks']
+            ->when($activeScope === 'office', fn (Collection $feedbacks): Collection => $feedbacks->whereNotNull('office_id'))
+            ->when($activeScope === 'community', fn (Collection $feedbacks): Collection => $feedbacks->whereNull('office_id'))
+            ->values();
+        $suggestedIdeas = collect($generated['ideas'])
+            ->when($activeScope === 'office', fn (Collection $ideas): Collection => $ideas->whereNotNull('office_id'))
+            ->when($activeScope === 'community', fn (Collection $ideas): Collection => $ideas->whereNull('office_id'))
+            ->values()
+            ->all();
 
         $topIdea = $suggestedIdeas[0] ?? null;
         $otherIdeas = array_slice($suggestedIdeas, 1);
@@ -552,10 +611,37 @@ class FeedbackController extends Controller
             : null;
 
         $suggestedIdeas = $this->attachAiEnhancements($suggestedIdeas, $category);
+        $suggestedIdeas = $this->attachOfficeOpportunityDetails($suggestedIdeas, $category);
         $topIdea = $suggestedIdeas[0] ?? null;
         $otherIdeas = array_slice($suggestedIdeas, 1);
 
-        return view('problems.category', compact('feedbacks', 'category', 'topIdea', 'otherIdeas', 'topReview'));
+        // Read-only lookups plus, at most, one queued synthesis and one queued
+        // translation. The model is never called from here, so this page loads
+        // at the same speed whether the model takes two seconds or two
+        // minutes.
+        $clusterSynthesis = $topIdea === null ? null : $this->clusterSynthesis($topIdea, $category);
+        $activeSynthesisLanguage = request()->query('synth_lang') === 'fil' ? 'fil' : 'en';
+
+        $clusterTranslation = null;
+        $translationPending = false;
+
+        if ($clusterSynthesis !== null && $activeSynthesisLanguage === 'fil') {
+            $translationState = $this->clusterTranslation($clusterSynthesis, $category);
+            $clusterTranslation = $translationState['translation'];
+            $translationPending = $translationState['pending'];
+        }
+
+        return view('problems.category', compact(
+            'feedbacks',
+            'category',
+            'topIdea',
+            'otherIdeas',
+            'topReview',
+            'clusterSynthesis',
+            'clusterTranslation',
+            'translationPending',
+            'activeSynthesisLanguage', 'activeScope'
+        ));
     }
 
     public function enhanceIdea(Request $request, string $category): RedirectResponse
@@ -568,12 +654,20 @@ class FeedbackController extends Controller
             'general_objective' => ['required', 'string'],
             'specific_objectives' => ['required', 'array'],
             'specific_objectives.*' => ['required', 'string'],
+            'office_id' => ['nullable', 'integer', 'exists:offices,id'],
         ]);
 
-        $evaluation = IdeaEvaluation::query()
+        $evaluationQuery = IdeaEvaluation::query()
             ->where('idea_title', $validated['title'])
-            ->where('category', $category)
-            ->firstOrFail();
+            ->where('category', $category);
+
+        if (filled($validated['office_id'] ?? null)) {
+            $evaluationQuery->where('office_id', (int) $validated['office_id']);
+        } else {
+            $evaluationQuery->whereNull('office_id');
+        }
+
+        $evaluation = $evaluationQuery->firstOrFail();
 
         $enhanced = app(OllamaService::class)->enhance([
             'title' => $validated['title'],
@@ -602,14 +696,22 @@ class FeedbackController extends Controller
      */
     private function attachAiEnhancements(array $ideas, string $category): array
     {
-        $evaluations = IdeaEvaluation::query()
-            ->where('category', $category)
-            ->whereIn('idea_title', collect($ideas)->pluck('title'))
-            ->get()
-            ->keyBy('idea_title');
+        $ideas = collect($ideas);
 
-        return collect($ideas)->map(function (array $idea) use ($evaluations): array {
-            $evaluation = $evaluations->get($idea['title']);
+        return $ideas->map(function (array $idea) use ($category): array {
+            $query = IdeaEvaluation::query()
+                ->where('category', $category)
+                ->where('idea_title', $idea['title']);
+
+            $officeId = $idea['office_id'] ?? null;
+
+            if ($officeId !== null) {
+                $query->where('office_id', $officeId);
+            } else {
+                $query->whereNull('office_id');
+            }
+
+            $evaluation = $query->first();
 
             if ($evaluation?->ai_enhanced_at !== null) {
                 $idea['ai'] = [
@@ -622,6 +724,272 @@ class FeedbackController extends Controller
 
             return $idea;
         })->all();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $ideas
+     * @return array<int, array<string, mixed>>
+     */
+    private function attachOfficeOpportunityDetails(array $ideas, string $category): array
+    {
+        $evaluations = IdeaEvaluation::query()
+            ->where('category', $category)
+            ->whereNotNull('office_id')
+            ->with('office.representative:id,name')
+            ->get()
+            ->keyBy(fn (IdeaEvaluation $evaluation): string => json_encode([
+                (int) $evaluation->office_id,
+                $evaluation->category,
+                $evaluation->idea_title,
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+
+        $evaluationIds = $evaluations->pluck('id');
+        $pendingEvaluationIds = Auth::check()
+            ? OfficeConfirmationRequest::query()
+                ->where('requester_user_id', Auth::id())
+                ->where('status', OfficeConfirmationRequest::STATUS_PENDING)
+                ->whereIn('idea_evaluation_id', $evaluationIds)
+                ->pluck('idea_evaluation_id')
+                ->map(fn ($id): int => (int) $id)
+                ->all()
+            : [];
+
+        return collect($ideas)->map(function (array $idea) use ($category, $evaluations, $pendingEvaluationIds): array {
+            $officeId = $idea['office_id'] ?? null;
+
+            if ($officeId === null) {
+                $idea['office_confirmation_state'] = 'community';
+                $idea['office'] = null;
+
+                return $idea;
+            }
+
+            $key = json_encode([
+                (int) $officeId,
+                $category,
+                $idea['title'],
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $evaluation = $evaluations->get($key);
+
+            if ($evaluation === null || $evaluation->office === null) {
+                $idea['office_confirmation_state'] = 'unavailable';
+                $idea['office'] = null;
+
+                return $idea;
+            }
+
+            $idea['office_evaluation_id'] = $evaluation->id;
+            $idea['office'] = $evaluation->office;
+            $idea['office_confirmation_state'] = app(OfficeConfirmationService::class)
+                ->stateFor($evaluation, Auth::id());
+            $idea['has_pending_confirmation'] = in_array((int) $evaluation->id, $pendingEvaluationIds, true);
+
+            return $idea;
+        })->all();
+    }
+
+    /**
+     * The stored AI explanation of the top cluster's evidence, if one exists.
+     *
+     * The DSS has already decided this cluster qualifies; this only looks up an
+     * explanation of the reports behind that decision. The evidence is the one
+     * the live pipeline just produced — never a stored IdeaEvaluation's copy —
+     * so an explanation can only ever describe the current cluster. When none
+     * is stored yet, one generation is queued and this returns null so the page
+     * renders without it instead of waiting.
+     *
+     * @param  array<string, mixed>  $topIdea
+     */
+    private function clusterSynthesis(array $topIdea, string $category): ?ClusterExplanation
+    {
+        try {
+            $evidence = app(ClusterEvidenceService::class);
+            $package = $evidence->buildPackage($topIdea, $category);
+
+            // Nothing grounded to describe, or one person's report, which is a
+            // single account rather than a shared experience.
+            if ($package === null || ! $evidence->isSynthesizable($package)) {
+                return null;
+            }
+
+            $profile = app(OllamaService::class)->synthesisProfile();
+            $hash = $evidence->evidenceKey(
+                $package,
+                $profile['prompt_version'],
+                $profile['model'],
+                $profile['language']
+            );
+
+            $explanation = ClusterExplanation::query()->where('evidence_hash', $hash)->first();
+
+            if ($this->synthesisIsComplete($explanation)) {
+                return $explanation;
+            }
+
+            $this->queueClusterSynthesis($topIdea, $category, $hash, $explanation);
+        } catch (\Throwable $e) {
+            // The explanation is an addition to this page, never a dependency
+            // of it. Whatever went wrong, the DSS result still renders.
+            Log::warning('Cluster explanation could not be prepared; rendering without it.', [
+                'category' => $category,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+
+        return null;
+    }
+
+    /**
+     * Queue one generation for an evidence hash that is not described yet.
+     *
+     * No row means nothing has been tried. A rejected or otherwise incomplete
+     * row is retried only while it is under the attempt ceiling and older than
+     * the retry window, and an identical hash cannot be queued twice at once
+     * because the job reserves it by content.
+     *
+     * @param  array<string, mixed>  $topIdea
+     */
+    private function queueClusterSynthesis(
+        array $topIdea,
+        string $category,
+        string $evidenceHash,
+        ?ClusterExplanation $explanation
+    ): void {
+        if ($explanation !== null) {
+            if ((int) $explanation->attempts >= self::MAX_SYNTHESIS_ATTEMPTS) {
+                return;
+            }
+
+            if ($explanation->last_attempted_at !== null
+                && $explanation->last_attempted_at->gt(now()->subHours(self::SYNTHESIS_RETRY_AFTER_HOURS))) {
+                return;
+            }
+        }
+
+        SynthesizeClusterExplanation::dispatch(
+            $category,
+            $this->clusterReference($topIdea),
+            $evidenceHash
+        )->onQueue((string) config('services.ollama.synthesis.queue'));
+    }
+
+    /**
+     * Only the identity of the cluster the DSS decided on. Scores, levels,
+     * objectives and generated wording stay out of the queued payload, so the
+     * job has nothing it could confuse for a decision to explain.
+     *
+     * @param  array<string, mixed>  $topIdea
+     * @return array{cluster_label: string, evidence: array{feedback_ids: array<int, int>, reports_count: int}}
+     */
+    private function clusterReference(array $topIdea): array
+    {
+        return [
+            'cluster_label' => (string) ($topIdea['cluster_label'] ?? ''),
+            'evidence' => [
+                'feedback_ids' => array_map(
+                    fn (mixed $id): int => (int) $id,
+                    $topIdea['evidence']['feedback_ids'] ?? []
+                ),
+                'reports_count' => (int) ($topIdea['evidence']['reports_count'] ?? 0),
+            ],
+        ];
+    }
+
+    /**
+     * A row only counts as an explanation when it is finished and holds text.
+     */
+    private function synthesisIsComplete(?ClusterExplanation $explanation): bool
+    {
+        return $explanation !== null
+            && $explanation->status === 'complete'
+            && filled($explanation->summary);
+    }
+
+    /**
+     * The stored Filipino rendering of a completed English explanation.
+     *
+     * The English row is canonical: when it is missing, rejected or
+     * incomplete, no translation is looked up or queued. A current completed
+     * translation is returned; otherwise one translation is queued (under the
+     * same attempt ceiling and retry window as synthesis) and this reports
+     * whether the Filipino side is still pending, so the page can say so
+     * without waiting.
+     *
+     * @return array{translation: ?ClusterExplanation, pending: bool}
+     */
+    private function clusterTranslation(ClusterExplanation $english, string $category): array
+    {
+        try {
+            $translation = app(ClusterTranslationService::class);
+            $source = $translation->canonicalSource($english);
+
+            if ($source === null) {
+                return ['translation' => null, 'pending' => false];
+            }
+
+            $profile = app(OllamaService::class)->translationProfile();
+            $hash = $translation->translationKey(
+                $source,
+                $profile['prompt_version'],
+                $profile['model'],
+                $profile['language']
+            );
+
+            $row = ClusterExplanation::query()->where('evidence_hash', $hash)->first();
+
+            if ($this->synthesisIsComplete($row)) {
+                return ['translation' => $row, 'pending' => false];
+            }
+
+            $queued = $this->queueClusterTranslation($english, $category, $hash, $row);
+
+            return ['translation' => null, 'pending' => $queued];
+        } catch (\Throwable $e) {
+            // The translation is an addition to this page, never a dependency
+            // of it. Whatever went wrong, the English synthesis still renders.
+            Log::warning('Cluster translation could not be prepared; rendering without it.', [
+                'category' => $category,
+                'error' => $e->getMessage(),
+            ]);
+
+            return ['translation' => null, 'pending' => false];
+        }
+    }
+
+    /**
+     * Queue one translation for a translation hash that is not rendered yet.
+     *
+     * No row means nothing has been tried. A rejected or otherwise incomplete
+     * row is retried only while it is under the attempt ceiling and older
+     * than the retry window, and an identical hash cannot be queued twice at
+     * once because the job reserves it by content.
+     */
+    private function queueClusterTranslation(
+        ClusterExplanation $english,
+        string $category,
+        string $translationHash,
+        ?ClusterExplanation $translation
+    ): bool {
+        if ($translation !== null) {
+            if ((int) $translation->attempts >= self::MAX_TRANSLATION_ATTEMPTS) {
+                return false;
+            }
+
+            if ($translation->last_attempted_at !== null
+                && $translation->last_attempted_at->gt(now()->subHours(self::TRANSLATION_RETRY_AFTER_HOURS))) {
+                return false;
+            }
+        }
+
+        TranslateClusterExplanationToFilipino::dispatch(
+            $category,
+            (int) $english->getKey(),
+            $translationHash
+        )->onQueue((string) config('services.ollama.translation.queue'));
+
+        return true;
     }
 
     public function admin(): View
@@ -900,13 +1268,18 @@ class FeedbackController extends Controller
         return Feedback::query()
             ->where('status', 'approved')
             ->notFlagged()
-            ->with('user')
+            ->with(['user', 'office.representative'])
             ->withCount(['votes', 'comments'])
             ->when(Auth::check(), function (Builder $query): void {
                 $query->with(['votes' => function (HasMany $voteQuery): void {
                     $voteQuery->where('user_id', Auth::id());
                 }]);
             });
+    }
+
+    private function feedbackScope(mixed $scope): string
+    {
+        return in_array($scope, ['office', 'community'], true) ? $scope : 'all';
     }
 
     private function decorateFeedbackCollection(Collection $feedbacks, array $contexts): Collection

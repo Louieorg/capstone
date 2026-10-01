@@ -1,8 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Home Feed')
-@section('subtitle', 'What is happening on campus right now, the signals behind it, and the capstone opportunities the DSS has recently produced.')
-
+{{-- No page-title bar: the sidebar already marks Home active and the hero below
+     carries the heading and its explanation. --}}
 @section('content')
 @include('layouts.partials.design-system')
 

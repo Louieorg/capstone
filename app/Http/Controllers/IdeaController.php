@@ -29,11 +29,19 @@ class IdeaController extends Controller
     public function save(StoreSavedIdeaRequest $request): RedirectResponse
     {
         $validated = $request->validated();
+        $officeId = $request->filled('office_id') ? (int) $request->input('office_id') : null;
 
-        $evaluation = IdeaEvaluation::query()
+        $evaluationQuery = IdeaEvaluation::query()
             ->where('idea_title', $validated['title'])
-            ->where('category', $validated['category'])
-            ->first();
+            ->where('category', $validated['category']);
+
+        if ($officeId !== null) {
+            $evaluationQuery->where('office_id', $officeId);
+        } else {
+            $evaluationQuery->whereNull('office_id');
+        }
+
+        $evaluation = $evaluationQuery->first();
 
         if ($evaluation === null) {
             throw ValidationException::withMessages([

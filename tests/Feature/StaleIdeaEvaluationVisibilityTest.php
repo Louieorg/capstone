@@ -77,16 +77,16 @@ test('a stored idea in a category that no longer qualifies is hidden from the ho
         ->assertDontSeeText('Retired Records Retrieval System');
 });
 
-test('a stored idea in a category that no longer qualifies is left uncounted on capstone opportunities', function (): void {
+test('a stored idea in a category that no longer qualifies is not surfaced on capstone opportunities', function (): void {
     staleVisibilityQualifyCategory();
     staleVisibilityIdea('Current Records Retrieval System', 'Qualifying Category');
     staleVisibilityIdea('Retired Records Retrieval System', 'Retired Category');
 
     $this->get(route('capstone.opportunities'))
         ->assertOk()
-        ->assertSeeText('DSS Ideas by Category')
-        ->assertSeeText('1 idea')
-        ->assertSee(route('feedback.category', 'Qualifying Category'))
+        ->assertDontSeeText('DSS Ideas by Category')
+        ->assertDontSeeText('Current Records Retrieval System')
+        ->assertDontSeeText('Retired Records Retrieval System')
         ->assertDontSeeText('Retired Category');
 });
 

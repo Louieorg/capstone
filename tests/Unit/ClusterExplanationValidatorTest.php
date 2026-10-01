@@ -246,6 +246,29 @@ test('rule four rejects personal identifiers absent from the evidence', function
     }
 });
 
+test('ordinary words ending in ms are not treated as the Ms honorific', function (): void {
+    foreach (['problems', 'systems', 'items', 'forms', 'terms'] as $word) {
+        $result = passingResult([
+            'summary' => "Students report recurring delays in {$word}.",
+        ]);
+
+        expect(explanationValidator()->validate($result, validatorPackage())['ok'])->toBeTrue();
+    }
+});
+
+test('case-sensitive honorifics followed by names remain rejected', function (): void {
+    foreach (['Dr. Santos', 'Engr. Reyes'] as $name) {
+        $result = passingResult([
+            'summary' => "{$name} reported recurring delays in the request process.",
+        ]);
+
+        $outcome = explanationValidator()->validate($result, validatorPackage());
+
+        expect($outcome['ok'])->toBeFalse()
+            ->and($outcome['rule'])->toBe(ClusterExplanationValidator::RULE_PERSONAL_DATA);
+    }
+});
+
 test('rule four rejects phone numbers, which the number rule may catch first', function (): void {
     $phone = passingResult([
         'summary' => 'Students call 09171234567 to find out whether their request was already received.',
@@ -297,6 +320,25 @@ test('rule five rejects internal identifiers and scoring language', function ():
 
         expect($outcome['ok'])->toBeFalse()
             ->and($outcome['rule'])->toBe(ClusterExplanationValidator::RULE_INTERNALS);
+    }
+});
+
+test('rule five matches internal words as whole words only', function (): void {
+    foreach (['scored', 'scoring', 'underscore', 'hashtag', 'hashed', 'bash', 'Hashim'] as $word) {
+        $result = passingResult([
+            'summary' => "Students report that the office used {$word} in the request process today.",
+        ]);
+
+        expect(explanationValidator()->validate($result, validatorPackage())['ok'])->toBeTrue();
+    }
+
+    foreach (['score', 'scores', 'hash', 'unclassified', 'cluster key'] as $word) {
+        $result = passingResult([
+            'summary' => "Students report that the office used {$word} in the request process today.",
+        ]);
+
+        expect(explanationValidator()->validate($result, validatorPackage())['rule'])
+            ->toBe(ClusterExplanationValidator::RULE_INTERNALS);
     }
 });
 

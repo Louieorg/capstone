@@ -72,6 +72,81 @@ class CategoryIdeaGenerationService
     }
 
     /**
+     * Resolve the exact current provenance for one office-backed evaluation.
+     *
+     * @return array{office_cluster_key: string, office_source_feedback_ids: array<int, int>, office_provenance_fingerprint: string}|null
+     */
+    public function currentOfficeProvenance(IdeaEvaluation $evaluation): ?array
+    {
+        if ($evaluation->office_id === null
+            || $evaluation->office_cluster_key === null
+            || ! is_array($evaluation->office_source_feedback_ids)
+            || $evaluation->office_provenance_fingerprint === null) {
+            return null;
+        }
+
+        $thresholds = $this->thresholds();
+        $feedbacks = Feedback::query()
+            ->where('category', $evaluation->category)
+            ->where('office_id', $evaluation->office_id)
+            ->where('status', 'approved')
+            ->notFlagged()
+            ->withCount(['votes', 'comments', 'evidence'])
+            ->latest()
+            ->get()
+            ->filter(fn (Feedback $feedback): bool => $feedback->is_capstone_worthy || $feedback->votes_count >= $thresholds['votes'])
+            ->values();
+
+        foreach ($this->qualifyingGroups($feedbacks, $thresholds) as $clusterKey => $clusterFeedbacks) {
+            if ($clusterKey !== $evaluation->office_cluster_key) {
+                continue;
+            }
+
+            $sourceIds = app(OfficeOpportunityProvenanceService::class)->sourceIds($clusterFeedbacks);
+            $expectedIds = array_map('intval', $evaluation->office_source_feedback_ids);
+            sort($expectedIds);
+
+            if ($sourceIds !== array_values($expectedIds)) {
+                continue;
+            }
+
+            $reports = $clusterFeedbacks->count();
+            $votes = $clusterFeedbacks->sum('votes_count');
+            $frequencyScore = $this->averageFrequencyScore($clusterFeedbacks);
+            $impactScore = $this->averageImpactScore($clusterFeedbacks);
+            $dominantProcess = $clusterFeedbacks
+                ->pluck('current_process')
+                ->filter()
+                ->groupBy(fn (string $process): string => $process)
+                ->map->count()
+                ->sortDesc()
+                ->keys()
+                ->first();
+            $currentEvaluation = $this->evaluateIdea($reports, $votes, $frequencyScore, $impactScore, $dominantProcess);
+
+            if (! $this->evaluationMatches($evaluation, $currentEvaluation)) {
+                continue;
+            }
+
+            $snapshot = app(OfficeOpportunityProvenanceService::class)->snapshot(
+                $evaluation->idea_title,
+                $evaluation->category,
+                (int) $evaluation->office_id,
+                (string) $clusterKey,
+                $clusterFeedbacks,
+                $currentEvaluation,
+                $thresholds
+            );
+
+            if (hash_equals($evaluation->office_provenance_fingerprint, $snapshot['office_provenance_fingerprint'])) {
+                return $snapshot;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Run the category-level DSS pipeline: eligibility, clustering, severity,
      * confidence, evaluation, solution-concept idea generation, intra-run
      * deduplication, IdeaEvaluation persistence and idea notifications.
@@ -82,7 +157,7 @@ class CategoryIdeaGenerationService
      *
      * @return array{qualifying: bool, feedbacks: Collection<int, Feedback>, ideas: array<int, array<string, mixed>>, thresholds: array{votes: int, reports: int}, cache_key: string|null}
      */
-    public function generate(string $category): array
+    public function generate(string $category, ?int $officeId = null, bool $includeAllOffices = true): array
     {
         $thresholds = $this->thresholds();
 
@@ -90,6 +165,7 @@ class CategoryIdeaGenerationService
             ->where('category', $category)
             ->where('status', 'approved')
             ->notFlagged()
+            ->when($officeId !== null, fn ($query) => $query->where('office_id', $officeId), fn ($query) => $includeAllOffices ? $query : $query->whereNull('office_id'))
             ->with('user')
             ->withCount(['votes', 'comments', 'evidence'])
             ->latest()
@@ -121,15 +197,17 @@ class CategoryIdeaGenerationService
             ->pluck('id')
             ->sort()
             ->implode(','));
+        $sourceSignature = app(OfficeOpportunityProvenanceService::class)->sourceFingerprint($feedbacks);
+        $officeScope = $officeId !== null ? "office_{$officeId}" : ($includeAllOffices ? 'all_offices' : 'community');
         // ideas_v6 keys on concept-level idempotent presentation: the same
         // cluster and concept always resolve to the same title, so a cached
         // pre-fix result that rotated project names can never be returned.
         // The version also advances for the additive 'evidence' key below, so a
         // payload cached before that key existed is never returned as if it
         // carried the cluster's report ids.
-        $cacheKey = "ideas_v6_{$category}_{$feedbacks->count()}_{$feedbacks->max('id')}_{$voteSignature}_cw-{$capstoneSignature}_votes-{$thresholds['votes']}_reports-{$thresholds['reports']}";
+        $cacheKey = "ideas_v6_{$category}_{$officeScope}_{$feedbacks->count()}_{$feedbacks->max('id')}_{$voteSignature}_cw-{$capstoneSignature}_src-{$sourceSignature}_votes-{$thresholds['votes']}_reports-{$thresholds['reports']}";
 
-        $ideas = Cache::remember($cacheKey, now()->addMinutes(30), function () use ($category, $clustering, $qualifyingGroups): array {
+        $ideas = Cache::remember($cacheKey, now()->addMinutes(30), function () use ($category, $clustering, $qualifyingGroups, $thresholds): array {
             $ideas = [];
 
             foreach ($qualifyingGroups as $groupName => $groupFeedbacks) {
@@ -167,14 +245,32 @@ class CategoryIdeaGenerationService
                     continue;
                 }
 
+                $officeId = $this->officeScopeId($groupFeedbacks);
+                $provenance = $officeId === null
+                    ? []
+                    : app(OfficeOpportunityProvenanceService::class)->snapshot(
+                        $ideaData['title'],
+                        $category,
+                        $officeId,
+                        (string) $groupName,
+                        $groupFeedbacks,
+                        $evaluation,
+                        $thresholds
+                    );
+
                 $isNew = ! IdeaEvaluation::query()
                     ->where('idea_title', $ideaData['title'])
                     ->where('category', $category)
+                    ->when($officeId !== null, fn ($query) => $query->where('office_id', $officeId), fn ($query) => $query->whereNull('office_id'))
                     ->exists();
 
                 IdeaEvaluation::query()->updateOrCreate(
-                    ['idea_title' => $ideaData['title'], 'category' => $category],
-                    $evaluation
+                    [
+                        'idea_title' => $ideaData['title'],
+                        'category' => $category,
+                        'office_id' => $officeId,
+                    ],
+                    array_merge($evaluation, $provenance)
                 );
 
                 if ($isNew) {
@@ -242,6 +338,7 @@ class CategoryIdeaGenerationService
                     'specific_objectives' => $ideaData['specific_objectives'],
                     'explanation' => $ideaData['explanation'],
                     'evaluation' => $evaluation,
+                    'office_id' => $this->officeScopeId($groupFeedbacks),
                     'severity_score' => $severity['score'],
                     'severity_level' => $severity['level'],
                     'severity_explanation' => count($sevReasons)
@@ -305,13 +402,23 @@ class CategoryIdeaGenerationService
      *
      * @return array{qualifying: bool, feedbacks: Collection<int, Feedback>, ideas: array<int, array<string, mixed>>, thresholds: array{votes: int, reports: int}, cache_key: string|null}|null
      */
+    /**
+     * Run the shared DSS pipeline for an institutionally validated report.
+     *
+     * A report filed by the current representative of its own office is
+     * qualified here first, so an office report that was stored before the
+     * rule existed, or stored before the representative was recorded, still
+     * enters the same pipeline with its office scope intact.
+     */
     public function generateForInstitutionalValidation(Feedback $feedback): ?array
     {
+        app(OfficeSubmissionQualificationService::class)->qualify($feedback);
+
         if (! $this->isInstitutionallyValidated($feedback)) {
             return null;
         }
 
-        return $this->generate($feedback->category);
+        return $this->generate($feedback->category, $feedback->office_id ?? null, false);
     }
 
     public function isInstitutionallyValidated(Feedback $feedback): bool
@@ -410,6 +517,27 @@ class CategoryIdeaGenerationService
                 default => 'Needs Improvement',
             },
         ];
+    }
+
+    private function officeScopeId(Collection $feedbacks): ?int
+    {
+        $officeId = $feedbacks->first()?->office_id ?? null;
+
+        return $officeId !== null && $officeId !== '' ? (int) $officeId : null;
+    }
+
+    /**
+     * @param  array<string, int|float|string>  $currentEvaluation
+     */
+    private function evaluationMatches(IdeaEvaluation $evaluation, array $currentEvaluation): bool
+    {
+        foreach (['feasibility', 'impact', 'complexity', 'innovation', 'overall_score'] as $field) {
+            if (abs((float) $evaluation->{$field} - (float) $currentEvaluation[$field]) > 0.00001) {
+                return false;
+            }
+        }
+
+        return $evaluation->recommendation === $currentEvaluation['recommendation'];
     }
 
     public function similarityScore(string $first, string $second): float

@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Capstone Opportunities')
+{{-- No page-title bar: the sidebar already marks Capstone Opportunities active.
+     The subtitle is kept so the page still explains what it lists. --}}
 @section('subtitle', 'Institutional problems already identified as potential capstone projects.')
 
 @section('content')
@@ -75,6 +76,24 @@
 
 <div class="mx-auto max-w-7xl space-y-6">
 
+    {{-- ══ SCOPE ══ — slim, uncarded filter row, matching the category page. ══ --}}
+    <div class="anim-1" style="display:flex;flex-wrap:wrap;align-items:center;gap:12px">
+        <span style="font-size:10px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--text3)">Scope</span>
+        <div class="sort-pills" role="navigation" aria-label="Opportunity scope">
+            @foreach ([
+                'all' => 'All',
+                'office' => 'Office-Backed',
+                'community' => 'Community',
+            ] as $scope => $label)
+                <a
+                    href="{{ request()->fullUrlWithQuery(['scope' => $scope === 'all' ? null : $scope, 'page' => null]) }}"
+                    @if($activeScope === $scope) aria-current="page" @endif
+                    @class(['sort-pill', 'active' => $activeScope === $scope])
+                >{{ $label }}</a>
+            @endforeach
+        </div>
+    </div>
+
     {{-- ══ IDENTIFIED OPPORTUNITIES ══ --}}
     <section class="grid gap-4 lg:grid-cols-2">
         @forelse ($opportunities as $opportunity)
@@ -97,6 +116,13 @@
                             Identified {{ $identifiedAt ? $identifiedAt->diffForHumans() : 'recently' }}
                             by {{ $opportunity->capstoneMarkedBy?->name ?? 'an institutional office' }}
                         </p>
+                        @if ($opportunity->office)
+                            <p class="mt-2 text-xs font-semibold" style="color: var(--blue);">Office-Backed Opportunity · {{ $opportunity->office->name }}</p>
+                            <p class="text-xs" style="color: var(--text3);">Representative: {{ $opportunity->office->representative?->name ?? 'Unavailable' }}</p>
+                            <p class="text-xs" style="color: var(--text3);">Official contact: {{ $opportunity->office->contact_email ?? 'Not provided' }}</p>
+                        @else
+                            <p class="mt-2 text-xs font-semibold" style="color: var(--text3);">Community Opportunity</p>
+                        @endif
                     </div>
                     <span class="lk-badge badge-amber shrink-0">{{ $opportunity->category }}</span>
                 </div>
@@ -129,7 +155,7 @@
                         View Problem
                         <i data-lucide="arrow-right" class="h-4 w-4" aria-hidden="true"></i>
                     </a>
-                    <a href="{{ route('feedback.category', $opportunity->category) }}" class="btn-amber text-sm">
+                    <a href="{{ route('feedback.category', array_filter(['category' => $opportunity->category, 'scope' => $activeScope === 'all' ? null : $activeScope])) }}" class="btn-amber text-sm">
                         <i data-lucide="sparkles" class="h-4 w-4" aria-hidden="true"></i>
                         Explore DSS Ideas
                     </a>
@@ -138,38 +164,35 @@
         @empty
             <div class="col-span-full empty-state lk-card anim-1">
                 <div class="empty-ico"><i data-lucide="lightbulb" class="h-5 w-5" aria-hidden="true"></i></div>
-                <p class="empty-text">No capstone opportunities identified yet.</p>
+                <p class="empty-text">
+                    @if ($activeScope === 'office')
+                        No office-backed opportunities yet.
+                    @elseif ($activeScope === 'community')
+                        No community opportunities yet.
+                    @else
+                        No capstone opportunities identified yet.
+                    @endif
+                </p>
                 <p class="lk-problem-desc">
-                    Institutional offices mark approved problems as capstone opportunities once the evidence is strong enough.
+                    @if ($activeScope === 'office')
+                        No institutional office has marked an approved problem as a capstone opportunity yet.
+                        Switch to All to see community opportunities.
+                    @elseif ($activeScope === 'community')
+                        No community-reported problem has been identified as a capstone opportunity yet.
+                        Switch to All to see office-backed opportunities.
+                    @else
+                        Institutional offices mark approved problems as capstone opportunities once the evidence is strong enough.
+                    @endif
                 </p>
                 <div class="mt-5 flex flex-wrap justify-center gap-2">
+                    @if ($activeScope !== 'all')
+                        <a href="{{ route('capstone.opportunities') }}" class="btn-ghost text-sm">Show all opportunities</a>
+                    @endif
                     <a href="{{ route('discover') }}" class="btn-ghost text-sm">Browse Discover</a>
                     <a href="{{ route('feedback.create') }}" class="btn-amber text-sm">Submit a Problem</a>
                 </div>
             </div>
         @endforelse
-    </section>
-
-    {{-- ══ DSS IDEAS BY CATEGORY ══ --}}
-    <section class="lk-card anim-2 p-5">
-        <div class="co-section-head">
-            <span class="co-section-dot" aria-hidden="true"></span>
-            <h2 class="co-section-title">DSS Ideas by Category</h2>
-        </div>
-        <p class="co-section-sub">
-            Already generated by LIKHA from problems that passed the DSS thresholds.
-        </p>
-
-        <div class="mt-3">
-            @forelse ($dssIdeasByCategory as $entry)
-                <a href="{{ route('feedback.category', $entry->category) }}" class="row-item">
-                    <span class="ri-text flex-1">{{ $entry->category }}</span>
-                    <span class="ri-vote">{{ $entry->total }} {{ Str::plural('idea', $entry->total) }}</span>
-                </a>
-            @empty
-                <p class="co-section-sub">No DSS ideas generated yet.</p>
-            @endforelse
-        </div>
     </section>
 
     @if ($opportunities->hasPages())
