@@ -186,7 +186,7 @@ problems, confirmed as worth building, waiting for a capstone team to take on.
           <img src="https://developers.google.com/identity/images/g-logo.png" width="16">
           Continue with Google
         </a>
-        <p class="terms-note">By registering you agree to our <a href="#">Terms</a> & <a href="#">Privacy Policy</a>.</p>
+        <p class="terms-note">By registering you agree to our <a href="{{ route('terms') }}">Terms</a> & <a href="{{ route('help.privacy') }}">Privacy Rights</a>.</p>
       </div>
 
     </div>

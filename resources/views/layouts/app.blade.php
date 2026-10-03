@@ -65,6 +65,20 @@
           <span class="nav-label">Capstone Opportunities</span>
         </a>
 
+        {{-- An Office Representative is still a normal user, so this is offered
+             here rather than in the office review shell. It is shown only while
+             the account actually represents an active office; the queue route
+             remains the authority. --}}
+        @auth
+          @if(auth()->user()->isOfficeRepresentative())
+            <a href="{{ route('office.confirmations.index') }}"
+               class="nav-item {{ request()->routeIs('office.confirmations.*') ? 'nav-active' : '' }}">
+              <i data-lucide="clipboard-check"></i>
+              <span class="nav-label">Confirmation Requests</span>
+            </a>
+          @endif
+        @endauth
+
         @auth
           <div class="sb-divider"></div>
 
@@ -85,6 +99,32 @@
           {{-- Admin, Adviser, and office entry points are not sidebar sections;
                they stay in the account menu at the bottom of this sidebar. --}}
         @endauth
+
+        <div class="sb-label">Help &amp; Settings</div>
+
+        <a href="{{ route('help.user-guide') }}"
+           class="nav-item {{ request()->routeIs('help.user-guide') ? 'nav-active' : '' }}">
+          <i data-lucide="book-open"></i>
+          <span class="nav-label">User Guide</span>
+        </a>
+
+        <a href="{{ route('help.faq') }}"
+           class="nav-item {{ request()->routeIs('help.faq') ? 'nav-active' : '' }}">
+          <i data-lucide="circle-help"></i>
+          <span class="nav-label">FAQ</span>
+        </a>
+
+        <a href="{{ route('help.privacy') }}"
+           class="nav-item {{ request()->routeIs('help.privacy') ? 'nav-active' : '' }}">
+          <i data-lucide="shield-check"></i>
+          <span class="nav-label">Privacy Rights</span>
+        </a>
+
+        <a href="{{ route('terms') }}"
+           class="nav-item {{ request()->routeIs('terms') ? 'nav-active' : '' }}">
+          <i data-lucide="file-text"></i>
+          <span class="nav-label">Terms &amp; Conditions</span>
+        </a>
       </nav>
 
       @auth

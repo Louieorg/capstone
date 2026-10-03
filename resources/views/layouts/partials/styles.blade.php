@@ -324,11 +324,25 @@
     font-size: 12.5px; font-weight: 600; color: var(--text);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
+  /* The longest position label has to fit the 220px sidebar, so tracking is
+     tightened to keep it on one line. It is allowed to wrap rather than
+     truncate if a font still runs long. */
   .sb-account-role {
-    font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
-    color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-size: 9.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--muted); overflow: hidden; overflow-wrap: break-word;
   }
   .sb-account-chevron { width: 14px; height: 14px; margin-left: auto; flex-shrink: 0; color: var(--muted); }
+
+  /* Represented office name(s): secondary detail under the position line. */
+  .sb-account-office {
+    font-size: 10.5px; color: var(--muted); margin-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .sb-account-offices {
+    display: flex; flex-direction: column; gap: 2px;
+    margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border);
+  }
+  .sb-account-offices .sb-account-office { white-space: normal; }
   .sb-account-trigger:hover .sb-account-chevron,
   .sb-account-trigger.is-open .sb-account-chevron { color: var(--amber); }
   .sb-account-menu {
@@ -375,6 +389,25 @@
     padding: 12px 20px 0 0; pointer-events: none;
   }
   .app-topbar > * { pointer-events: auto; }
+
+  /* The floating utility variant (student + admin shells). Scoped to .app-topbar
+     so the standard header used by the adviser and office shells is untouched.
+     The bell keeps a quiet surface when there is nothing unread and takes an
+     amber ring when there is; the red badge stays the strongest cue. */
+  .app-topbar .notif-trigger {
+    width: 32px; height: 32px; border-radius: 10px;
+    background: var(--surface);
+  }
+  .app-topbar .notif-trigger:hover { background: var(--amber-dim); }
+  .app-topbar .notif-trigger:focus-visible {
+    outline: 2px solid var(--amber); outline-offset: 2px;
+  }
+  .app-topbar .notif-trigger.has-unread {
+    color: var(--amber);
+    border-color: var(--amber-mid);
+    background: var(--amber-dim);
+  }
+  .app-topbar .notif-badge { border-color: var(--bg); }
   /* Keep the floating control clear of the page title and its action slot. */
   .app-topbar ~ main .page-bar { padding-right: 68px; }
   /* Pages with no heading at all still need room for the floating control. */

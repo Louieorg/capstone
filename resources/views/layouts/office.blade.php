@@ -38,11 +38,16 @@
           </a>
         @endif
 
-        <a href="{{ route('office.confirmations.index') }}"
-           class="nav-item {{ request()->routeIs('office.confirmations.*') ? 'nav-active' : '' }}">
-          <i data-lucide="badge-check"></i>
-          <span class="nav-label">Confirmation Requests</span>
-        </a>
+        {{-- The queue belongs to the office's own representative, so it is only
+             offered to a user who currently represents an active office. A
+             reviewer role alone does not grant it. --}}
+        @if(auth()->user()->isOfficeRepresentative())
+          <a href="{{ route('office.confirmations.index') }}"
+             class="nav-item {{ request()->routeIs('office.confirmations.*') ? 'nav-active' : '' }}">
+            <i data-lucide="badge-check"></i>
+            <span class="nav-label">Confirmation Requests</span>
+          </a>
+        @endif
 
         <div class="sb-label">Back to LIKHA</div>
         <a href="{{ route('home') }}" class="nav-item">
@@ -82,10 +87,12 @@
       <i data-lucide="clipboard-check"></i><span>Review Queue</span>
     </a>
   @endif
-  <a href="{{ route('office.confirmations.index') }}"
-     class="bn-item {{ request()->routeIs('office.confirmations.*') ? 'bn-active' : '' }}">
-    <i data-lucide="badge-check"></i><span>Confirmations</span>
-  </a>
+  @if(auth()->user()->isOfficeRepresentative())
+    <a href="{{ route('office.confirmations.index') }}"
+       class="bn-item {{ request()->routeIs('office.confirmations.*') ? 'bn-active' : '' }}">
+      <i data-lucide="badge-check"></i><span>Confirmations</span>
+    </a>
+  @endif
   <a href="{{ route('home') }}" class="bn-item">
     <i data-lucide="arrow-left"></i><span>Exit Review</span>
   </a>

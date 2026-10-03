@@ -198,5 +198,62 @@
     @if ($opportunities->hasPages())
         <div class="lk-pagination pt-2">{{ $opportunities->withQueryString()->links() }}</div>
     @endif
+
+    {{-- ══ COMMUNITY-GENERATED IDEAS ══
+         DSS concepts raised by community reports alone, with no office behind
+         them. This is a separate thing from the qualified opportunities above,
+         which are approved problems an office marked capstone-worthy. The
+         Office-Backed scope is about office work, so it never lists these. --}}
+    @if ($activeScope !== 'office' && $communityGeneratedIdeas->isNotEmpty())
+        <section class="lk-card anim-1 p-5">
+            <div class="co-section-head">
+                <span class="co-section-dot" aria-hidden="true"></span>
+                <h2 class="co-section-title">Community-Generated Ideas</h2>
+            </div>
+            <p class="co-section-sub">
+                Project concepts the DSS generated from community-reported problems, with no office attached.
+                Open one to see the evidence and reasoning behind it.
+            </p>
+
+            <div class="mt-3 grid gap-4 md:grid-cols-2">
+                @foreach ($communityGeneratedIdeas as $communityIdea)
+                    <article class="rounded-xl border p-4" style="border-color: var(--border); background: var(--surface2);">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <h3 class="lk-problem-title text-sm" style="margin: 0;">
+                                {{ $communityIdea->ai_title ?: $communityIdea->idea_title }}
+                            </h3>
+                            <span class="lk-badge badge-amber shrink-0">{{ $communityIdea->category }}</span>
+                        </div>
+
+                        @if ($communityIdea->ai_description)
+                            <p class="lk-problem-desc mt-2">{{ $communityIdea->ai_description }}</p>
+                        @endif
+
+                        <div class="mt-3 flex flex-wrap items-center gap-3">
+                            @if ($communityIdea->overall_score !== null)
+                                <span class="lk-signal">
+                                    <i data-lucide="gauge" aria-hidden="true"></i>
+                                    Overall {{ number_format((float) $communityIdea->overall_score, 2) }}
+                                </span>
+                            @endif
+                            @if ($communityIdea->recommendation)
+                                <span class="lk-signal">
+                                    <i data-lucide="sparkles" aria-hidden="true"></i>
+                                    {{ $communityIdea->recommendation }}
+                                </span>
+                            @endif
+                        </div>
+
+                        <div class="mt-3 flex flex-wrap items-center gap-3 border-t pt-3" style="border-color: var(--border);">
+                            <a href="{{ route('feedback.category', ['category' => $communityIdea->category, 'scope' => 'community']) }}" class="btn-ghost text-sm">
+                                View Idea
+                                <i data-lucide="arrow-right" class="h-4 w-4" aria-hidden="true"></i>
+                            </a>
+                        </div>
+                    </article>
+                @endforeach
+            </div>
+        </section>
+    @endif
 </div>
 @endsection

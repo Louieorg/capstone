@@ -108,9 +108,12 @@ html:not(.dark) {
   $category = $notification->data['category'] ?? null;
   $ideaTitle = $notification->data['idea_title'] ?? null;
   $hasGeneratedIdeaTarget = filled($category) && filled($ideaTitle);
+  $isConfirmationRequest = ($notification->data['type'] ?? null) === \App\Notifications\OfficeConfirmationRequested::TYPE;
+  $isOfficeReportReview = ($notification->data['type'] ?? null) === \App\Notifications\OfficeReportAwaitingReview::TYPE;
+  $isLinked = $hasGeneratedIdeaTarget || $isConfirmationRequest || $isOfficeReportReview;
 @endphp
 
-@if($hasGeneratedIdeaTarget)
+@if($isLinked)
 <a href="{{ route('notifications.redirect', $notification) }}" class="notif-card" style="text-decoration:none;color:inherit">
 @else
 <div class="notif-card">
@@ -127,10 +130,14 @@ html:not(.dark) {
       {{ $notification->created_at->diffForHumans() }}
       @if($hasGeneratedIdeaTarget)
         • Click to open the generated capstone idea
+      @elseif($isConfirmationRequest)
+        • Click to review your office confirmation requests
+      @elseif($isOfficeReportReview)
+        • Click to review the pending office report
       @endif
     </div>
   </div>
-@if($hasGeneratedIdeaTarget)
+@if($isLinked)
 </a>
 @else
 </div>

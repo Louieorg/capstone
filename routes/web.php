@@ -78,6 +78,20 @@ Route::get('/similar-problems', [FeedbackController::class, 'similarProblems'])
 
 /*
 |--------------------------------------------------------------------------
+| TERMS & CONDITIONS (public — linked from login, register and the landing page)
+|--------------------------------------------------------------------------
+*/
+Route::view('/terms', 'legal.terms')->name('terms');
+
+/*
+|--------------------------------------------------------------------------
+| PRIVACY RIGHTS (public — linked from login, register and the landing page)
+|--------------------------------------------------------------------------
+*/
+Route::view('/help/privacy', 'help.privacy')->name('help.privacy');
+
+/*
+|--------------------------------------------------------------------------
 | AUTH ROUTES (Google Login)
 |--------------------------------------------------------------------------
 */
@@ -159,6 +173,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return view('user.ideas', compact('ideas', 'responsibleOffices'));
     })->name('user.ideas');
 
+    // User Guide and FAQ (documentation only; no controller needed)
+    Route::view('/help/user-guide', 'help.user-guide')
+        ->name('help.user-guide');
+
+    Route::view('/help/faq', 'help.faq')
+        ->name('help.faq');
+
     // Notifications
     Route::get('/notifications', function () {
         $user = auth()->user();
@@ -183,6 +204,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         $category = $notification->data['category'] ?? null;
         $ideaTitle = $notification->data['idea_title'] ?? null;
+
+        // Office confirmation requests go to the recipient's own existing
+        // request queue, where Confirm / Decline already live.
+        if (($notification->data['type'] ?? null) === \App\Notifications\OfficeConfirmationRequested::TYPE) {
+            return redirect()->route('office.confirmations.index');
+        }
+
+        // Office reports awaiting review go to the reviewer queue the recipient
+        // already uses to approve or reject.
+        if (($notification->data['type'] ?? null) === \App\Notifications\OfficeReportAwaitingReview::TYPE) {
+            return redirect()->route('office.review.index');
+        }
 
         if ($category && $ideaTitle) {
             return redirect()->to(

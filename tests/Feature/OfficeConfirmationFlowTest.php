@@ -100,6 +100,51 @@ test('office opportunity display uses official office identity and never the rep
         ->assertDontSeeText('private-login@example.test');
 });
 
+test('a student can request office confirmation and sees a non-clickable pending state without duplicates', function (): void {
+    $office = confirmationTestOffice();
+    $evaluation = confirmationTestEvaluation($office, 'Student Confirmation Request UI');
+    $student = User::factory()->create(['role' => 'user']);
+    $categoryUrl = route('feedback.category', $evaluation->category);
+    $requestUrl = route('office.confirmations.store', $evaluation);
+    $reviewer = User::factory()->create(['role' => 'office_academic']);
+
+    $this->actingAs($reviewer)
+        ->get($categoryUrl)
+        ->assertOk()
+        ->assertDontSeeText('Request office confirmation');
+
+    $this->actingAs($student)
+        ->get($categoryUrl)
+        ->assertOk()
+        ->assertSee('action="'.$requestUrl.'"', false)
+        ->assertSeeText('Request office confirmation');
+
+    $this->actingAs($student)
+        ->from($categoryUrl)
+        ->post($requestUrl)
+        ->assertRedirect($categoryUrl)
+        ->assertSessionHas('success');
+
+    $this->actingAs($student)
+        ->get($categoryUrl)
+        ->assertOk()
+        ->assertSeeText('AVAILABLE')
+        ->assertSee('<button type="button" class="btn-ghost office-confirmation-requested" disabled aria-disabled="true">Confirmation requested</button>', false)
+        ->assertDontSeeText('Request office confirmation');
+
+    $this->actingAs($student)
+        ->from($categoryUrl)
+        ->post($requestUrl)
+        ->assertRedirect($categoryUrl)
+        ->assertSessionHas('info');
+
+    expect(OfficeConfirmationRequest::query()
+        ->where('requester_user_id', $student->id)
+        ->where('idea_evaluation_id', $evaluation->id)
+        ->where('status', OfficeConfirmationRequest::STATUS_PENDING)
+        ->count())->toBe(1);
+});
+
 test('community opportunity remains visible without office confirmation details', function (): void {
     Feedback::query()->create([
         'title' => 'Community equipment reports are tracked manually',
@@ -183,7 +228,18 @@ test('only the current representative can confirm and other students see the opp
     $this->actingAs($otherStudent)
         ->get(route('feedback.category', $evaluation->category))
         ->assertOk()
-        ->assertSeeText('TAKEN');
+        ->assertSeeText('TAKEN')
+        ->assertDontSeeText('Request office confirmation');
+
+    $this->actingAs($otherStudent)
+        ->from(route('feedback.category', $evaluation->category))
+        ->post(route('office.confirmations.store', $evaluation))
+        ->assertRedirect(route('feedback.category', $evaluation->category))
+        ->assertSessionHasErrors('confirmation');
+
+    expect(OfficeConfirmationRequest::query()
+        ->where('idea_evaluation_id', $evaluation->id)
+        ->count())->toBe(1);
 });
 
 test('the first confirmation stales competing pending requests and the second cannot confirm', function (): void {

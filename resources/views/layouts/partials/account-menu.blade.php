@@ -11,9 +11,15 @@
      with its own CSRF token, so either Logout button signs the user out. --}}
 @php
   $accountUser = auth()->user();
-  $accountRole = $accountUser->isOfficeReviewer()
-      ? ($accountUser->officeLabel() ?? ucfirst($accountUser->role))
-      : ucfirst($accountUser->role);
+  // Resolved once: representation is a relationship on the active Office rows,
+  // not a role. One query feeds both the label and the office names.
+  $accountOffices = $accountUser->activeRepresentedOffices();
+  $accountOfficeNames = $accountOffices->pluck('name');
+  $accountRole = ($accountUser->role === 'user' && $accountOffices->isNotEmpty())
+      ? 'Office Representative'
+      : ($accountUser->isOfficeReviewer()
+          ? ($accountUser->officeLabel() ?? ucfirst($accountUser->role))
+          : ucfirst($accountUser->role));
   $accountLogoutFormId = $logoutFormId ?? 'logoutForm';
   $accountPlacement = $placement ?? 'sidebar';
 @endphp
@@ -28,6 +34,9 @@
     <span class="sb-account-meta">
       <span class="sb-account-name">{{ $accountUser->name }}</span>
       <span class="sb-account-role">{{ $accountRole }}</span>
+      @foreach($accountOfficeNames as $accountOfficeName)
+        <span class="sb-account-office">{{ $accountOfficeName }}</span>
+      @endforeach
     </span>
     <i data-lucide="chevrons-up-down" class="sb-account-chevron"></i>
   </button>
@@ -38,6 +47,13 @@
     <div class="sb-account-head">
       <div class="sb-account-name">{{ $accountUser->name }}</div>
       <div class="sb-account-role">{{ $accountRole }}</div>
+      @if($accountOfficeNames->isNotEmpty())
+        <div class="sb-account-offices">
+          @foreach($accountOfficeNames as $accountOfficeName)
+            <div class="sb-account-office">{{ $accountOfficeName }}</div>
+          @endforeach
+        </div>
+      @endif
     </div>
     <a href="{{ route('profile.edit') }}" class="sb-dd-item"><i data-lucide="user-round"></i> Profile</a>
     @if($accountUser->role === 'admin')

@@ -85,6 +85,82 @@ html:not(.dark) {
   box-shadow: 0 0 0 4px var(--adim);
 }
 
+/* Keep opportunity content inside its card, including long titles and email
+   addresses. `min-width: 0` on every descendant removes the flex/grid automatic
+   minimum floor, which is what actually let long content push past the card;
+   text itself keeps normal word wrapping instead of breaking everywhere. */
+.co-opportunity-card,
+.co-opportunity-card * { min-width: 0; }
+.co-opportunity-card :where(p, h1, h2, h3, h4, li, strong, a) {
+  max-width: 100%;
+}
+/* Break a single unbreakable token only when it cannot fit on its own line. */
+.co-longtext,
+.co-opportunity-card :where(p, h1, h2, h3, h4, li, strong, a, button, span) {
+  overflow-wrap: break-word;
+}
+/* The contact address has no whitespace at all, so it is the one place that
+   needs to break mid-token. */
+.co-opportunity-card .office-contact-email {
+  display: inline-block; max-width: 100%;
+  overflow-wrap: anywhere; word-break: break-word;
+}
+.co-opportunity-card .lk-badge { max-width: 100%; white-space: normal; }
+.co-opportunity-card .office-confirmation-requested { cursor: not-allowed; opacity: .7; }
+
+/* Text-bearing grid tracks must be allowed to shrink below their content. */
+.co-compare-grid {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px;
+}
+.co-opportunity-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: 16px;
+}
+
+/* Office row: the text column shrinks so the status badge is never pushed past
+   the card edge; below 640px it wraps onto its own row. */
+.co-office-row {
+  display: flex; flex-wrap: wrap; align-items: flex-start;
+  justify-content: space-between;
+  /* Horizontal clearance between the metadata column and the status badge.
+     Vertical spacing for the wrapped badge comes from its own margin-top, so
+     row-gap stays at 0 and the two never add up. */
+  column-gap: 16px; row-gap: 0;
+}
+.co-office-text { min-width: 0; max-width: 100%; }
+.co-office-details { padding-inline: 14px; }
+/* Metadata rows get vertical rhythm without changing type size. */
+.co-office-meta { display: flex; flex-direction: column; gap: 8px; }
+.co-office-meta > p { line-height: 1.55; }
+.co-office-badge { flex-shrink: 0; margin-left: auto; }
+@media (max-width: 640px) {
+  /* Once the badge wraps onto its own row it needs its own breathing room. */
+  .co-office-badge { margin-left: 0; margin-top: 10px; }
+}
+/* Consultation note sits clear of the contact row, at the same visual weight. */
+.co-office-note { margin-top: 18px; line-height: 1.65; }
+
+/* Card action row: confirmation request stays the secondary action, Save Idea the
+   stronger one. Full-width stacked buttons on phones. */
+.co-card-actions {
+  padding: 20px 28px 28px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+}
+.co-card-actions form,
+.co-card-actions button { min-width: 0; max-width: 100%; }
+@media (max-width: 640px) {
+  .co-compare-grid { grid-template-columns: minmax(0, 1fr); }
+  .co-card-actions { padding: 20px 20px 20px; flex-direction: column; align-items: stretch; }
+  .co-card-actions form,
+  .co-card-actions button {
+    width: 100%; justify-content: center; white-space: normal;
+  }
+  .co-opportunity-card .office-confirmation-form button {
+    width: 100%; justify-content: center; white-space: normal;
+  }
+}
+
 /* ── Scope filter (page-level; this view does not load the design-system partial) ── */
 .sort-pills { display: flex; flex-wrap: wrap; gap: 8px; }
 .sort-pill {
@@ -449,7 +525,7 @@ html.dark .btn-amber { background: #fbb034; }
 
 /* ── Next steps ── */
 .co-steps {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;
 }
 .co-step {
   background: var(--surface); border: 1px solid var(--border);
@@ -511,7 +587,7 @@ html.dark .btn-amber { background: #fbb034; }
   @endphp
   <div x-data="{ detailsOpen:false, aiOpen:false }"
        id="idea-{{ \Illuminate\Support\Str::slug($topIdea['title'] ?? 'top-idea') }}"
-       class="lk-card anim-1 {{ $isTopIdeaHighlighted ? 'idea-highlight' : '' }}"
+      class="lk-card co-opportunity-card anim-1 {{ $isTopIdeaHighlighted ? 'idea-highlight' : '' }}"
        style="border-color:var(--amid);overflow:hidden;{{ $isTopIdeaHighlighted ? 'box-shadow:0 0 0 4px var(--adim);' : '' }}">
 
     {{-- Amber top line --}}
@@ -573,17 +649,17 @@ html.dark .btn-amber { background: #fbb034; }
           <h2 class="co-section-title">What You Could Build</h2>
         </div>
 
-        <h2 style="font-family:'Sora',sans-serif;font-size:clamp(22px,3vw,30px);font-weight:800;line-height:1.15;color:var(--text);margin:0 0 8px">
+        <h2 class="co-longtext" style="font-family:'Sora',sans-serif;font-size:clamp(22px,3vw,30px);font-weight:800;line-height:1.15;color:var(--text);margin:0 0 8px">
           {{ $topProjectName ?: ($topIdea['title'] ?? 'No title available') }}
         </h2>
 
         @if($topConcept)
-          <p style="font-size:15px;font-weight:600;color:var(--text2);line-height:1.5;margin:0 0 10px">
+          <p class="co-longtext" style="font-size:15px;font-weight:600;color:var(--text2);line-height:1.5;margin:0 0 10px">
             {{ $topConcept }}
           </p>
         @endif
 
-        <p style="font-size:12.5px;color:var(--text3);line-height:1.6;margin:0">
+        <p class="co-longtext" style="font-size:12.5px;color:var(--text3);line-height:1.6;margin:0">
           Capstone opportunity:
           <strong style="font-weight:600;color:var(--text2)">{{ $topIdea['title'] ?? 'No title available' }}</strong>
         </p>
@@ -795,7 +871,7 @@ html.dark .btn-amber { background: #fbb034; }
         <h3 class="co-section-title">Objectives</h3>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+      <div class="co-compare-grid">
         <div>
           <p style="font-size:12.5px;font-weight:600;color:var(--text);margin-bottom:8px">General objective</p>
           <p style="font-size:13px;color:var(--text2);line-height:1.7">{{ $topIdea['general_objective'] ?? 'No objective available' }}</p>
@@ -841,42 +917,52 @@ html.dark .btn-amber { background: #fbb034; }
         };
         $officeStatusClass = $officeConfirmationState === 'office-confirmed' ? 'badge-green' : ($officeConfirmationState === 'taken' ? 'badge-muted' : 'badge-amber');
       @endphp
-      <section class="mx-7 mb-6 border-t pt-4" style="border-color:var(--border)" aria-label="Office opportunity details">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-          <div class="space-y-1 text-sm" style="color:var(--text2)">
+      <section class="co-office-details mx-7 border-t pt-4" style="border-color:var(--border)" aria-label="Office opportunity details">
+        <div class="co-office-row">
+          <div class="co-office-text co-office-meta text-sm" style="color:var(--text2)">
             <p>Office: <strong style="color:var(--text)">{{ $topIdea['office']->name }}</strong></p>
             <p>Representative: <strong style="color:var(--text)">{{ $topIdea['office']->representative?->name ?? 'Unavailable' }}</strong></p>
             <p>Contact:
               @if($topIdea['office']->contact_email)
-                <a class="underline" href="mailto:{{ $topIdea['office']->contact_email }}">{{ $topIdea['office']->contact_email }}</a>
+                <a class="underline office-contact-email" href="mailto:{{ $topIdea['office']->contact_email }}">{{ $topIdea['office']->contact_email }}</a>
               @else
                 <span>Not provided</span>
               @endif
             </p>
           </div>
-          <span class="lk-badge {{ $officeStatusClass }}">{{ $officeStatusLabel }}</span>
+          <span class="lk-badge co-office-badge {{ $officeStatusClass }}">{{ $officeStatusLabel }}</span>
         </div>
         @if($officeConfirmationState === 'available')
-          <p class="mt-3 text-sm" style="color:var(--text3)">Consult the office representative before requesting confirmation. Consultation happens outside LIKHA; this request does not record a consultation or reserve the opportunity.</p>
+          <p class="co-longtext co-office-note text-sm" style="color:var(--text3)">Consult the office representative before requesting confirmation. Consultation happens outside LIKHA; this request does not record a consultation or reserve the opportunity.</p>
           @auth
             @if($topIdea['has_pending_confirmation'] ?? false)
-              <p class="mt-2 text-sm font-medium" style="color:var(--text2)">Your confirmation request is pending. The opportunity remains available until the office confirms.</p>
-            @else
-              <form method="POST" action="{{ route('office.confirmations.store', $topIdea['office_evaluation_id']) }}" class="mt-3">
-                @csrf
-                <button type="submit" class="btn-ghost text-sm">Request office confirmation</button>
-              </form>
+              <p class="co-longtext mt-2 text-sm font-medium" style="color:var(--text2)">Your confirmation request is pending. The opportunity remains available until the office confirms.</p>
             @endif
           @endauth
         @elseif($officeConfirmationState === 'unavailable')
-          <p class="mt-3 text-sm" style="color:var(--text3)">This opportunity is no longer available for office confirmation.</p>
+          <p class="co-longtext co-office-note text-sm" style="color:var(--text3)">This opportunity is no longer available for office confirmation.</p>
         @endif
       </section>
     @endif
 
-    {{-- Action buttons --}}
-    <div style="padding:0 28px 28px;display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+    {{-- Action buttons. The confirmation request is the secondary action and
+         Save Idea stays the stronger personal one. Requesting is a student
+         action; the office's own reviewer must not request their own office's
+         opportunity. OfficeConfirmationService still decides every request. --}}
+    <div class="co-card-actions">
       @auth
+        @if(auth()->user()->role === 'user'
+            && ($topIdea['office'] ?? null)
+            && ($topIdea['office_confirmation_state'] ?? 'unavailable') === 'available')
+          @if($topIdea['has_pending_confirmation'] ?? false)
+            <button type="button" class="btn-ghost office-confirmation-requested" disabled aria-disabled="true">Confirmation requested</button>
+          @else
+            <form method="POST" action="{{ route('office.confirmations.store', $topIdea['office_evaluation_id']) }}" class="office-confirmation-form">
+              @csrf
+              <button type="submit" class="btn-ghost">Request office confirmation</button>
+            </form>
+          @endif
+        @endif
         <form method="POST" action="{{ route('idea.save') }}">
           @csrf
           <input type="hidden" name="title" value="{{ $topIdea['title'] ?? '' }}">
@@ -1141,8 +1227,8 @@ html.dark .btn-amber { background: #fbb034; }
       <h3 class="co-section-title">Other Generated DSS Ideas</h3>
       <span class="co-section-sub">Additional directions from the same problem area</span>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
-      @foreach($otherIdeas as $idea)
+<div class="co-opportunity-grid">
+        @foreach($otherIdeas as $idea)
       @php
         $ideaProjectName = $idea['project_name'] ?? null;
         $ideaConceptPrimary = $idea['concept']['primary'] ?? null;
@@ -1152,7 +1238,7 @@ html.dark .btn-amber { background: #fbb034; }
       @endphp
       <div
         id="idea-{{ \Illuminate\Support\Str::slug($ideaTitle) }}"
-        class="lk-card {{ $highlightedIdeaTitle === $ideaTitle ? 'idea-highlight' : '' }}"
+        class="lk-card co-opportunity-card {{ $highlightedIdeaTitle === $ideaTitle ? 'idea-highlight' : '' }}"
         style="padding:20px;display:flex;flex-direction:column;gap:12px">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
           <span class="lk-badge badge-amber">Generated DSS Idea</span>
@@ -1181,7 +1267,7 @@ html.dark .btn-amber { background: #fbb034; }
           Problem cluster: <strong style="color:var(--text2)">{{ $idea['cluster_label'] ?? Str::headline($idea['group'] ?? '') }}</strong>
         </p>
 
-        <p style="font-size:12.5px;color:var(--text2);line-height:1.65;flex:1">
+        <p class="co-longtext" style="font-size:12.5px;color:var(--text2);line-height:1.65;flex:1;min-width:0">
           {{ Str::limit($idea['description'] ?? '', 140) }}
         </p>
 
@@ -1196,12 +1282,12 @@ html.dark .btn-amber { background: #fbb034; }
             };
             $officeStatusClass = $officeConfirmationState === 'office-confirmed' ? 'badge-green' : ($officeConfirmationState === 'taken' ? 'badge-muted' : 'badge-amber');
           @endphp
-          <section class="border-t pt-3" style="border-color:var(--border)" aria-label="Office opportunity details">
+          <section class="co-office-details border-t pt-3" style="border-color:var(--border)" aria-label="Office opportunity details">
             <p style="font-size:11.5px;color:var(--text2)">Office: <strong>{{ $idea['office']->name }}</strong></p>
             <p style="font-size:11.5px;color:var(--text2)">Representative: <strong>{{ $idea['office']->representative?->name ?? 'Unavailable' }}</strong></p>
             <p style="font-size:11.5px;color:var(--text2)">Contact:
               @if($idea['office']->contact_email)
-                <a class="underline" href="mailto:{{ $idea['office']->contact_email }}">{{ $idea['office']->contact_email }}</a>
+                <a class="underline office-contact-email" href="mailto:{{ $idea['office']->contact_email }}">{{ $idea['office']->contact_email }}</a>
               @else
                 Not provided
               @endif
@@ -1210,13 +1296,16 @@ html.dark .btn-amber { background: #fbb034; }
             @if($officeConfirmationState === 'available')
               <p class="mt-2" style="font-size:11.5px;color:var(--text3)">Consult the office representative before requesting confirmation. Consultation happens outside LIKHA.</p>
               @auth
-                @if($idea['has_pending_confirmation'] ?? false)
-                  <p class="mt-2" style="font-size:11.5px;color:var(--text2)">Your request is pending; this opportunity remains available.</p>
-                @else
-                  <form method="POST" action="{{ route('office.confirmations.store', $idea['office_evaluation_id']) }}" class="mt-2">
-                    @csrf
-                    <button type="submit" class="btn-ghost" style="width:100%;justify-content:center;font-size:12px;padding:8px">Request office confirmation</button>
-                  </form>
+                @if(auth()->user()->role === 'user')
+                  @if($idea['has_pending_confirmation'] ?? false)
+                    <button type="button" class="btn-ghost office-confirmation-requested mt-2" style="width:100%;justify-content:center;font-size:12px;padding:8px" disabled aria-disabled="true">Confirmation requested</button>
+                    <p class="mt-2" style="font-size:11.5px;color:var(--text2)">Your request is pending; this opportunity remains available.</p>
+                  @else
+                    <form method="POST" action="{{ route('office.confirmations.store', $idea['office_evaluation_id']) }}" class="mt-2 office-confirmation-form">
+                      @csrf
+                      <button type="submit" class="btn-ghost" style="width:100%;justify-content:center;font-size:12px;padding:8px">Request office confirmation</button>
+                    </form>
+                  @endif
                 @endif
               @endauth
             @elseif($officeConfirmationState === 'unavailable')

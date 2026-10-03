@@ -85,7 +85,10 @@ test('a stored idea in a category that no longer qualifies is not surfaced on ca
     $this->get(route('capstone.opportunities'))
         ->assertOk()
         ->assertDontSeeText('DSS Ideas by Category')
-        ->assertDontSeeText('Current Records Retrieval System')
+        // A qualifying community idea is surfaced here as a Community-Generated Idea.
+        ->assertSeeText('Community-Generated Ideas')
+        ->assertSeeText('Current Records Retrieval System')
+        // A category that no longer qualifying is still hidden.
         ->assertDontSeeText('Retired Records Retrieval System')
         ->assertDontSeeText('Retired Category');
 });

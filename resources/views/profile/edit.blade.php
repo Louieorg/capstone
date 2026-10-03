@@ -6,6 +6,16 @@
 @section('content')
 @include('layouts.partials.design-system')
 
+@php
+    // Representation is a relationship on the active Office rows, not a role.
+    // One query feeds the position label and the represented office names.
+    $representedOffices = $user->activeRepresentedOffices();
+    $representedOfficeNames = $user->role === 'user' ? $representedOffices->pluck('name') : collect();
+    $positionLabel = $representedOfficeNames->isNotEmpty()
+        ? 'Office Representative'
+        : ucfirst($user->role ?? 'User');
+@endphp
+
 <style>
     /* ── Mobile personal hub (below 768px) ──
        Profile is a permanent bottom-nav destination there, so this hub carries
@@ -31,6 +41,10 @@
     .pf-identity-role {
         font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
         color: var(--muted); margin-top: 2px;
+    }
+    .pf-identity-office {
+        font-size: 11.5px; color: var(--text2); margin-top: 2px;
+        overflow-wrap: break-word; min-width: 0;
     }
 
     .pf-group { border-bottom: 1px solid var(--border); }
@@ -112,7 +126,10 @@
             <span class="h-avatar">{{ strtoupper(substr($user->name, 0, 1)) }}</span>
             <div class="pf-identity-text">
                 <div class="pf-identity-name">{{ $user->name }}</div>
-                <div class="pf-identity-role">{{ ucfirst($user->role ?? 'User') }}</div>
+                <div class="pf-identity-role">{{ $positionLabel }}</div>
+                @foreach($representedOfficeNames as $representedOfficeName)
+                    <div class="pf-identity-office">{{ $representedOfficeName }}</div>
+                @endforeach
             </div>
         </div>
 
@@ -123,6 +140,15 @@
                 <span class="pf-row-text">Saved Ideas</span>
                 <i data-lucide="chevron-right" class="pf-row-chevron" aria-hidden="true"></i>
             </a>
+            {{-- Mobile counterpart of the sidebar item, so a representative can
+                 reach their queue on a phone too. --}}
+            @if($user->isOfficeRepresentative())
+                <a href="{{ route('office.confirmations.index') }}" class="pf-row">
+                    <i data-lucide="clipboard-check" class="pf-row-icon" aria-hidden="true"></i>
+                    <span class="pf-row-text">Confirmation Requests</span>
+                    <i data-lucide="chevron-right" class="pf-row-chevron" aria-hidden="true"></i>
+                </a>
+            @endif
             <a href="{{ route('profile.edit') }}#profile-contribution" class="pf-row">
                 <i data-lucide="badge-check" class="pf-row-icon" aria-hidden="true"></i>
                 <span class="pf-row-text">My Contribution</span>
@@ -140,6 +166,30 @@
             <a href="{{ route('profile.edit') }}#profile-password" class="pf-row">
                 <i data-lucide="key-round" class="pf-row-icon" aria-hidden="true"></i>
                 <span class="pf-row-text">Change Password</span>
+                <i data-lucide="chevron-right" class="pf-row-chevron" aria-hidden="true"></i>
+            </a>
+        </div>
+
+        <div class="pf-group">
+            <div class="pf-group-label">Help &amp; Settings</div>
+            <a href="{{ route('help.user-guide') }}" class="pf-row">
+                <i data-lucide="book-open" class="pf-row-icon" aria-hidden="true"></i>
+                <span class="pf-row-text">User Guide</span>
+                <i data-lucide="chevron-right" class="pf-row-chevron" aria-hidden="true"></i>
+            </a>
+            <a href="{{ route('help.faq') }}" class="pf-row">
+                <i data-lucide="circle-help" class="pf-row-icon" aria-hidden="true"></i>
+                <span class="pf-row-text">FAQ</span>
+                <i data-lucide="chevron-right" class="pf-row-chevron" aria-hidden="true"></i>
+            </a>
+            <a href="{{ route('help.privacy') }}" class="pf-row">
+                <i data-lucide="shield-check" class="pf-row-icon" aria-hidden="true"></i>
+                <span class="pf-row-text">Privacy Rights</span>
+                <i data-lucide="chevron-right" class="pf-row-chevron" aria-hidden="true"></i>
+            </a>
+            <a href="{{ route('terms') }}" class="pf-row">
+                <i data-lucide="file-text" class="pf-row-icon" aria-hidden="true"></i>
+                <span class="pf-row-text">Terms &amp; Conditions</span>
                 <i data-lucide="chevron-right" class="pf-row-chevron" aria-hidden="true"></i>
             </a>
         </div>
@@ -178,8 +228,14 @@
 
             <span class="lk-badge badge-muted shrink-0">
                 <i data-lucide="user-round" class="h-3 w-3" aria-hidden="true"></i>
-                {{ ucfirst($user->role ?? 'User') }}
+                {{ $positionLabel }}
             </span>
+            @if($representedOfficeNames->isNotEmpty())
+                <span class="lk-badge badge-amber shrink-0">
+                    <i data-lucide="building-2" class="h-3 w-3" aria-hidden="true"></i>
+                    {{ $representedOfficeNames->join(', ') }}
+                </span>
+            @endif
         </div>
 
         <div class="mt-5 grid grid-cols-2 gap-5 sm:grid-cols-3">

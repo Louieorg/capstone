@@ -88,9 +88,9 @@
     <div class="left-foot">
       <span>© {{ date('Y') }} LIKHA</span>
       <span>·</span>
-      <a href="#">Privacy</a>
+      <a href="{{ route('help.privacy') }}">Privacy</a>
       <span>·</span>
-      <a href="#">Terms</a>
+      <a href="{{ route('terms') }}">Terms</a>
     </div>
   </div>
 

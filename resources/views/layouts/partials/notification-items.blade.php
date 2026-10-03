@@ -3,8 +3,11 @@
     $category = $notification->data['category'] ?? null;
     $ideaTitle = $notification->data['idea_title'] ?? null;
     $hasGeneratedIdeaTarget = filled($category) && filled($ideaTitle);
+    $isConfirmationRequest = ($notification->data['type'] ?? null) === \App\Notifications\OfficeConfirmationRequested::TYPE;
+    $isOfficeReportReview = ($notification->data['type'] ?? null) === \App\Notifications\OfficeReportAwaitingReview::TYPE;
+    $isLinked = $hasGeneratedIdeaTarget || $isConfirmationRequest || $isOfficeReportReview;
   @endphp
-  @if($hasGeneratedIdeaTarget)
+  @if($isLinked)
     <a href="{{ route('notifications.redirect', $notification) }}" class="notif-item">
   @else
     <div class="notif-item">
@@ -18,13 +21,17 @@
           <span>{{ $notification->created_at->diffForHumans() }}</span>
           @if($hasGeneratedIdeaTarget)
             <span class="notif-item-chip">Open generated capstone</span>
+          @elseif($isConfirmationRequest)
+            <span class="notif-item-chip">Review request</span>
+          @elseif($isOfficeReportReview)
+            <span class="notif-item-chip">Review report</span>
           @endif
           @if(is_null($notification->read_at))
             <span>Unread</span>
           @endif
         </div>
       </div>
-  @if($hasGeneratedIdeaTarget)
+  @if($isLinked)
     </a>
   @else
     </div>

@@ -113,31 +113,113 @@
     .lk-chip span { opacity: .7; font-weight: 600; }
 
     /* Home-scoped: hero copy size (arbitrary values are absent from the served CSS) */
-    .lk-home-copy { font-size: 13.5px; }
+    .lk-home-copy { font-size: 16.5px; line-height: 1.7; color: var(--muted); }
 
     /* Home-scoped: latest-problems + aside shell, single column until 1280px */
     .lk-home-shell { display: grid; }
     @media (min-width: 1280px) {
         .lk-home-shell { grid-template-columns: minmax(0,1.5fr) minmax(0,0.9fr); }
     }
+
+     /* Keep the hero clear of the shell's floating notification control. */
+     .lk-home-feed { padding-top: 36px; }
+    @media (max-width: 1023px) {
+        .lk-home-feed { padding-top: 48px; }
+    }
+
+    /* ── Home hero: one calm editorial panel ──
+         Copy and actions share one left-aligned column for a clearer reading order. */
+    .lk-home-hero {
+        position: relative;
+        overflow: hidden;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 34px 35px;
+        min-height: 270px;
+        display: flex;
+        align-items: center;
+    }
+    .lk-home-hero::before {
+        content: '';
+        position: absolute; inset: 0 0 auto; height: 3px;
+        background: linear-gradient(to right, var(--amber), #f97316);
+    }
+    .lk-home-hero-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        align-items: start;
+        gap: 24px;
+        width: 100%;
+    }
+
+    /* Eyebrow: fixed-height amber pill, slightly larger type than the shared chip. */
+    .lk-home-hero .co-hero-eyebrow {
+        height: 35px; padding: 0 17px;
+        font-size: 13px; letter-spacing: 0.45px;
+    }
+
+    /* Headline: the primary visual focus. */
+    .lk-home-headline {
+        margin-top: 16px;
+        max-width: 760px;
+        font-size: 40px; font-weight: 700; line-height: 1.1;
+        color: var(--text);
+    }
+    .lk-home-headline-accent { color: var(--amber); }
+
+    .lk-home-hero .lk-home-copy {
+        margin-top: 14px; max-width: 720px;
+    }
+
+    /* Separate the two clear next steps from the orientation copy. */
+    .lk-home-actions {
+        display: flex; flex-wrap: wrap; gap: 11px;
+        padding-top: 20px; border-top: 1px solid var(--border);
+    }
+    .lk-home-actions .btn-amber,
+    .lk-home-actions .btn-ghost {
+        display: inline-flex; align-items: center; justify-content: center;
+        height: 48px; padding: 0 18px; border-radius: 10px;
+        font-size: 15px; font-weight: 600; line-height: 1;
+        white-space: nowrap;
+    }
+    .lk-home-actions .btn-amber { width: 187px; }
+    .lk-home-actions .btn-ghost { width: 181px; }
+
+    /* Tablet: tighten the panel and scale the headline before the mobile layout. */
+    @media (min-width: 480px) and (max-width: 767px) {
+        .lk-home-hero { padding: 26px; border-radius: 18px; min-height: 0; }
+        .lk-home-headline { font-size: 34px; }
+        .lk-home-hero .lk-home-copy { font-size: 15px; }
+    }
+
+    /* Mobile: stack the action buttons at full width for comfortable tapping. */
+    @media (max-width: 479px) {
+        .lk-home-hero { padding: 24px 20px 20px; border-radius: 16px; min-height: 0; }
+        .lk-home-hero-grid { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+        .lk-home-headline { font-size: 30px; }
+        .lk-home-hero .lk-home-copy { font-size: 14.5px; }
+        .lk-home-actions { flex-direction: column; align-items: stretch; }
+        .lk-home-actions .btn-amber,
+        .lk-home-actions .btn-ghost { width: 100%; }
+    }
 </style>
 
-<div class="mx-auto max-w-7xl space-y-6">
-    {{-- ── 1. Orientation header ── compact, single card, token-based ── --}}
-    <section class="lk-card anim-1 p-6 sm:p-7">
-        <div class="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+<div class="lk-home-feed mx-auto max-w-7xl space-y-6">
+    {{-- ── 1. Orientation header ── one editorial panel: copy left, actions right ── --}}
+    <section class="lk-home-hero anim-1">
+        <div class="lk-home-hero-grid">
             <div class="min-w-0">
                 <span class="co-hero-eyebrow">What's happening on campus</span>
-                <h1 class="mt-3 max-w-2xl font-['Sora'] text-2xl font-bold leading-snug sm:text-3xl">Campus friction, made visible.</h1>
-                <p class="mt-3 max-w-2xl lk-home-copy leading-6" style="color: var(--text2);">
-                    Home surfaces the institutional problems students are reporting right now, the support and evidence
-                    signals behind each one, and the capstone opportunities LIKHA's decision support system has begun to
-                    generate from them.
+                <h1 class="lk-home-headline font-['Sora']">Campus friction, <br><span class="lk-home-headline-accent">made visible.</span></h1>
+                <p class="lk-home-copy">
+                    See the problems students are raising, the evidence behind them, and the capstone ideas taking shape.
                 </p>
             </div>
-            <div class="flex shrink-0 flex-wrap gap-2.5">
-                <a href="{{ route('feedback.create') }}" class="btn-amber text-sm">Submit a Problem</a>
-                <a href="{{ route('discover') }}" class="btn-ghost text-sm">Explore Discover</a>
+            <div class="lk-home-actions">
+                <a href="{{ route('feedback.create') }}" class="btn-amber"><i data-lucide="plus" aria-hidden="true"></i>Submit a Problem</a>
+                <a href="{{ route('discover') }}" class="btn-ghost"><i data-lucide="compass" aria-hidden="true"></i>Explore Discover</a>
             </div>
         </div>
     </section>

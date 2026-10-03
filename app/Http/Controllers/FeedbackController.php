@@ -7,12 +7,15 @@ use App\Http\Requests\StoreFeedbackRequest;
 use App\Jobs\SynthesizeClusterExplanation;
 use App\Jobs\TranslateClusterExplanationToFilipino;
 use App\Models\AdviserReview;
+use App\Models\CategoryAssignment;
 use App\Models\ClusterExplanation;
 use App\Models\Feedback;
 use App\Models\FeedbackComment;
 use App\Models\FeedbackVote;
 use App\Models\IdeaEvaluation;
 use App\Models\OfficeConfirmationRequest;
+use App\Models\User;
+use App\Notifications\OfficeReportAwaitingReview;
 use App\Services\CategoryIdeaGenerationService;
 use App\Services\ClusterEvidenceService;
 use App\Services\ClusteringService;
@@ -319,6 +322,14 @@ class FeedbackController extends Controller
             }
         }
 
+        // An institutional office report lands as pending and can only be acted
+        // on by a reviewer whose role is assigned to its category. Tell those
+        // reviewers it arrived. Reviewer authority comes from the role plus its
+        // CategoryAssignment, never from representing the office.
+        if ($isAuthorizedOfficeSubmission) {
+            $this->notifyCategoryReviewers($created);
+        }
+
         return redirect()->route('feedback.submitted')
             ->with(
                 $isFlagged ? 'warning' : 'success',
@@ -326,6 +337,43 @@ class FeedbackController extends Controller
                     ? 'Problem submitted for admin review. It will be excluded from idea generation until approved as valid.'
                     : 'Problem submitted successfully.'
             );
+    }
+
+    /**
+     * Notify the current reviewers of the report's category.
+     *
+     * Resolution is deliberately role-based: the reviewer roles assigned to this
+     * category through CategoryAssignment, and only those. An office
+     * representative, an office head, an admin, and any unassigned reviewer are
+     * never notified.
+     */
+    private function notifyCategoryReviewers(Feedback $feedback): void
+    {
+        $reviewerRoles = CategoryAssignment::query()
+            ->where('category', $feedback->category)
+            ->pluck('office')
+            ->unique()
+            ->values();
+
+        if ($reviewerRoles->isEmpty()) {
+            return;
+        }
+
+        $reviewers = User::query()
+            ->whereIn('role', $reviewerRoles->all())
+            ->whereNotNull('email_verified_at')
+            ->get();
+
+        $notification = new OfficeReportAwaitingReview(
+            (string) $feedback->title,
+            (string) $feedback->category,
+            $feedback->office?->name,
+            (int) $feedback->id,
+        );
+
+        foreach ($reviewers as $reviewer) {
+            $reviewer->notify($notification);
+        }
     }
 
     /**
@@ -456,25 +504,26 @@ class FeedbackController extends Controller
 
         $opportunities = $opportunitiesQuery->paginate(9)->withQueryString();
 
-        // Only categories the DSS still qualifies for are presented as current
-        // opportunities. Stored rows are never deleted, only left uncounted.
+        // Community-Generated Ideas are DSS concepts with no office behind them.
+        // Qualified opportunities above are Feedback rows; these are the
+        // IdeaEvaluation rows the DSS produced from purely community reports, so
+        // the page carries both kinds without mixing their meaning. Only
+        // categories the DSS still qualifies for are current; stored rows are
+        // never deleted, only left uncounted.
         $qualifyingCategories = app(CategoryIdeaGenerationService::class)->qualifyingCategories();
 
-        $dssIdeasByCategory = $qualifyingCategories->isEmpty()
+        $communityGeneratedIdeas = $qualifyingCategories->isEmpty()
             ? new Collection
             : IdeaEvaluation::query()
                 ->whereIn('category', $qualifyingCategories)
-                ->when($activeScope === 'office', fn (Builder $query): Builder => $query->whereNotNull('office_id'))
-                ->when($activeScope === 'community', fn (Builder $query): Builder => $query->whereNull('office_id'))
-                ->select('category')
-                ->selectRaw('COUNT(*) as total')
-                ->selectRaw('MAX(overall_score) as top_score')
-                ->groupBy('category')
-                ->orderByDesc('total')
-                ->orderBy('category')
+                ->whereNull('office_id')
+                ->select(['id', 'idea_title', 'category', 'ai_title', 'ai_description', 'overall_score', 'recommendation'])
+                ->orderByDesc('overall_score')
+                ->orderBy('id')
+                ->limit(6)
                 ->get();
 
-        return view('capstone-opportunities.index', compact('opportunities', 'dssIdeasByCategory', 'activeScope'));
+        return view('capstone-opportunities.index', compact('opportunities', 'communityGeneratedIdeas', 'activeScope'));
     }
 
     public function priorityIndex(Request $request): View

@@ -48,7 +48,7 @@
 }" class="relative">
   <button
     type="button"
-    class="h-icon-btn notif-trigger"
+    class="h-icon-btn notif-trigger{{ $unreadNotificationCount ? ' has-unread' : '' }}"
     :class="{ 'is-open': open }"
     @click="open = !open; if (open) loadNotifications()"
     :aria-expanded="open.toString()"
